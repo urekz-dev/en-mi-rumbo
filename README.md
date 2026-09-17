@@ -16,7 +16,7 @@ infisical run --projectId e545592e-6df7-4561-9e6d-f555bea672fb --env dev -- <com
 - PR con la plantilla de la organización; revisión de otra persona; squash merge. `main-guard` avisa si alguien hace push directo.
 - Decisiones técnicas: `docs/adr/` (0001 reservado a "conservar o reescribir el prototipo").
 - Secretos: Infisical → proyecto "En Mi Rumbo". Nunca en el repo.
-- Handbook: https://urekz.com
+- Handbook: https://handbook.urekz.com
 
 ## Cuentas relacionadas
 Vercel (hosting), Namecheap (dominio; DNS migra a Cloudflare en EMR v1). Custodios en Notion → Tools & Vendors.
