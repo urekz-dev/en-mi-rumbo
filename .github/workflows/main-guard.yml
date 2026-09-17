@@ -1,6 +1,5 @@
 name: main-guard
-# Detecta pushes directos a main sin pull request (GitHub Free no protege ramas en repos privados).
-# No impide el push: falla el workflow, escribe un resumen y, si existe el secreto DISCORD_ALERTS_WEBHOOK, avisa en #alerts.
+# Caller: copia este archivo a .github/workflows/main-guard.yml del repo. La lógica vive en urekz-dev/workflows (privado).
 on:
   push:
     branches: [main]
@@ -9,30 +8,5 @@ permissions:
   pull-requests: read
 jobs:
   guard:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Buscar PR asociado al commit
-        id: pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          prs=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq 'length')
-          echo "count=$prs" >> "$GITHUB_OUTPUT"
-      - name: Resumen
-        run: |
-          if [ "${{ steps.pr.outputs.count }}" = "0" ]; then
-            echo "## ⚠️ Push directo a main sin PR" >> "$GITHUB_STEP_SUMMARY"
-            echo "Commit ${{ github.sha }} por ${{ github.actor }}. El delivery standard exige PR con revisión. Abre un PR de corrección o documenta la excepción (\`N/A - maintenance exception\`)." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "## ✅ Commit llegó por PR" >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Avisar en Discord (opcional)
-        if: steps.pr.outputs.count == '0' && env.WEBHOOK != ''
-        env:
-          WEBHOOK: ${{ secrets.DISCORD_ALERTS_WEBHOOK }}
-        run: |
-          payload=$(printf '{"content":"⚠️ **main-guard** · push directo a `main` en `%s` por **%s** (%s) sin PR."}' "${{ github.repository }}" "${{ github.actor }}" "${{ github.sha }}")
-          curl -s -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null
-      - name: Fallar si no hubo PR
-        if: steps.pr.outputs.count == '0'
-        run: exit 1
+    uses: urekz-dev/workflows/.github/workflows/main-guard.yml@main
+    secrets: inherit
