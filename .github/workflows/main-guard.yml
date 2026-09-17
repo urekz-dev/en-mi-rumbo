@@ -1,5 +1,5 @@
 name: main-guard
-# Caller: copia este archivo a .github/workflows/main-guard.yml del repo. La lógica vive en urekz-dev/workflows (privado).
+# Caller: copy this file to .github/workflows/main-guard.yml in the repository. The logic lives in urekz-dev/workflows (private).
 on:
   push:
     branches: [main]
