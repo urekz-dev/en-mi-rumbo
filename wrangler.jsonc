@@ -1,0 +1,16 @@
+// Local development and builds only. Environments (dev, stage, production),
+// their routes and the hourly Cron Trigger arrive with the deployment stories.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Local name only. Each environment sets its own Worker name (dev-enmirumbo,
+  // stage-enmirumbo, enmirumbo), so a deploy without --env never touches them.
+  "name": "enmirumbo-local",
+  // Custom entry: Astro's fetch handler plus the scheduled handler.
+  "main": "./src/worker.ts",
+  // Node.js compatibility is on by default from 2026-08-04.
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+  },
+}
