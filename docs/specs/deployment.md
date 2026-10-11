@@ -1,0 +1,535 @@
+# Spec: deployment
+
+What the system guarantees so that putting the site into production means setting variables and pressing a button: a single database dialect, what the CI tests, the build, configuration that cannot go missing silently, where photos live, the commands that write to the database, the scheduled tasks that run on their own, the headers on every response and the single deployment document.
+
+## Requirements
+
+### Requirement: A single database dialect in all environments
+
+The system MUST use the same database engine —PostgreSQL, the one ADR-004 recommends for production— in development, in testing, in continuous integration and in production. There MUST be a single Prisma schema and a single migration tree; the project MUST NOT maintain parallel migrations per dialect. The local database MUST be able to start with a single documented command, with no accounts or paid services, and the same migration tree that is applied locally MUST be the one applied in production.
+
+#### Scenario: local database from a fresh clone
+
+- **WHEN** someone clones the repository, copies `.env.example` to `.env`, starts the local database with the documented command and applies the migrations
+- **THEN** they get a PostgreSQL database with all the model's tables, and `npm run db:seed` leaves it with the three catalogues populated (8 categories, 21 zones, 49 trades)
+
+#### Scenario: the same tree in production
+
+- **WHEN** the migrations are applied to the empty production database
+- **THEN** exactly the same migration tree as locally is applied, with no manual steps or separately written SQL, and the resulting schema is the same
+
+#### Scenario: there are not two dialects to maintain
+
+- **WHEN** the project is reviewed
+- **THEN** there is a single Prisma schema, a single migrations directory and its declared dialect is PostgreSQL; no file in the project declares a different dialect
+
+### Requirement: The CI tests the migrations and the suite against an ephemeral Postgres
+
+Every Pull Request MUST be exercised against a PostgreSQL database created from scratch for that run: apply all the migrations in order, run the catalogue seed and run the whole test suite against it. A migration that does not apply, a seed that fails or a test that depends on a quirk of another dialect MUST fail the PR. The CI MUST NOT use anyone else's database or keep data between runs.
+
+#### Scenario: PR with a migration that does not apply in the production dialect
+
+- **WHEN** a PR adds a migration with SQL that PostgreSQL does not accept
+- **THEN** the CI fails at the migrations step and the PR cannot be merged
+
+#### Scenario: the suite runs against the production-equivalent database
+
+- **WHEN** the CI runs the tests
+- **THEN** all of them run against the run's ephemeral Postgres, including those for the search, the directory and the admin panel
+
+#### Scenario: clean database on every run
+
+- **WHEN** the same workflows are run twice in a row
+- **THEN** the second run starts with an empty database and gives the same result as the first
+
+### Requirement: The production build does not need the database
+
+`next build` MUST complete with no database reachable: no page MUST query the database at build time. Every route that reads the database MUST be rendered per request. The CI MUST build with no database reachable, so that a new route that breaks this rule fails the PR instead of being discovered on the first deploy.
+
+#### Scenario: build without a database
+
+- **WHEN** the production build is run with no database available or reachable
+- **THEN** it finishes successfully and does not try to connect
+
+#### Scenario: a new route that reads the database at build time
+
+- **WHEN** someone adds a page that queries the database and is not rendered per request
+- **THEN** the automatic check flags it and the PR fails
+
+### Requirement: In production no required configuration goes missing silently
+
+When a variable is missing without which the system cannot fulfil its function, the system MUST say so —in the server log at startup and, where applicable, on the affected screen— and MUST NEVER replace it with a development value. In particular: with no database address configured in production the system MUST NOT fall back to the default local database, and with no `SITIO_URL` in production no screen MUST build links to `localhost`. The same criterion applies to the scheduled tasks' secret and to photo storage, whose own consequences are stated in their requirements. Outside production the default local values are kept, so that a fresh clone starts without configuring anything.
+
+#### Scenario: production without a database address
+
+- **WHEN** the system starts in production without `DATABASE_URL`
+- **THEN** it records the problem with the name of the missing variable and does not connect to any default local database
+
+#### Scenario: production without `SITIO_URL`
+
+- **WHEN** the system starts in production without `SITIO_URL`
+- **THEN** it records the problem in the server log, and the admin panel visibly warns that it cannot build the card link instead of sending a `localhost` to a real business
+
+#### Scenario: development without configuring anything
+
+- **WHEN** someone starts the project locally with the local database up and with no variables beyond those in the example
+- **THEN** the site works with the development defaults and does not demand production configuration
+
+#### Scenario: the warning is not repeated per request
+
+- **WHEN** many pages are requested with incomplete configuration
+- **THEN** the warning appears only once per process in the log, not once per request
+
+### Requirement: No database connection leaves the machine unencrypted
+
+When the database address points to a host that is not the machine where the process runs, the connection MUST be encrypted. The system MUST NOT open a cleartext connection to a remote server: it MUST fail visibly and say in the log what is missing, with the same criterion it uses for `SITIO_URL` and `DATABASE_URL`. No message MUST include the database password. The deployment document MUST NOT contain any unencrypted remote example value, and the automatic check MUST fail if one appears.
+
+To decide whether the address is local or remote, the system MUST resolve the host **as the driver resolves it**, not by reading the URL by eye: a connection string can carry parameters that change the real destination. An address that cannot be interpreted safely MUST be treated as remote.
+
+#### Scenario: remote address without encryption
+
+- **WHEN** the system starts pointing to a database that is not on this machine and the address does not ask for TLS
+- **THEN** it opens no connection, says so in the log naming what is missing, and the message does not include the database password
+
+#### Scenario: the address disguised as local
+
+- **WHEN** an address says `localhost` in the visible part but the driver would connect to another host
+- **THEN** the system treats it as remote: it requires encryption and the commands that write in bulk to the database ask for explicit permission
+
+#### Scenario: the local database does not need encryption
+
+- **WHEN** the address points to the machine where the process runs
+- **THEN** TLS is not required, because the bytes do not leave the machine
+
+### Requirement: Commands that write to the database recognize the real environment
+
+The commands that write in bulk to the database (demo seed and search backfill) MUST recognize a dangerous environment: "local database" means a database on the machine of whoever runs the command —the same effective-host criterion that requires encryption—, not a prefix or a piece of text of the address. In production —detected by `NODE_ENV` or by `VERCEL_ENV`— the demo seed MUST NOT seed anything, not even with explicit permission. Against a remote database that is not production, it MUST require explicit permission. Each command MUST say why it did nothing.
+
+#### Scenario: demo seed in the hosting's production environment
+
+- **WHEN** an attempt is made to run the demo seed with `VERCEL_ENV=production`
+- **THEN** it seeds nothing and says so
+
+#### Scenario: demo seed pointing to a remote database
+
+- **WHEN** an attempt is made to run the demo seed with the address of a remote database and without the explicit permission
+- **THEN** it seeds nothing and explains that the address is not a local database and that the risk must be accepted by hand
+
+#### Scenario: demo seed against the local database
+
+- **WHEN** the demo seed is run against the local development PostgreSQL database
+- **THEN** it seeds the fictitious businesses and warns that what it seeded is fake data
+
+### Requirement: Business photos live in the provider's storage, not on the hosting disk
+
+Superseded in v2 by Business photos live in R2, with one bucket and one hostname per environment (v2) — source: ADR 0011.
+
+The system MUST store and serve business photos through a single port, with a production adapter that uses the file storage of the same provider as the database (Supabase Storage, ADR-006 + ADR-004) and NOT the hosting's file system, which is ephemeral. The development adapter (local file system) MUST exist and MUST be the one used on the machine of whoever is developing when there is no provider configuration.
+
+The permanent deletion of a business (ARCO, PRD §8) and the 90-day purge MUST take the files of the configured store with them, whichever it is. The orphan-photo sweep MUST ask the same port what is stored, and NOT the file system: a sweep that looks elsewhere reports success without having checked anything.
+
+A half-done provider configuration —with only one of its two mandatory variables— MUST NOT use the provider and MUST be left in the log; what is done instead is decided by the requirement "Without photo storage configured, a deployment does not silently fall back to disk". `docs/despliegue.md` MUST contain the variables, the human step of creating the **private** bucket and why it has to be private.
+
+#### Scenario: the photo is stored and served from the provider's storage
+
+- **WHEN** the system runs with the provider's storage configured and a business uploads a photo
+- **THEN** the files end up in that storage and the published card shows them, without depending on the disk of the instance that handled the upload
+
+#### Scenario: ARCO deletion takes the files with it
+
+- **WHEN** a business that had a photo is permanently deleted
+- **THEN** its files disappear from the provider's storage, not just from one instance's disk
+
+#### Scenario: the sweep looks where the photos are
+
+- **WHEN** the orphan sweep runs with the provider's storage configured
+- **THEN** it checks what is there; and if the store answers empty while the database has cards that say they have a photo, it does NOT report success: it warns that it is looking at the wrong store
+
+#### Scenario: half-done configuration
+
+- **WHEN** the system starts with only one of the provider's two mandatory variables
+- **THEN** it does not use the provider and records in the log which variable is missing and that without it the photos would not survive a deployment
+
+#### Scenario: no account needed in development
+
+- **WHEN** someone clones the project and configures nothing of the provider
+- **THEN** the photos go to the usual local directory and everything works the same
+
+### Requirement: Without photo storage configured, a deployment does not silently fall back to disk
+
+When the system runs deployed —the hosting says it is production, or the database is not on the machine that runs it— and there is no usable photo storage configuration, the system MUST NOT use the local file system. It MUST say so in the log at startup, naming the missing variables, and MUST fail visibly when trying to store a photo.
+
+A registration WITHOUT a photo MUST keep working normally. A submission WITH a photo MUST NOT be left half-done: the system MUST NOT create a card that promises an image that was not written, so it MUST return the form with the photo error message that already exists ("No pudimos preparar tu foto. Intenta con otra."), with no card saved and no stray files.
+
+The orphan sweep MUST distinguish "there is nothing stored" from "I could not look": without configured storage it MUST NOT report success. The permanent deletion of a card with a photo in that state is governed by the requirement "Permanent deletion refuses to claim it deleted what it did not delete": from here it cannot be known whether the bucket was configured before and still holds that photo, so the attempt to delete the files MUST fail visibly instead of being taken as good.
+
+Outside a deployment —the machine of whoever is developing— the local store is kept without configuring anything.
+
+#### Scenario: deployed and not configured
+
+- **WHEN** the system starts deployed without the storage variables
+- **THEN** it records in the log naming the missing variables, and no photo is stored on the instance's disk
+
+#### Scenario: registration with a photo does not leave a half-done card
+
+- **WHEN** someone registers their business with a photo in that state
+- **THEN** they see the form back with "No pudimos preparar tu foto. Intenta con otra.", no card from that submission is saved and no stray file remains, and the log says the photo could not be stored
+
+#### Scenario: registration without a photo keeps working
+
+- **WHEN** someone registers their business without a photo in that state
+- **THEN** the registration is saved normally and they see the usual thank-you screen
+
+#### Scenario: the sweep does not report success
+
+- **WHEN** the scheduled sweep task runs in that state
+- **THEN** it does not answer "nada que barrer": it answers with an error, so that the task scheduler records it
+
+#### Scenario: development without configuring anything
+
+- **WHEN** someone clones the project and starts it on their machine
+- **THEN** the photos go to the usual local directory, with no warnings or configuration
+
+### Requirement: Permanent deletion refuses to claim it deleted what it did not delete
+
+When a business has a photo and the storage cannot be reached, the permanent deletion (ARCO, PRD §8) MUST NOT run: the row MUST NOT be touched and whoever requested it MUST receive a message saying that it was **not** deleted, why, and that it can be retried. The files MUST be attempted BEFORE the row, or in the same unit of work; NEVER the row first, because then the photo —personal data— stays alive with no row naming it, out of reach even of the orphan sweep.
+
+The opposite risk —the files go and the row survives— is accepted in exchange: that card is left without a photo, which is repairable and visible.
+
+A business WITHOUT a photo MUST be deleted normally even if the storage is down: there is nothing to reach, and refusing there would be failing to comply with the deletion because of a configuration that does not affect that card.
+
+In the scheduled purge, a registration in that state MUST be counted as not purged —which makes the task answer with an error— and MUST be retried on the next run.
+
+#### Scenario: the card has a photo and the storage does not respond
+
+- **WHEN** the admin confirms the permanent deletion of a card with a photo and the storage cannot be reached
+- **THEN** the card still exists complete, and the screen says it was not deleted, that the photo store could not be reached and to check the configuration and try again
+
+#### Scenario: the card has no photo
+
+- **WHEN** a card without a photo is permanently deleted and the storage is down
+- **THEN** it is deleted normally: there was nothing to reach
+
+#### Scenario: the order of the two operations
+
+- **WHEN** a card with a photo is permanently deleted and everything works
+- **THEN** the files are deleted before the row
+
+#### Scenario: the scheduled purge facing the same state
+
+- **WHEN** the daily purge finds a registration that has reached 90 days, has a photo, and the storage does not respond
+- **THEN** that registration is not deleted, it is counted as not purged —the task answers with an error— and it keeps purging the others
+
+### Requirement: The purge of rejected registrations fires on its own in production
+
+Superseded in v2 by Scheduled work runs from one hourly Cron Trigger per environment (v2) — source: ADR 0013.
+
+The deletion of rejected registrations at 90 days (PRD §8) MUST run without human intervention, through a scheduled task that runs at least once a day in production. The trigger MUST be an HTTP request to a route of the system itself that only acts if it carries the configured secret; with no secret configured, or with a secret that does not match, the route MUST behave as if it did not exist (404) and MUST NOT delete anything. The route MUST NOT be indexable and its response MUST be limited to counts, with no personal data. The mechanism MUST NOT depend on anything exclusive to the hosting: any task scheduler able to make a request with a header MUST be able to trigger it (ADR-007).
+
+#### Scenario: the scheduled task runs
+
+- **WHEN** the task scheduler calls the route with the correct secret
+- **THEN** the system deletes the rejected registrations that have reached 90 days, answers with the counts of what it did and records it in the log with no one's names or numbers
+
+#### Scenario: someone finds the route
+
+- **WHEN** anyone requests that route without the secret, or with a wrong one
+- **THEN** they receive the same 404 response as a nonexistent route and no registration is deleted
+
+#### Scenario: no secret configured
+
+- **WHEN** the system runs without the tasks secret configured
+- **THEN** the route answers 404 to everyone and no purge runs
+
+#### Scenario: declared schedule
+
+- **WHEN** the deployment configuration is reviewed
+- **THEN** the task is declared with its daily frequency and `docs/despliegue.md` explains how to trigger it from any other task scheduler if the hosting changes
+
+### Requirement: The orphan-photo sweep also runs on its own, and it shows when it does not sweep
+
+Superseded in v2 by The orphan-photo sweep is a task of the hourly job and a sweep that cannot finish is an error (v2) — source: ADR 0013.
+
+The sweep of photos that no longer belong to any card —personal data that, without a card, falls outside the reach of ARCO deletion (PRD §8)— MUST run without human intervention, with a daily scheduled task, triggered like the purge: an HTTP request to the system itself with the configured secret, which without it answers 404 and does nothing.
+
+When the sweep does NOT complete —because one of its safeguards stopped it—, the response MUST NOT be a success: it MUST carry an error code that the task scheduler records as a failure, and be left in the log as an error. The equivalent console command already says so with its exit code; a scheduled version that answered "all good" would leave orphan photos piling up without anyone noticing. The report MUST be counts only: no photo key appears in the response or in the log.
+
+#### Scenario: normal sweep
+
+- **WHEN** the scheduled task calls the route with the correct secret and the sweep completes
+- **THEN** it answers with success and with the counts of what was checked and deleted, without any photo key
+
+#### Scenario: a safeguard stops the sweep
+
+- **WHEN** the sweep stops because it suspects it is pointing at the wrong database
+- **THEN** the response is NOT a success, the reason is left in the log as an error and no file is deleted
+
+#### Scenario: someone finds the route
+
+- **WHEN** anyone requests that route without the secret, or with a wrong one
+- **THEN** they receive the same 404 response as a nonexistent route and nothing is swept
+
+### Requirement: The 404 of scheduled tasks does not give them away
+
+When a scheduled task route answers as if it did not exist, its response MUST NOT carry any mark of its own —no body of its own, no content type of its own, no headers of its own— that would let it be told apart from the rest of the site's routes in an automated scan. It MUST be the empty 404 that the framework emits when an existing route decides that what was requested is not there, with nothing of its own on top.
+
+The framework returns two different 404s: the full HTML page when the address matches no route, and that empty response. A scheduled route cannot emit the first —the framework does not expose a way to render that page from there—, so what is required is that it emit exactly the second. The other route of the system that emits this empty 404 is the one that serves the photos, and it also adds `cache-control: no-store`: that header is its own, and the tasks route MUST NOT copy it to look similar, because an extra header is precisely a mark of its own.
+
+#### Scenario: a scanner looks for the task routes
+
+- **WHEN** someone requests a task route without the secret, with a wrong secret or with a malformed authorization header
+- **THEN** they receive the framework's empty 404 —no body, no content type and no header that the framework does not set—, indistinguishable from the 404 of any other route of the system that answers that what was requested does not exist
+
+### Requirement: What is stored to count quotas is not kept forever
+
+Superseded in v2 by Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2) — source: ADR 0012.
+
+The marks the system stores to enforce an anti-abuse limit MUST be deleted when they no longer serve for counting: they are data derived from third parties' IPs and keeping them without a purpose is what LFPDPPP art. 11 forbids. Deleting only those of the key that is queried again is NOT enough: the source that tries once and does not come back MUST be swept up by a daily scheduled task.
+
+The store of those marks MUST also have a ROW CEILING, because the screen that writes them is public and anonymous: past the ceiling, the oldest MUST be pruned. The retention period MUST be longer than the window of the system's longest limit, so that the cleanup does not silently weaken a quota; the automatic check MUST verify it.
+
+What the task reports MUST be counts, with no key or anyone's data.
+
+#### Scenario: the mark nobody queries again
+
+- **WHEN** a source spends a quota mark and never comes back, and then the daily scheduled task runs
+- **THEN** that mark is no longer in the database
+
+#### Scenario: the row ceiling
+
+- **WHEN** the mark store exceeds its ceiling
+- **THEN** the oldest are pruned until it is back at the ceiling, and the recent ones are kept
+
+#### Scenario: the cleanup does not weaken any quota
+
+- **WHEN** the retention period is reviewed against the windows of the limits in use
+- **THEN** the period is longer than the longest window, so the cleanup never deletes a mark that still counts
+
+### Requirement: Anti-abuse limits that protect credentials are counted in a shared store
+
+Superseded in v2 by The admin panel is protected by Cloudflare Access with one-time email codes (v2), in `admin-review` — source: ADR 0010.
+
+The limit on admin panel login attempts MUST be counted in a store shared by all instances of the system, not in each process's memory: on serverless hosting (ADR-007) an in-memory counter gives an attacker as many attempts as instances they manage to spin up. The check and the recording MUST be a single atomic operation.
+
+What is stored MUST NOT be the IP address: it MUST be a derived value that cannot be reversed without a deployment secret, and it MUST be deleted as soon as it leaves the limit's window. If the shared store does not respond, the limit MUST keep operating with the in-memory counter and the system MUST say so in the log.
+
+The deployment document MUST say, for each anti-abuse limit, whether it is shared between instances or not; it MUST NOT claim that they all operate the same way.
+
+#### Scenario: the attempts survive the recycling of an instance
+
+- **WHEN** the login attempts from a source are exhausted and the process loses its memory
+- **THEN** the source remains blocked within the window
+
+#### Scenario: no IP is left in the store
+
+- **WHEN** what the system stored when counting attempts is reviewed
+- **THEN** no IP address appears, but a value derived with the deployment secret
+
+#### Scenario: the shared store does not respond
+
+- **WHEN** the database is not available when counting an attempt
+- **THEN** the limit keeps operating with that instance's in-memory count and the log records that it is weaker
+
+#### Scenario: the document does not over-promise
+
+- **WHEN** someone reads in the document what each limit protects
+- **THEN** they find written which one is shared between instances and which are not, and what to do in the meantime
+
+### Requirement: The per-business report cap holds up under simultaneous requests in the production dialect
+
+The cap on unattended reports per business MUST be enforced even when simultaneous submissions arrive from different connections. The cap check and the write MUST happen inside the same transaction and be serialized per card; a conditional statement MUST NOT be enough, because PostgreSQL's default isolation level does not lock the rows that a `COUNT` reads.
+
+#### Scenario: two simultaneous submissions with the cap at one
+
+- **WHEN** two different connections try at the same time the report that would complete the cap
+- **THEN** only one writes, the other receives the usual confirmation, and the business ends up exactly at the cap
+
+### Requirement: The site declares where JavaScript may come from and where data may go
+
+The site MUST send a `Content-Security-Policy` header on all its responses. The policy MUST allow the analytics provider's script (`cloud.umami.is`) **and** submissions to its collector (`gateway.umami.is`), which are different domains, and MUST NOT allow any other external script origin. It MUST block framing of the site on other people's pages, plugins and form submission to another domain. `docs/despliegue.md` MUST contain the written policy and how to verify it against the already deployed site.
+
+#### Scenario: analytics measurement works with the policy in place
+
+- **WHEN** a public page is opened with analytics configured and the CSP active
+- **THEN** the script loads from the provider's domain and its events reach its collector, without the browser blocking anything
+
+#### Scenario: a script from another origin
+
+- **WHEN** something tries to load JavaScript from a domain that is neither the site's nor the declared provider's
+- **THEN** the browser blocks it
+
+#### Scenario: the policy is verified against the site, not against the code
+
+- **WHEN** the deployment document is followed after publishing
+- **THEN** it finds the exact command to read the header of the online site and what it must say
+
+### Requirement: Every site response carries the basic security headers
+
+In addition to the Content-Security-Policy, EVERY site response —dynamic, static and error— MUST carry: the instruction not to guess the content type (the site serves bytes uploaded by users), the one not to allow being framed in another page, and a referrer policy that does not leak the path to other domains. The site MUST NOT announce in every response which framework it uses.
+
+A screen that needs a STRICTER referrer policy than the global one MUST be able to impose it, and the global one MUST NOT override it.
+
+#### Scenario: any page of the site
+
+- **WHEN** any address of the site is requested, whether or not it exists, whether dynamic or static
+- **THEN** the response carries the security headers and carries none that announces the framework
+
+#### Scenario: the admin panel keeps its strict policy
+
+- **WHEN** a screen of the review panel is opened
+- **THEN** its referrer policy remains the strict one that screen declares, not the global one, so that the address of a person's card does not leave as a referrer
+
+### Requirement: A single document says how to deploy
+
+The project MUST have a single document, `docs/despliegue.md`, that is enough to put the site into production without looking anything else up. It MUST contain: (a) the complete list of accumulated environment variables, each with what it is for, whether it is mandatory and its exact value when it has one —in particular `REGISTRO_ENCABEZADO_IP`, whose value on Vercel is `x-forwarded-for`—; (b) the order of operations of the deployment: set variables, apply migrations, seed the catalogues, verify; (c) the steps that only a person can do: create the hosting and database accounts, register the domain, configure DNS and confirm that automatic backups are active; (d) what is NEVER run against production (the demo business seed); and (e) a final smoke check with the screens to open. The variables that do not yet exist in the code because their ticket is pending MUST appear named as pending, with the ticket that will bring them, instead of being omitted.
+
+#### Scenario: the human deploys following the document
+
+- **WHEN** a person with the accounts already created follows the document from start to finish
+- **THEN** the site ends up online with the database migrated and the catalogues populated, without having had to open the code to find out which variable is missing
+
+#### Scenario: the IP header has an exact value, not a "depende"
+
+- **WHEN** the document is searched for what to put in `REGISTRO_ENCABEZADO_IP`
+- **THEN** it finds the literal value for Vercel (`x-forwarded-for`) and the warning that without that variable the limit on registrations per hour and the one on admin panel login attempts do not operate
+
+#### Scenario: a new undocumented variable
+
+- **WHEN** someone adds to the code the reading of an environment variable and does not document it
+- **THEN** the automatic check flags it and the PR fails
+
+#### Scenario: variables that a pending ticket will bring
+
+- **WHEN** the document is searched for the configuration of a piece whose implementation does not exist yet
+- **THEN** it finds the decision taken and the note that the variables are defined by the corresponding pending ticket, not a silent gap
+
+### Requirement: Business photos live in R2, with one bucket and one hostname per environment (v2)
+
+Added in v2 — source: ADR 0011, PRD §6.8.
+
+Photos MUST be stored in a Cloudflare R2 bucket and served from a dedicated hostname, with one bucket and one hostname per environment: `fotos.enmirumbo.com`, `fotos-stage.enmirumbo.com` and `fotos-dev.enmirumbo.com`. Serving a photo MUST NOT invoke the Worker. The bucket MUST NOT be shared between environments, and the hostname MUST NOT list the bucket.
+
+#### Scenario: per environment
+
+- **WHEN** the configuration of `dev`, `stage` and production is read
+- **THEN** each has its own bucket and its own photo hostname
+
+#### Scenario: serving
+
+- **WHEN** a photo of a published card is requested on its hostname
+- **THEN** it is served by the CDN from the bucket, with no Worker invocation
+
+### Requirement: The content security policy allows Turnstile as well as Umami (v2)
+
+Added in v2 — source: PRD §6.7, ADR 0012.
+
+The content security policy MUST allow the scripts of the analytics provider and of the Turnstile widget and no other external script origin. The directives about framing, plugins and forms stay.
+
+#### Scenario: Turnstile loads
+
+- **WHEN** the registration page is opened with the policy active
+- **THEN** the Turnstile widget loads without a violation
+
+#### Scenario: nothing else
+
+- **WHEN** a script from any other external origin is added to a page
+- **THEN** the policy blocks it
+
+### Requirement: Scheduled work runs from one hourly Cron Trigger per environment (v2)
+
+Added in v2 — source: ADR 0013, PRD §4.
+
+`stage` and production MUST each have exactly one Cron Trigger that fires every hour, declared inside its environment block. The `scheduled` handler MUST run every task, and each task MUST decide by the local hour of each locality, using its IANA time zone, whether it is its turn (for example, the pending-items email at 8:00 local time). The tasks are: the daily email to the admin, the purge of rejected registrations at 90 days, the purge at 30 days of pending edits and never-verified registrations, the orphan-photo sweep and the alert of the daily registrations threshold. Tasks MUST be idempotent and MUST log what they did and what they could not do, as counts only. `dev` has no trigger; a test-only route runs a task there.
+
+#### Scenario: one trigger
+
+- **WHEN** the configuration of the environments is read
+- **THEN** `stage` and production have one hourly Cron Trigger each, and `dev` has none
+
+#### Scenario: the local hour
+
+- **WHEN** the hourly job fires at the hour that is 8:00 in the time zone of a locality
+- **THEN** the daily email of that locality is sent, and it is not sent at the other hours
+
+#### Scenario: another time zone
+
+- **WHEN** a locality in another time zone is active
+- **THEN** its tasks run at its own local hours with no change in the triggers
+
+#### Scenario: idempotent
+
+- **WHEN** the same hourly run is executed twice
+- **THEN** the second changes nothing and does not fail
+
+#### Scenario: a task that fails
+
+- **WHEN** one task fails
+- **THEN** the other tasks still run, the failure is logged as an error with counts only, and the run is reported as failed
+
+### Requirement: The orphan-photo sweep is a task of the hourly job and a sweep that cannot finish is an error (v2)
+
+Added in v2 — source: ADR 0013, ADR 0011.
+
+The sweep MUST list the objects of the R2 bucket that no card references and delete them, as a task of the hourly job. It MUST ask the bucket what is stored, not any other place. When a safeguard stops the sweep, the run MUST be reported as an error in the log and as a failed run, never as a success. The report MUST hold counts only: no photo key MUST appear in it.
+
+#### Scenario: an orphan
+
+- **WHEN** the sweep runs with an object no card references
+- **THEN** the object is deleted and the report counts it
+
+#### Scenario: a referenced object
+
+- **WHEN** the sweep runs with objects referenced by a card
+- **THEN** they are kept
+
+#### Scenario: the sweep stops
+
+- **WHEN** a safeguard stops the sweep before it finishes
+- **THEN** the run is reported as failed and logged as an error
+
+#### Scenario: no keys in the report
+
+- **WHEN** the report and the log of the sweep are read
+- **THEN** they contain counts and no photo key
+
+### Requirement: The daily email to the admin lists the pending items and what expires within seven days (v2)
+
+Added in v2 — source: PRD §4, ADR 0013, ADR 0018.
+
+The hourly job MUST send, at 8:00 local time of each locality, an email through Resend from the `enmirumbo.com` domain to the admin mailboxes configured for that locality. It MUST list the pending items (registrations, edits and resubmissions waiting) and what the purges will delete within the next seven days. Non-production environments MUST send only to team mailboxes. The email MUST NOT be sent more than once a day per locality.
+
+#### Scenario: the content
+
+- **WHEN** the email of a locality is built with pending items and cards that expire in five days
+- **THEN** it lists the pending items and the cards that will be purged within seven days
+
+#### Scenario: once a day
+
+- **WHEN** the hourly job fires at every hour of a day
+- **THEN** one email per locality is sent that day
+
+#### Scenario: non-production
+
+- **WHEN** the email is sent from `stage` or `dev`
+- **THEN** its recipients are only team mailboxes
+
+### Requirement: Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)
+
+Added in v2 — source: ADR 0012, PRD §7.
+
+The per-IP quotas of registration, edits, reports, search and SMS MUST be kept in a Durable Object keyed by an HMAC of the IP and the purpose, with a secret per environment. The IP MUST be used only in memory and for less than one hour. Each counter MUST be deleted when its window ends. No IP, and no value derived from it, MUST be written to PostgreSQL.
+
+#### Scenario: the key
+
+- **WHEN** two different purposes count requests from the same IP
+- **THEN** each has its own counter, and neither key contains the IP in clear
+
+#### Scenario: the end of the window
+
+- **WHEN** the window of a counter ends
+- **THEN** the counter is deleted
+
+#### Scenario: nothing in the database
+
+- **WHEN** the database schema and its data are reviewed after quotas are exhausted
+- **THEN** no column or row holds an IP or a value derived from it
