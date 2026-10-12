@@ -489,12 +489,12 @@ This complete personal data —including the photo— MUST be visible only insid
 
 ### Requirement: Verification button that opens WhatsApp with a prefilled message
 
-The detail MUST offer a button that opens the WhatsApp conversation with the number the business registered, with a message already written for the manual verification of PRD §6.3. The button MUST literally say "Escribirle por WhatsApp" and the prefilled message MUST be, literally: "Hola, te escribo de EnMiRumbo, el directorio de negocios de Tizayuca. Recibimos el registro de «<nombre del negocio>». ¿Nos confirmas que el negocio es tuyo y que este es tu WhatsApp?". Sending is always done by the person: the system MUST NOT send messages on its own (PRD §6.6). If the stored number cannot be interpreted as a 10-digit Mexican number, a broken link MUST NOT be painted: the panel shows the number as it is stored, without a button.
+The detail MUST offer a button that opens the WhatsApp conversation with the number the business registered, with a message already written for the manual verification of PRD §6.3. The button MUST literally say "Escribirle por WhatsApp" and the prefilled message MUST be, literally: "Hola, te escribo de enmirumbo, el directorio de negocios de Tizayuca. Recibimos el registro de «<nombre del negocio>». ¿Nos confirmas que el negocio es tuyo y que este es tu WhatsApp?". Sending is always done by the person: the system MUST NOT send messages on its own (PRD §6.6). If the stored number cannot be interpreted as a 10-digit Mexican number, a broken link MUST NOT be painted: the panel shows the number as it is stored, without a button.
 
 #### Scenario: open the verification conversation
 
 - **WHEN** the admin taps "Escribirle por WhatsApp" on the detail of the business "Tacos del Güero"
-- **THEN** WhatsApp opens with the conversation with that number and the message "Hola, te escribo de EnMiRumbo, el directorio de negocios de Tizayuca. Recibimos el registro de «Tacos del Güero». ¿Nos confirmas que el negocio es tuyo y que este es tu WhatsApp?" already written, not sent
+- **THEN** WhatsApp opens with the conversation with that number and the message "Hola, te escribo de enmirumbo, el directorio de negocios de Tizayuca. Recibimos el registro de «Tacos del Güero». ¿Nos confirmas que el negocio es tuyo y que este es tu WhatsApp?" already written, not sent
 
 #### Scenario: number that cannot be interpreted
 
@@ -573,12 +573,12 @@ On approving a registration, the same transition that publishes the card MUST ge
 
 ### Requirement: On approving, an offer is made to notify the business by WhatsApp with its card link and its management link
 
-After approving, the panel MUST confirm with the literal text "Ya quedó publicado." and offer a button "Avisarle por WhatsApp" that opens the conversation with that business and a message prefilled with the notice, the link to its public card and **its management link with the instruction from PRD §6.4**, literally: "¡Listo! Ya quedó publicado «<nombre del negocio>» en EnMiRumbo. Esta es tu ficha: <link de la ficha> — compártela con tus clientes. Y este es tu enlace para editarla: <enlace de gestión> — guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." Both links MUST be full URLs: the card one, the same that any resident would open; the management one, the one that opens the edit mode of that card. This screen is **the only moment** the management link is shown in the panel: if the admin leaves it without sending the message, to have it again they have to generate a new one, which makes the previous one stop working.
+After approving, the panel MUST confirm with the literal text "Ya quedó publicado." and offer a button "Avisarle por WhatsApp" that opens the conversation with that business and a message prefilled with the notice, the link to its public card and **its management link with the instruction from PRD §6.4**, literally: "¡Listo! Ya quedó publicado «<nombre del negocio>» en enmirumbo. Esta es tu ficha: <link de la ficha> — compártela con tus clientes. Y este es tu enlace para editarla: <enlace de gestión> — guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." Both links MUST be full URLs: the card one, the same that any resident would open; the management one, the one that opens the edit mode of that card. This screen is **the only moment** the management link is shown in the panel: if the admin leaves it without sending the message, to have it again they have to generate a new one, which makes the previous one stop working.
 
 #### Scenario: publication notice with both links
 
 - **WHEN** the admin has just approved the registration of "Estética Lupita"
-- **THEN** they see "Ya quedó publicado." and a button "Avisarle por WhatsApp" that opens the conversation with that business, with the message "¡Listo! Ya quedó publicado «Estética Lupita» en EnMiRumbo. Esta es tu ficha: <link de la ficha> — compártela con tus clientes. Y este es tu enlace para editarla: <enlace de gestión> — guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." already written, not sent
+- **THEN** they see "Ya quedó publicado." and a button "Avisarle por WhatsApp" that opens the conversation with that business, with the message "¡Listo! Ya quedó publicado «Estética Lupita» en enmirumbo. Esta es tu ficha: <link de la ficha> — compártela con tus clientes. Y este es tu enlace para editarla: <enlace de gestión> — guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." already written, not sent
 
 #### Scenario: both links open what they promise
 
@@ -592,7 +592,7 @@ After approving, the panel MUST confirm with the literal text "Ya quedó publica
 
 ### Requirement: Rejecting requires a reason, stores it with its date and offers to notify by WhatsApp
 
-From the detail, the admin MUST be able to reject the registration by mandatorily writing the reason, under the literal label "¿Por qué lo rechazas?" and with the button "Rechazar". The system MUST store the `rejected` status, the rejection date and the reason (the data of rejected registrations is deleted after 90 days, PRD §8: the date is what the scheduled purge uses to know when it is due). Without a reason, the rejection MUST NOT be executed and the literal text "Escribe por qué lo rechazas" MUST be shown. After rejecting, the panel MUST confirm with "Registro rechazado." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "Hola, revisamos el registro de «<nombre del negocio>» en EnMiRumbo y por ahora no lo pudimos publicar: <motivo>. Si lo corriges, lo puedes volver a enviar desde el mismo formulario con este mismo número." A rejected business MUST NOT appear on any public page.
+From the detail, the admin MUST be able to reject the registration by mandatorily writing the reason, under the literal label "¿Por qué lo rechazas?" and with the button "Rechazar". The system MUST store the `rejected` status, the rejection date and the reason (the data of rejected registrations is deleted after 90 days, PRD §8: the date is what the scheduled purge uses to know when it is due). Without a reason, the rejection MUST NOT be executed and the literal text "Escribe por qué lo rechazas" MUST be shown. After rejecting, the panel MUST confirm with "Registro rechazado." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "Hola, revisamos el registro de «<nombre del negocio>» en enmirumbo y por ahora no lo pudimos publicar: <motivo>. Si lo corriges, lo puedes volver a enviar desde el mismo formulario con este mismo número." A rejected business MUST NOT appear on any public page.
 
 #### Scenario: rejection with a reason
 
@@ -607,7 +607,7 @@ From the detail, the admin MUST be able to reject the registration by mandatoril
 #### Scenario: rejection notice by WhatsApp
 
 - **WHEN** the admin has just rejected the registration of "Préstamos Rápidos" with the reason "No publicamos préstamos informales"
-- **THEN** they see "Registro rechazado." and a button "Avisarle por WhatsApp" with the message "Hola, revisamos el registro de «Préstamos Rápidos» en EnMiRumbo y por ahora no lo pudimos publicar: No publicamos préstamos informales. Si lo corriges, lo puedes volver a enviar desde el mismo formulario con este mismo número." already written
+- **THEN** they see "Registro rechazado." and a button "Avisarle por WhatsApp" with the message "Hola, revisamos el registro de «Préstamos Rápidos» en enmirumbo y por ahora no lo pudimos publicar: No publicamos préstamos informales. Si lo corriges, lo puedes volver a enviar desde el mismo formulario con este mismo número." already written
 
 #### Scenario: the rejected one is not published
 
@@ -666,14 +666,14 @@ Unpublishing MUST NOT destroy anything: the assigned trades, the normalized zone
 
 ### Requirement: On unpublishing, an offer is made to notify the business by WhatsApp
 
-After unpublishing, the panel MUST confirm with the literal text "Ya la despublicaste." and offer a button "Avisarle por WhatsApp" that opens the conversation with that business and a message already written, literally: "Hola, te escribo de EnMiRumbo. Bajamos del directorio la ficha de «<nombre del negocio>»: <motivo>. Si quieres que la volvamos a publicar o tienes alguna duda, contéstame por aquí." The reason that travels in the message is the one the admin has just written. Sending is always done by the person: the system MUST NOT send messages on its own (PRD §6.6). If the stored number cannot be interpreted as a 10-digit Mexican number, a broken link MUST NOT be painted: the panel shows the number as it is stored, without a button.
+After unpublishing, the panel MUST confirm with the literal text "Ya la despublicaste." and offer a button "Avisarle por WhatsApp" that opens the conversation with that business and a message already written, literally: "Hola, te escribo de enmirumbo. Bajamos del directorio la ficha de «<nombre del negocio>»: <motivo>. Si quieres que la volvamos a publicar o tienes alguna duda, contéstame por aquí." The reason that travels in the message is the one the admin has just written. Sending is always done by the person: the system MUST NOT send messages on its own (PRD §6.6). If the stored number cannot be interpreted as a 10-digit Mexican number, a broken link MUST NOT be painted: the panel shows the number as it is stored, without a button.
 
 That screen MUST exist only for an unpublication that really happened: if the registration is not in `in_review`, or has no unpublication date, or its reason is empty, the screen MUST NOT be shown and the admin MUST go back to the detail, without the response leaking anything. A message with a blank reason is an incorrect WhatsApp to a third party, which is exactly what the panel exists to avoid.
 
 #### Scenario: unpublication notice
 
 - **WHEN** the admin has just unpublished "Tacos del Güero" with the reason "El negocio cerró"
-- **THEN** they see "Ya la despublicaste." and a button "Avisarle por WhatsApp" that opens the conversation with that business, with the message "Hola, te escribo de EnMiRumbo. Bajamos del directorio la ficha de «Tacos del Güero»: El negocio cerró. Si quieres que la volvamos a publicar o tienes alguna duda, contéstame por aquí." already written, not sent
+- **THEN** they see "Ya la despublicaste." and a button "Avisarle por WhatsApp" that opens the conversation with that business, with the message "Hola, te escribo de enmirumbo. Bajamos del directorio la ficha de «Tacos del Güero»: El negocio cerró. Si quieres que la volvamos a publicar o tienes alguna duda, contéstame por aquí." already written, not sent
 
 #### Scenario: number that cannot be interpreted when notifying of the unpublication
 
@@ -921,7 +921,7 @@ If the pending edit proposes a different WhatsApp, the detail MUST show both num
 
 From the pending edit detail, the admin MUST be able to apply it in a single action with the literal button "Aplicar los cambios", which copies to the published card **exactly the editable fields** of the pending edit —name, category, WhatsApp, zone (from the catalogue or free text), what it offers, home deliveries, landline phone, address or references with its map pin, opening hours and page— and nothing else. The status, the origin, the assigned trades, the publication date, the registration date, the consent record and the management link MUST stay intact: applying a pending edit MUST NOT unpublish, nor put back in review, nor regenerate the link, nor force the business to re-consent. The normalized search versions MUST be recalculated, so the card can still be found by what it now says.
 
-If the proposed WhatsApp is already held by another card at the moment of applying, the pending edit MUST NOT be applied and the panel MUST say so with the literal text "Ese número ya está en otra ficha: no se pudieron aplicar los cambios.", leaving the pending edit pending so the admin can resolve it. If the card is no longer published when the admin applies, nothing MUST be applied nor considered applied either: the pending edit MUST remain pending —so it can be applied when the card is published again— and the panel MUST say what did not happen, why, and that nothing was lost. Once the pending edit is applied, the panel MUST confirm with "Listo, la ficha ya se actualizó." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "¡Listo! Ya actualizamos la ficha de «<nombre del negocio>» en EnMiRumbo. Así quedó: <link de la ficha>". The change MUST be visible in the public directory immediately.
+If the proposed WhatsApp is already held by another card at the moment of applying, the pending edit MUST NOT be applied and the panel MUST say so with the literal text "Ese número ya está en otra ficha: no se pudieron aplicar los cambios.", leaving the pending edit pending so the admin can resolve it. If the card is no longer published when the admin applies, nothing MUST be applied nor considered applied either: the pending edit MUST remain pending —so it can be applied when the card is published again— and the panel MUST say what did not happen, why, and that nothing was lost. Once the pending edit is applied, the panel MUST confirm with "Listo, la ficha ya se actualizó." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "¡Listo! Ya actualizamos la ficha de «<nombre del negocio>» en enmirumbo. Así quedó: <link de la ficha>". The change MUST be visible in the public directory immediately.
 
 #### Scenario: apply the changes
 
@@ -936,7 +936,7 @@ If the proposed WhatsApp is already held by another card at the moment of applyi
 #### Scenario: notice that the card was updated
 
 - **WHEN** the admin has just applied the pending edit of "Estética Lupita"
-- **THEN** they see a button "Avisarle por WhatsApp" with the message "¡Listo! Ya actualizamos la ficha de «Estética Lupita» en EnMiRumbo. Así quedó: <link de la ficha>" already written, not sent
+- **THEN** they see a button "Avisarle por WhatsApp" with the message "¡Listo! Ya actualizamos la ficha de «Estética Lupita» en enmirumbo. Así quedó: <link de la ficha>" already written, not sent
 
 #### Scenario: the proposed number was taken by another card
 
@@ -955,7 +955,7 @@ If the proposed WhatsApp is already held by another card at the moment of applyi
 
 ### Requirement: Discarding the pending edit requires a reason, does not touch the card and offers to notify by WhatsApp
 
-From the pending edit detail, the admin MUST be able to discard it by mandatorily writing the reason, under the literal label "¿Por qué no aplicas los cambios?" and with the button "Descartar los cambios". Without a reason, the discard MUST NOT be executed and the literal text "Escribe por qué descartas los cambios" MUST be shown. Since that reason is what travels inside the WhatsApp sent to the business, it MUST NOT be silently trimmed either: the same 500-character limit and the same literal message as for the unpublication reason apply to it. Discarding MUST NOT modify a single piece of data of the published card, which stays exactly as it was, nor change its status, nor invalidate the management link: the business can correct and resubmit changes with the same link. The system MUST store the reason and the date of the discard, and the panel MUST confirm with "Cambios descartados." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "Hola, revisamos los cambios que mandaste para «<nombre del negocio>» en EnMiRumbo y por ahora no los pudimos aplicar: <motivo>. Tu ficha sigue publicada como estaba y puedes mandarlos otra vez con tu mismo enlace."
+From the pending edit detail, the admin MUST be able to discard it by mandatorily writing the reason, under the literal label "¿Por qué no aplicas los cambios?" and with the button "Descartar los cambios". Without a reason, the discard MUST NOT be executed and the literal text "Escribe por qué descartas los cambios" MUST be shown. Since that reason is what travels inside the WhatsApp sent to the business, it MUST NOT be silently trimmed either: the same 500-character limit and the same literal message as for the unpublication reason apply to it. Discarding MUST NOT modify a single piece of data of the published card, which stays exactly as it was, nor change its status, nor invalidate the management link: the business can correct and resubmit changes with the same link. The system MUST store the reason and the date of the discard, and the panel MUST confirm with "Cambios descartados." and offer a button "Avisarle por WhatsApp" with the prefilled message, literally: "Hola, revisamos los cambios que mandaste para «<nombre del negocio>» en enmirumbo y por ahora no los pudimos aplicar: <motivo>. Tu ficha sigue publicada como estaba y puedes mandarlos otra vez con tu mismo enlace."
 
 #### Scenario: discard with a reason
 
@@ -970,7 +970,7 @@ From the pending edit detail, the admin MUST be able to discard it by mandatoril
 #### Scenario: discard notice by WhatsApp
 
 - **WHEN** the admin has just discarded the changes of "Préstamos Rápidos" with the reason "No publicamos préstamos informales"
-- **THEN** they see "Cambios descartados." and a button "Avisarle por WhatsApp" with the message "Hola, revisamos los cambios que mandaste para «Préstamos Rápidos» en EnMiRumbo y por ahora no los pudimos aplicar: No publicamos préstamos informales. Tu ficha sigue publicada como estaba y puedes mandarlos otra vez con tu mismo enlace." already written
+- **THEN** they see "Cambios descartados." and a button "Avisarle por WhatsApp" with the message "Hola, revisamos los cambios que mandaste para «Préstamos Rápidos» en enmirumbo y por ahora no los pudimos aplicar: No publicamos préstamos informales. Tu ficha sigue publicada como estaba y puedes mandarlos otra vez con tu mismo enlace." already written
 
 #### Scenario: the link keeps working after a discard
 
@@ -998,7 +998,7 @@ Apply and discard MUST only take effect on the pending edit **that the admin had
 
 ### Requirement: The admin can generate a new link, and the previous one stops working
 
-The detail of a published business MUST offer a button with the literal text "Generar un enlace nuevo" (PRD §6.4: when there is suspicion that someone else has the link, or when the owner lost it and it does not appear in the chat). On using it, the system MUST generate a new token and **the previous one MUST stop working immediately**, responding with the same 404 as an invented link. The panel MUST confirm with the literal text "Listo, el enlace anterior ya no sirve." and offer a button "Mandarle el enlace por WhatsApp" with the prefilled message, literally: "Hola, te mandamos un enlace nuevo para editar tu ficha de «<nombre del negocio>» en EnMiRumbo: <enlace de gestión>. El anterior ya no sirve. Guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." That is the **only moment** the link is shown: if the admin leaves that screen without sending it, they have to generate another. Regenerating MUST NOT touch the card data or the pending edits that were already waiting.
+The detail of a published business MUST offer a button with the literal text "Generar un enlace nuevo" (PRD §6.4: when there is suspicion that someone else has the link, or when the owner lost it and it does not appear in the chat). On using it, the system MUST generate a new token and **the previous one MUST stop working immediately**, responding with the same 404 as an invented link. The panel MUST confirm with the literal text "Listo, el enlace anterior ya no sirve." and offer a button "Mandarle el enlace por WhatsApp" with the prefilled message, literally: "Hola, te mandamos un enlace nuevo para editar tu ficha de «<nombre del negocio>» en enmirumbo: <enlace de gestión>. El anterior ya no sirve. Guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." That is the **only moment** the link is shown: if the admin leaves that screen without sending it, they have to generate another. Regenerating MUST NOT touch the card data or the pending edits that were already waiting.
 
 #### Scenario: regenerating invalidates the previous one
 
@@ -1008,7 +1008,7 @@ The detail of a published business MUST offer a button with the literal text "Ge
 #### Scenario: send the new link
 
 - **WHEN** the admin has just generated the link of "Tacos del Güero"
-- **THEN** they see a button "Mandarle el enlace por WhatsApp" with the message "Hola, te mandamos un enlace nuevo para editar tu ficha de «Tacos del Güero» en EnMiRumbo: <enlace de gestión>. El anterior ya no sirve. Guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." already written
+- **THEN** they see a button "Mandarle el enlace por WhatsApp" with the message "Hola, te mandamos un enlace nuevo para editar tu ficha de «Tacos del Güero» en enmirumbo: <enlace de gestión>. El anterior ya no sirve. Guarda este mensaje (puedes destacarlo con la estrella), con ese enlace actualizas tus datos cuando quieras." already written
 
 #### Scenario: the link is shown only once
 
@@ -1022,12 +1022,12 @@ The detail of a published business MUST offer a button with the literal text "Ge
 
 ### Requirement: No panel message is presented with the previous brand
 
-Every WhatsApp message the panel builds for the admin to send to a business MUST name the directory as "EnMiRumbo", with the descriptor "el directorio de negocios de Tizayuca" **only in the first-contact message** (the verification one). The others reach someone who has already received that introduction and say plain "EnMiRumbo". None MUST keep the previous brand nor write the locality attached to the name, including the messages that other changes add later.
+Every WhatsApp message the panel builds for the admin to send to a business MUST name the directory as "enmirumbo", with the descriptor "el directorio de negocios de Tizayuca" **only in the first-contact message** (the verification one). The others reach someone who has already received that introduction and say plain "enmirumbo". None MUST keep the previous brand nor write the locality attached to the name, including the messages that other changes add later.
 
 #### Scenario: all panel messages are reviewed
 
 - **WHEN** the prefilled messages the panel can build today are reviewed —verification, publication notice with both links, rejection notice, unpublication notice, applied-changes notice, discarded-changes notice and the new-link one—
-- **THEN** the verification one presents the site as "EnMiRumbo, el directorio de negocios de Tizayuca", the other six say plain "EnMiRumbo", and none mentions the previous brand or attaches the locality to the name
+- **THEN** the verification one presents the site as "enmirumbo, el directorio de negocios de Tizayuca", the other six say plain "enmirumbo", and none mentions the previous brand or attaches the locality to the name
 
 #### Scenario: a new panel message is born with the current brand
 

@@ -22,4 +22,5 @@ One or two honest lessons (technical, product, or about the process with AI agen
 What comes next, to keep continuity between entries.
 
 ---
-*Related work items and pull requests: EMR-XX · #XX*
+
+_Related work items and pull requests: EMR-XX · #XX_

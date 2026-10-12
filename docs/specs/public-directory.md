@@ -495,12 +495,12 @@ The three contact buttons of the card MUST declare their event with markup attri
 
 ### Requirement: The prefilled WhatsApp message names the directory with the current brand
 
-Every WhatsApp button toward a business —the listing card's, the one on the trade and results pages, and the "Enviar WhatsApp" on the card— MUST open the conversation with the same already written message, literally: "Hola, te vi en EnMiRumbo. ¿Me das informes?". The message MUST be the same on all surfaces (it is declared only once), MUST NOT be sent by itself —the resident sends it— and MUST NOT contain any data about the resident. It goes without a geographic descriptor on purpose: the business that receives it is in Tizayuca and already knows where it is, so saying so only lengthens the message (founder's resolution of 2026-09-04).
+Every WhatsApp button toward a business —the listing card's, the one on the trade and results pages, and the "Enviar WhatsApp" on the card— MUST open the conversation with the same already written message, literally: "Hola, te vi en enmirumbo. ¿Me das informes?". The message MUST be the same on all surfaces (it is declared only once), MUST NOT be sent by itself —the resident sends it— and MUST NOT contain any data about the resident. It goes without a geographic descriptor on purpose: the business that receives it is in Tizayuca and already knows where it is, so saying so only lengthens the message (founder's resolution of 2026-09-04).
 
 #### Scenario: the resident writes from a listing card
 
 - **WHEN** the resident taps the WhatsApp button of a listing card
-- **THEN** the conversation with that business opens with the message "Hola, te vi en EnMiRumbo. ¿Me das informes?" already written, not sent
+- **THEN** the conversation with that business opens with the message "Hola, te vi en enmirumbo. ¿Me das informes?" already written, not sent
 
 #### Scenario: the resident writes from the card
 
@@ -772,14 +772,14 @@ Reports MUST be invisible outside the admin panel: a reported business stays pub
 
 ### Requirement: "Perdí mi enlace" button on the card, toward the admin's WhatsApp
 
-Each published card MUST offer, at the end and in clearly lesser hierarchy than the contact buttons, a block headed with the literal text "¿Es tu negocio?" and a control with the literal text "Perdí mi enlace" that opens WhatsApp with the **admin's** conversation and the message already written, literally: "Hola, soy de «<nombre del negocio>» en EnMiRumbo y perdí el enlace para editar mi ficha. Les escribo desde el número que registré, ¿me lo pueden pasar?" (PRD §6.4 and §7 Flow D: the admin verifies that whoever writes does so from the registered number and resends or generates a new one for them).
+Each published card MUST offer, at the end and in clearly lesser hierarchy than the contact buttons, a block headed with the literal text "¿Es tu negocio?" and a control with the literal text "Perdí mi enlace" that opens WhatsApp with the **admin's** conversation and the message already written, literally: "Hola, soy de «<nombre del negocio>» en enmirumbo y perdí el enlace para editar mi ficha. Les escribo desde el número que registré, ¿me lo pueden pasar?" (PRD §6.4 and §7 Flow D: the admin verifies that whoever writes does so from the registered number and resends or generates a new one for them).
 
 The admin's number MUST be read from a server environment variable: it MUST NOT be written in the code, nor in the seeds, nor in the tests (public repo + LFPDPPP, PRD §8). If that variable is missing or its value cannot be interpreted as a 10-digit Mexican number, the block MUST NOT be rendered: no broken links or example numbers. The control MUST NOT appear on the listing cards or in the search results, and MUST NOT promise that the link arrives by itself: a person sends it.
 
 #### Scenario: asking for the link from the card
 
 - **WHEN** the owner of "Tacos del Güero" opens their card and taps "Perdí mi enlace"
-- **THEN** it leaves toward WhatsApp with the admin's conversation and the message "Hola, soy de «Tacos del Güero» en EnMiRumbo y perdí el enlace para editar mi ficha. Les escribo desde el número que registré, ¿me lo pueden pasar?" already written, not sent
+- **THEN** it leaves toward WhatsApp with the admin's conversation and the message "Hola, soy de «Tacos del Güero» en enmirumbo y perdí el enlace para editar mi ficha. Les escribo desde el número que registré, ¿me lo pueden pasar?" already written, not sent
 
 #### Scenario: no admin number configured
 
@@ -1078,7 +1078,7 @@ Each published card MUST declare Open Graph data so that the link preview shows 
 
 Each published card MUST emit JSON-LD structured data of type `LocalBusiness` (PRD §8) with what is honest to publish: the business name, the canonical URL of its card, its category and its trades, the zone as the only location reference —inside an address that declares Tizayuca, Hidalgo, México—, the description with what it wrote in "¿Qué ofreces?" if it wrote it —with the long digit sequences hidden just as in the meta description— and its photo if it has one, with the address built from the internal reference the server generated. If the business has no photo, or what is stored is not a valid reference, the block MUST be emitted without an image rather than emit an address the site did not build.
 
-The markup MUST respect the realistic expectation of PRD §8: *"al publicar colonia (no dirección exacta) y horario en texto libre, el markup será parcial; el horario estructurado queda para fases posteriores (§12)"*. Consequently it MUST NOT emit: the opening hours, the address or references text the business entered, coordinates, nor the WhatsApp or the phone (finding M5 of T-004: do not hand out the numbers in machine-readable format). Nor MUST it be emitted on cards that are not published, nor on the listings.
+The markup MUST respect the realistic expectation of PRD §8: _"al publicar colonia (no dirección exacta) y horario en texto libre, el markup será parcial; el horario estructurado queda para fases posteriores (§12)"_. Consequently it MUST NOT emit: the opening hours, the address or references text the business entered, coordinates, nor the WhatsApp or the phone (finding M5 of T-004: do not hand out the numbers in machine-readable format). Nor MUST it be emitted on cards that are not published, nor on the listings.
 
 The content the business wrote MUST be escaped inside the data block: a name or a "¿Qué ofreces?" with markup inside MUST NOT be able to close the block or execute anything.
 

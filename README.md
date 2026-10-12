@@ -1,4 +1,4 @@
-# EnMiRumbo
+# enmirumbo
 
 A hyperlocal business directory, starting in Tizayuca, Hidalgo. Businesses register from a phone, a person verifies each one before it is published, and residents contact them through WhatsApp.
 

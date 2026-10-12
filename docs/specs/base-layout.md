@@ -4,16 +4,16 @@
 
 ### Requirement: Global layout with header and footer on every page
 
-Every page of the site MUST render inside a global layout with a header that shows the brand as the typographic wordmark "EnMiRumbo", and a footer at the end of the page. The footer MUST include the links to the two legal pages, with the literal texts "Aviso de privacidad" and "Términos y condiciones", each pointing to a page that exists and with a touch area of at least 44px.
+Every page of the site MUST render inside a global layout with a header that shows the brand as the typographic wordmark "enmirumbo", and a footer at the end of the page. The footer MUST include the links to the two legal pages, with the literal texts "Aviso de privacidad" and "Términos y condiciones", each pointing to a page that exists and with a touch area of at least 44px.
 
 AMENDED (founder's request: "el header se ve limpio con solo el wordmark"): the header NO LONGER carries "Tizayuca" next to the wordmark. Hyperlocal positioning is still mandatory in the product, but it is required on other surfaces: the `h1` of the home, the footer (with the line "Hecho para los vecinos de Tizayuca, Hidalgo.") and all the SEO metadata (`title`, `description`, Open Graph) of the requirement "Server Component with a document in es-MX and base metadata".
 
-AMENDED (rebrand approved by the founder on 2026-09-04, T-019): the brand of the site is **"EnMiRumbo"**, written as one word, with capital `M` and `R` and **no locality attached**. A compound form like "«brand» + Tizayuca" MUST NOT exist on any surface: where the geographic context is needed, it is written as a descriptor —"EnMiRumbo, el directorio de negocios de Tizayuca"— and from the second mention on, plain "EnMiRumbo" is used. Geography is what the site says about itself, not part of its name. The line "Hecho para los vecinos de Tizayuca, Hidalgo." does NOT change.
+AMENDED (rebrand approved by the founder on 2026-09-04, T-019): the brand of the site is **"enmirumbo"**, written as one word, always lowercase, and **no locality attached**. A compound form like "«brand» + Tizayuca" MUST NOT exist on any surface: where the geographic context is needed, it is written as a descriptor —"enmirumbo, el directorio de negocios de Tizayuca"— and from the second mention on, plain "enmirumbo" is used. Geography is what the site says about itself, not part of its name. The line "Hecho para los vecinos de Tizayuca, Hidalgo." does NOT change.
 
 #### Scenario: header with the wordmark
 
 - **WHEN** a resident opens any page of the site on their phone
-- **THEN** they see at the top the wordmark "EnMiRumbo", linked to the home, with no locality attached to the name
+- **THEN** they see at the top the wordmark "enmirumbo", linked to the home, with no locality attached to the name
 
 #### Scenario: hyperlocal positioning stays visible outside the header
 
@@ -28,7 +28,7 @@ AMENDED (rebrand approved by the founder on 2026-09-04, T-019): the brand of the
 #### Scenario: footer with the legal links and no dead links
 
 - **WHEN** the resident reaches the end of any page
-- **THEN** they see the footer with the site identification ("EnMiRumbo") and the links "Aviso de privacidad" and "Términos y condiciones", each pointing to a page that really exists, and no link that leads to a nonexistent page
+- **THEN** they see the footer with the site identification ("enmirumbo") and the links "Aviso de privacidad" and "Términos y condiciones", each pointing to a page that really exists, and no link that leads to a nonexistent page
 
 #### Scenario: the footer links can be tapped on a phone
 
@@ -112,13 +112,13 @@ AMENDED (amendment approved by the founder, visual review batch 2): the **second
 
 ### Requirement: Server Component with a document in es-MX and base metadata
 
-The global layout MUST be a Server Component that sends no client JavaScript of its own. The ONLY exception is the script of the cookieless analytics provider: it is third-party JavaScript, conditional on configuration, deferred, absent from `/admin` and with no own code around it; justified by PRD §9 ("analítica desde el día 1") and ADR-005. The document MUST declare `lang="es-MX"` and expose base site metadata: title "EnMiRumbo — Encuentra negocios y servicios en Tizayuca" and description "Encuentra negocios, servicios y deporte en Tizayuca y contáctalos directo por WhatsApp. Registro gratis para negocios locales." The geography of the title still lives in the descriptor ("en Tizayuca"), which is where it already was; what disappears is the locality attached to the name.
+The global layout MUST be a Server Component that sends no client JavaScript of its own. The ONLY exception is the script of the cookieless analytics provider: it is third-party JavaScript, conditional on configuration, deferred, absent from `/admin` and with no own code around it; justified by PRD §9 ("analítica desde el día 1") and ADR-005. The document MUST declare `lang="es-MX"` and expose base site metadata: title "enmirumbo — Encuentra negocios y servicios en Tizayuca" and description "Encuentra negocios, servicios y deporte en Tizayuca y contáctalos directo por WhatsApp. Registro gratis para negocios locales." The geography of the title still lives in the descriptor ("en Tizayuca"), which is where it already was; what disappears is the locality attached to the name.
 
-That title MUST remain the one for pages that do not declare their own (the home, among them), and pages that do declare one MUST be presented in the document as `«Page title» — EnMiRumbo`, so that a search result says first what the page is about and then whose it is.
+That title MUST remain the one for pages that do not declare their own (the home, among them), and pages that do declare one MUST be presented in the document as `«Page title» — enmirumbo`, so that a search result says first what the page is about and then whose it is.
 
 The layout MUST also declare the **public URL of the site as the base of all absolute URLs** (canonicals, sitemap and share preview), taken from the same environment variable the admin panel already uses to build the card link (`SITIO_URL`). Outside production, with no variable declared, the local development address MUST be used. In production, if the variable is not declared or is unreadable, the site MUST NOT publish absolute URLs pointing to the local address: the canonicals and the absolute preview are omitted and a record is left in the server log (once per process, never per request).
 
-The layout MUST also declare the identity of the share preview that all pages inherit: the site name "EnMiRumbo", the Mexican Spanish language and a brand image of the site itself. That image MUST show the current wordmark —"EnMiRumbo", with "Tizayuca" below it in the context line, smaller and separate, as a descriptor and not as part of the name— and its alt text MUST name the site with the same brand alone; a preview with the previous brand is the hardest surface to notice and the one that travels the farthest.
+The layout MUST also declare the identity of the share preview that all pages inherit: the site name "enmirumbo", the Mexican Spanish language and a brand image of the site itself. That image MUST show the current wordmark —"enmirumbo", with "Tizayuca" below it in the context line, smaller and separate, as a descriptor and not as part of the name— and its alt text MUST name the site with the same brand alone; a preview with the previous brand is the hardest surface to notice and the one that travels the farthest.
 
 #### Scenario: document in Mexican Spanish with metadata
 
@@ -128,17 +128,17 @@ The layout MUST also declare the identity of the share preview that all pages in
 #### Scenario: the home keeps the site title
 
 - **WHEN** the root route is opened
-- **THEN** the document title is "EnMiRumbo — Encuentra negocios y servicios en Tizayuca"
+- **THEN** the document title is "enmirumbo — Encuentra negocios y servicios en Tizayuca"
 
 #### Scenario: a page with its own title carries the brand at the end
 
 - **WHEN** a category listing is opened, whose own title is "Servicios del hogar en Tizayuca"
-- **THEN** the document title is "Servicios del hogar en Tizayuca — EnMiRumbo"
+- **THEN** the document title is "Servicios del hogar en Tizayuca — enmirumbo"
 
 #### Scenario: the card shared through WhatsApp arrives with the new brand
 
 - **WHEN** a resident shares any page of the site and the app renders the preview
-- **THEN** the site name says plain "EnMiRumbo", the image shows that wordmark with "Tizayuca" below it as a context line, and the previous name or a brand with the locality attached appears nowhere
+- **THEN** the site name says plain "enmirumbo", the image shows that wordmark with "Tizayuca" below it as a context line, and the previous name or a brand with the locality attached appears nowhere
 
 #### Scenario: base URL declared
 
@@ -162,7 +162,7 @@ The layout MUST also declare the identity of the share preview that all pages in
 
 ### Requirement: No surface of the site names the previous brand or attaches the locality to the name
 
-No served surface of the site —public pages, admin panel, metadata, share preview, legal texts and WhatsApp messages the site builds— MUST contain **the previous brand** (the name the directory was launched with, replaced by "EnMiRumbo" on 2026-09-04 in T-019, in any combination of upper and lower case, standalone or attached to a domain) **nor the compound form** that attaches the locality to the wordmark as a surname ("EnMiRumbo" followed by "Tizayuca", with no comma or descriptor), which the founder discarded together with the old name. The project's automated verification MUST include a guard that checks the code of the site surfaces and fails naming the file when either of the two reappears, so that a new literal written by another change does not resurrect them without anyone noticing. The two exact strings the guard looks for live in its own test suite and in the archived change `renombrar-sitio-enmirumbo`; this spec does not reproduce them, because it describes what the site says today.
+No served surface of the site —public pages, admin panel, metadata, share preview, legal texts and WhatsApp messages the site builds— MUST contain **the previous brand** (the name the directory was launched with, replaced by "EnMiRumbo" on 2026-09-04 in T-019, in any combination of upper and lower case, standalone or attached to a domain; and the spellings "EnMiRumbo" and "En Mi Rumbo", replaced by "enmirumbo" on 2026-10-12) **nor the compound form** that attaches the locality to the wordmark as a surname ("enmirumbo" followed by "Tizayuca", with no comma or descriptor), which the founder discarded together with the old name. The project's automated verification MUST include a guard that checks the code of the site surfaces and fails naming the file when either of the two reappears, so that a new literal written by another change does not resurrect them without anyone noticing. The two exact strings the guard looks for live in its own test suite and in the archived change `renombrar-sitio-enmirumbo`; this spec does not reproduce them, because it describes what the site says today.
 
 The guard MUST NOT reach the repository's historical documentation —devlog, decisions (ADR), already closed tickets and archived changes—, which names the previous brand on purpose because it tells what happened when it happened. Rewriting that history to pass the verification would be worse than the problem it avoids.
 
@@ -179,7 +179,7 @@ The guard MUST NOT reach the repository's historical documentation —devlog, de
 #### Scenario: the legal pages do not name it in their metadata either
 
 - **WHEN** the title and description of `/aviso-de-privacidad`, of `/terminos`, of the search results page and of the admin panel are reviewed
-- **THEN** none mentions the previous brand and all use "EnMiRumbo"
+- **THEN** none mentions the previous brand and all use "enmirumbo"
 
 #### Scenario: the repository history stays as it is
 
@@ -477,7 +477,7 @@ Visit counts MUST exclude bots and crawlers (PRD §9: SEO traffic itself would i
 
 Added in v2 — source: PRD §5, ADR 0006.
 
-No locality name MAY be hard-coded in any surface. Every text that names the locality MUST read it from the locality record. This covers: the footer line "Hecho para los vecinos de {municipio}, {estado}.", the home block "Deporte en {municipio}", the descriptor "EnMiRumbo, el directorio de negocios de {municipio}" (only on first mention in long texts), the metadata of every page and the locality suffix of the directions link. For the active locality of Tizayuca the published texts are the same as the ones written in this specification. A test MUST fail if a locality name is written in the code outside the locality data.
+No locality name MAY be hard-coded in any surface. Every text that names the locality MUST read it from the locality record. This covers: the footer line "Hecho para los vecinos de {municipio}, {estado}.", the home block "Deporte en {municipio}", the descriptor "enmirumbo, el directorio de negocios de {municipio}" (only on first mention in long texts), the metadata of every page and the locality suffix of the directions link. For the active locality of Tizayuca the published texts are the same as the ones written in this specification. A test MUST fail if a locality name is written in the code outside the locality data.
 
 #### Scenario: the footer
 
@@ -497,7 +497,7 @@ No locality name MAY be hard-coded in any surface. Every text that names the loc
 #### Scenario: the brand stays alone
 
 - **WHEN** any surface of any locality is reviewed
-- **THEN** none says "EnMiRumbo" with the locality glued to it, as already required by "No surface of the site names the previous brand or attaches the locality to the name"
+- **THEN** none says "enmirumbo" with the locality glued to it, as already required by "No surface of the site names the previous brand or attaches the locality to the name"
 
 ### Requirement: Canonical URLs, share previews and the sitemap use the full locality path (v2)
 
@@ -588,3 +588,24 @@ The analytics (Umami Cloud) MUST record three product events: a WhatsApp click f
 
 - **WHEN** a production page with the analytics is loaded
 - **THEN** the analytics set no cookie
+
+### Requirement: Every surface writes the brand as enmirumbo (v2)
+
+Added in v2 — source: brand decision of 2026-10-12, PRD §5.
+
+Every surface of the site —public pages, admin panel, metadata, share preview, legal texts and WhatsApp messages the site builds— MUST write the brand as `enmirumbo`: lowercase, one word, also at the start of a sentence or in a title. No surface MUST show "EnMiRumbo" or "En Mi Rumbo". The domain `enmirumbo.com` is unchanged.
+
+#### Scenario: the wordmark and the title are lowercase
+
+- **WHEN** a resident opens the home
+- **THEN** the header wordmark and the document title say "enmirumbo", in lowercase and in one word
+
+#### Scenario: a message that starts with the brand
+
+- **WHEN** the admin opens a WhatsApp message whose sentence begins with the brand
+- **THEN** the message writes "enmirumbo" in lowercase, not "Enmirumbo"
+
+#### Scenario: no old spelling on any surface
+
+- **WHEN** the HTML of the public pages, the admin panel and the legal pages is reviewed
+- **THEN** neither "EnMiRumbo" nor "En Mi Rumbo" appears

@@ -1,4 +1,4 @@
-# EnMiRumbo v2 — Product Requirements
+# enmirumbo v2 — Product Requirements
 
 - Status: draft for review
 - Date: 2026-10-11
@@ -6,9 +6,9 @@
 
 This document is the map of the rebuild. The blueprint is the set of seven functional specifications inherited from the prototype (168 requirements and 751 scenarios), which move into the new repository as `docs/specs/`. When this document and a specification disagree, the specification wins on behaviour and this document wins on intent. Technical decisions live in `docs/adr/`. The one-page brief lives in Plane ("Product Overview"); this document expands it and does not replace it.
 
-## 1. What EnMiRumbo is
+## 1. What enmirumbo is
 
-EnMiRumbo is a hyperlocal web directory. Businesses register themselves from a phone without creating an account, a person verifies each one before it is published, and residents find them and contact them directly through WhatsApp. The first and only locality at launch is Tizayuca, Hidalgo.
+enmirumbo is a hyperlocal web directory. Businesses register themselves from a phone without creating an account, a person verifies each one before it is published, and residents find them and contact them directly through WhatsApp. The first and only locality at launch is Tizayuca, Hidalgo.
 
 The advantage is not the listing. It is trust, because every published card went through a human conversation, and immediacy, because everything ends in WhatsApp.
 
@@ -47,10 +47,10 @@ Any implementation must keep these, in order of importance.
 
 ## 5. Brand and copy
 
-- The brand is **EnMiRumbo**, one word, capital M and R. The compound "EnMiRumbo Tizayuca" is forbidden; a test guards it.
-- When context is needed: "EnMiRumbo, el directorio de negocios de {municipio}", only on first mention in long texts.
+- The brand is **enmirumbo**, one word, always lowercase, also at the start of a sentence or in a title. The compound "enmirumbo Tizayuca" is forbidden; a test guards it.
+- When context is needed: "enmirumbo, el directorio de negocios de {municipio}", only on first mention in long texts.
 - The footer line is fixed and parametrised: "Hecho para los vecinos de {municipio}, {estado}."
-- Prefilled message from resident to business: "Hola, te vi en EnMiRumbo. ¿Me das informes?"
+- Prefilled message from resident to business: "Hola, te vi en enmirumbo. ¿Me das informes?"
 - WhatsApp green is the action colour and is used only for the main action.
 - Every text that names the locality reads it from the locality record; no locality name is hard-coded.
 
@@ -82,21 +82,21 @@ The published privacy notice is a contract. What it promises, the system does.
 
 ## 8. What changes from the prototype
 
-| Area | Prototype | v2 |
-|---|---|---|
-| Localities | Tizayuca hard-coded in texts, catalogues and URLs | Locality as a first-class record keyed by the INEGI municipality code; zones from the SEPOMEX postal catalogue; categories global; one admin with a locality filter hidden while there is one |
-| URLs | `/plomeria-haciendas-de-tizayuca` | `/hidalgo/tizayuca/plomeria-haciendas-de-tizayuca`; root and `/tizayuca` redirect while there is one locality |
-| Geolocation | none | Suggestion of the nearest locality on the root page when there are two or more; never an automatic redirect |
-| Admin access | Environment password and signed session | Cloudflare Access with one-time code by email; the identity feeds the audit log |
-| Audit log | none | Destructive admin actions logged with who, when, card and previous state |
-| Retention | Rejected purged at 90 days; pending edits kept forever | Pending revisions and unverified registrations purged at 30 days with a reminder |
-| Anti-bot | Honeypot and per-IP quotas | Plus Turnstile in managed mode, with a kill switch |
-| Search flood | none | Per-IP quota on the search endpoint |
-| Rights handling | Delete and unpublish from the panel; access and rectification by hand | Access and rectification from the panel |
-| Analytics | Umami with page views | Umami with three product events |
-| Photos | sharp on the server, bucket on Supabase | Transformed on upload with Cloudflare Images, stored in R2, served from a dedicated hostname |
-| Minor debt | Legal pages missing from the sitemap, report routes indexable, heading jumps, phone auto-detection | Fixed as part of the corresponding stories |
-| Backups and monitoring | External daily backup documented, no monitoring | Nightly dump to a private bucket with 30-day retention; an availability check every 30 minutes |
+| Area                   | Prototype                                                                                          | v2                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Localities             | Tizayuca hard-coded in texts, catalogues and URLs                                                  | Locality as a first-class record keyed by the INEGI municipality code; zones from the SEPOMEX postal catalogue; categories global; one admin with a locality filter hidden while there is one |
+| URLs                   | `/plomeria-haciendas-de-tizayuca`                                                                  | `/hidalgo/tizayuca/plomeria-haciendas-de-tizayuca`; root and `/tizayuca` redirect while there is one locality                                                                                 |
+| Geolocation            | none                                                                                               | Suggestion of the nearest locality on the root page when there are two or more; never an automatic redirect                                                                                   |
+| Admin access           | Environment password and signed session                                                            | Cloudflare Access with one-time code by email; the identity feeds the audit log                                                                                                               |
+| Audit log              | none                                                                                               | Destructive admin actions logged with who, when, card and previous state                                                                                                                      |
+| Retention              | Rejected purged at 90 days; pending edits kept forever                                             | Pending revisions and unverified registrations purged at 30 days with a reminder                                                                                                              |
+| Anti-bot               | Honeypot and per-IP quotas                                                                         | Plus Turnstile in managed mode, with a kill switch                                                                                                                                            |
+| Search flood           | none                                                                                               | Per-IP quota on the search endpoint                                                                                                                                                           |
+| Rights handling        | Delete and unpublish from the panel; access and rectification by hand                              | Access and rectification from the panel                                                                                                                                                       |
+| Analytics              | Umami with page views                                                                              | Umami with three product events                                                                                                                                                               |
+| Photos                 | sharp on the server, bucket on Supabase                                                            | Transformed on upload with Cloudflare Images, stored in R2, served from a dedicated hostname                                                                                                  |
+| Minor debt             | Legal pages missing from the sitemap, report routes indexable, heading jumps, phone auto-detection | Fixed as part of the corresponding stories                                                                                                                                                    |
+| Backups and monitoring | External daily backup documented, no monitoring                                                    | Nightly dump to a private bucket with 30-day retention; an availability check every 30 minutes                                                                                                |
 
 ## 9. Out of scope
 

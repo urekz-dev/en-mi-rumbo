@@ -28,7 +28,7 @@ The site MUST publish the full privacy notice at the route `/aviso-de-privacidad
 
 ### Requirement: The privacy notice has a stable version declared in a single place
 
-The privacy notice MUST have a stable version identifier, declared as a single literal in a single code module, from which every surface that shows or stores it reads it (the full page, the form's consent block and the server that records the consent record). The identifier MUST be a string that only moves forward: the current version is `2` —introduced by the rebrand to "EnMiRumbo" (T-019), which changed the site name inside the published text— and an already published version MUST NEVER be reused for another text. The version identifies the notice as a whole, which for these purposes is three inseparable pieces: the form's simplified notice, the literal of the consent checkbox and the full notice at `/aviso-de-privacidad`. The terms and conditions are NOT part of this version.
+The privacy notice MUST have a stable version identifier, declared as a single literal in a single code module, from which every surface that shows or stores it reads it (the full page, the form's consent block and the server that records the consent record). The identifier MUST be a string that only moves forward: the current version is `2` —introduced by the rebrand to "enmirumbo" (T-019), which changed the site name inside the published text— and an already published version MUST NEVER be reused for another text. The version identifies the notice as a whole, which for these purposes is three inseparable pieces: the form's simplified notice, the literal of the consent checkbox and the full notice at `/aviso-de-privacidad`. The terms and conditions are NOT part of this version.
 
 #### Scenario: a single source of the version
 
@@ -175,11 +175,11 @@ Ojo: este texto todavía es un borrador. Nos faltan los datos que ves entre corc
 
 Última actualización: [FECHA DE PUBLICACIÓN]
 
-Este aviso explica, sin rodeos, qué datos nos das cuando registras tu negocio en EnMiRumbo, el directorio de negocios de Tizayuca, para qué los usamos, qué queda público y cómo puedes pedirnos que los corrijamos o los borremos.
+Este aviso explica, sin rodeos, qué datos nos das cuando registras tu negocio en enmirumbo, el directorio de negocios de Tizayuca, para qué los usamos, qué queda público y cómo puedes pedirnos que los corrijamos o los borremos.
 
 ## Quién es responsable de tus datos
 
-El responsable del directorio EnMiRumbo y de los datos personales que nos das es [NOMBRE O RAZÓN SOCIAL DEL RESPONSABLE — completar antes del lanzamiento], con domicilio en [DOMICILIO DEL RESPONSABLE — completar antes del lanzamiento], Tizayuca, Hidalgo, México.
+El responsable del directorio enmirumbo y de los datos personales que nos das es [NOMBRE O RAZÓN SOCIAL DEL RESPONSABLE — completar antes del lanzamiento], con domicilio en [DOMICILIO DEL RESPONSABLE — completar antes del lanzamiento], Tizayuca, Hidalgo, México.
 
 Para cualquier cosa relacionada con tus datos escríbenos al correo contacto@enmirumbo.com o por WhatsApp al [WHATSAPP DEL DIRECTORIO — completar antes del lanzamiento].
 
@@ -275,7 +275,7 @@ The last line is the link to `/terminos`.
 #### Scenario: the notice names the site with the current brand
 
 - **WHEN** the owner reads the introduction of the notice and the section "Quién es responsable de tus datos"
-- **THEN** the introduction presents the site as "EnMiRumbo, el directorio de negocios de Tizayuca" and the responsible party section already says plain "EnMiRumbo", without the previous brand and without the locality attached to the name
+- **THEN** the introduction presents the site as "enmirumbo, el directorio de negocios de Tizayuca" and the responsible party section already says plain "enmirumbo", without the previous brand and without the locality attached to the name
 
 #### Scenario: none of this needs legal knowledge to be understood
 
@@ -303,7 +303,7 @@ The site MUST publish the terms and conditions at the route `/terminos` (a reser
 
 ### Requirement: The terms declare the directory an informational intermediary and disclaim the transactions
 
-The terms MUST establish that EnMiRumbo is an informational intermediary: it only shows information, does not provide the services or sell the products on the cards, and does not charge for publishing nor charge commissions. They MUST expressly disclaim the directory from everything that happens between the resident and the business —price, work, delivery, payment, warranty, timing and any problem— and from the truthfulness of the information each business writes. They MUST also explain what the "Negocio verificado" seal means (that the business exists and that the registered number is theirs) and what is NOT verified (quality, prices, licenses, permits, insurance or that the information is still current).
+The terms MUST establish that enmirumbo is an informational intermediary: it only shows information, does not provide the services or sell the products on the cards, and does not charge for publishing nor charge commissions. They MUST expressly disclaim the directory from everything that happens between the resident and the business —price, work, delivery, payment, warranty, timing and any problem— and from the truthfulness of the information each business writes. They MUST also explain what the "Negocio verificado" seal means (that the business exists and that the registered number is theirs) and what is NOT verified (quality, prices, licenses, permits, insurance or that the information is still current).
 
 #### Scenario: disclaimer of the transaction between resident and business
 
@@ -345,9 +345,9 @@ Ojo: este texto todavía es un borrador. Nos faltan los datos que ves entre corc
 
 Última actualización: [FECHA DE PUBLICACIÓN]
 
-Estas son las reglas de EnMiRumbo, el directorio de negocios de Tizayuca, para los negocios que se registran y para los vecinos que los buscan. Al usar el sitio o registrar tu negocio, aceptas lo que dice aquí.
+Estas son las reglas de enmirumbo, el directorio de negocios de Tizayuca, para los negocios que se registran y para los vecinos que los buscan. Al usar el sitio o registrar tu negocio, aceptas lo que dice aquí.
 
-## Qué es EnMiRumbo
+## Qué es enmirumbo
 
 Es un directorio de negocios y servicios de Tizayuca, Hidalgo. Sirve para dos cosas: que un negocio publique su ficha gratis y que un vecino lo encuentre y le escriba por WhatsApp. Nada más.
 
@@ -355,9 +355,9 @@ No cobramos por registrarse, no vendemos nada, no cobramos comisiones y no hay c
 
 ## Somos un intermediario informativo, no el negocio
 
-EnMiRumbo solo muestra información. No prestamos los servicios ni vendemos los productos que aparecen en las fichas.
+enmirumbo solo muestra información. No prestamos los servicios ni vendemos los productos que aparecen en las fichas.
 
-Cuando le escribes a un negocio por WhatsApp, sales de este sitio. Lo que pase después —el precio, el trabajo, la entrega, el pago, la garantía, los tiempos y cualquier problema— es un trato directo entre tú y ese negocio. EnMiRumbo no es parte de ese trato, no lo garantiza, no lo supervisa y no responde por él.
+Cuando le escribes a un negocio por WhatsApp, sales de este sitio. Lo que pase después —el precio, el trabajo, la entrega, el pago, la garantía, los tiempos y cualquier problema— es un trato directo entre tú y ese negocio. enmirumbo no es parte de ese trato, no lo garantiza, no lo supervisa y no responde por él.
 
 Tampoco respondemos por daños, pérdidas o desacuerdos que salgan de un servicio o una compra contratados con alguien que encontraste aquí. Si algo sale mal, resuélvelo con el negocio; y avísanos, porque nos sirve para moderar el directorio.
 
@@ -417,8 +417,8 @@ The standalone line "Aviso de privacidad" is the link to `/aviso-de-privacidad`.
 
 #### Scenario: the terms name the site with the current brand
 
-- **WHEN** the resident reads the opening of the terms, the heading "Qué es EnMiRumbo" and the disclaimer section
-- **THEN** the opening presents the site as "EnMiRumbo, el directorio de negocios de Tizayuca" and from there on the terms say plain "EnMiRumbo", without the previous brand and without the locality attached to the name
+- **WHEN** the resident reads the opening of the terms, the heading "Qué es enmirumbo" and the disclaimer section
+- **THEN** the opening presents the site as "enmirumbo, el directorio de negocios de Tizayuca" and from there on the terms say plain "enmirumbo", without the previous brand and without the locality attached to the name
 
 #### Scenario: plain language in the terms too
 
