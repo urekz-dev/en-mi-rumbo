@@ -1,6 +1,6 @@
 # Specifications
 
-These seven files are the functional contract of EnMiRumbo. The code is tested against them: every scenario maps to a test, and a story is not done while a scenario of its requirements has no test. When behaviour changes, the specification changes in the same pull request. They were inherited from the prototype (168 requirements, 751 scenarios), translated to English, and amended for version 2.
+These seven files are the functional contract of enmirumbo. The code is tested against them: every scenario maps to a test, and a story is not done while a scenario of its requirements has no test. When behaviour changes, the specification changes in the same pull request. They were inherited from the prototype (168 requirements, 751 scenarios), translated to English, and amended for version 2.
 
 ## Files
 

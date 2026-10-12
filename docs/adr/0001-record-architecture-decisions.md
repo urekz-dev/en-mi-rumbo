@@ -5,7 +5,7 @@
 - Owner: Alexis Zazueta
 
 ## Context
-EnMiRumbo is rebuilt from scratch and built in public. Many technical choices (hosting, data, security, testing) affect the product for years. Without a record, the reasons behind them are lost in chats and pull requests, and people revisit settled questions.
+enmirumbo is rebuilt from scratch and built in public. Many technical choices (hosting, data, security, testing) affect the product for years. Without a record, the reasons behind them are lost in chats and pull requests, and people revisit settled questions.
 
 ## Decision
 We record significant architecture decisions as short ADRs in `docs/adr/`.

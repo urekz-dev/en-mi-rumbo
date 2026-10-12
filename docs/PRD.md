@@ -1,4 +1,4 @@
-# EnMiRumbo v2 — Product Requirements
+# enmirumbo v2 — Product Requirements
 
 - Status: draft for review
 - Date: 2026-10-11
@@ -6,9 +6,9 @@
 
 This document is the map of the rebuild. The blueprint is the set of seven functional specifications inherited from the prototype (168 requirements and 751 scenarios), which move into the new repository as `docs/specs/`. When this document and a specification disagree, the specification wins on behaviour and this document wins on intent. Technical decisions live in `docs/adr/`. The one-page brief lives in Plane ("Product Overview"); this document expands it and does not replace it.
 
-## 1. What EnMiRumbo is
+## 1. What enmirumbo is
 
-EnMiRumbo is a hyperlocal web directory. Businesses register themselves from a phone without creating an account, a person verifies each one before it is published, and residents find them and contact them directly through WhatsApp. The first and only locality at launch is Tizayuca, Hidalgo.
+enmirumbo is a hyperlocal web directory. Businesses register themselves from a phone without creating an account, a person verifies each one before it is published, and residents find them and contact them directly through WhatsApp. The first and only locality at launch is Tizayuca, Hidalgo.
 
 The advantage is not the listing. It is trust, because every published card went through a human conversation, and immediacy, because everything ends in WhatsApp.
 
@@ -47,10 +47,10 @@ Any implementation must keep these, in order of importance.
 
 ## 5. Brand and copy
 
-- The brand is **EnMiRumbo**, one word, capital M and R. The compound "EnMiRumbo Tizayuca" is forbidden; a test guards it.
-- When context is needed: "EnMiRumbo, el directorio de negocios de {municipio}", only on first mention in long texts.
+- The brand is **enmirumbo**, one word, always lowercase, also at the start of a sentence or in a title. The compound "enmirumbo Tizayuca" is forbidden; a test guards it.
+- When context is needed: "enmirumbo, el directorio de negocios de {municipio}", only on first mention in long texts.
 - The footer line is fixed and parametrised: "Hecho para los vecinos de {municipio}, {estado}."
-- Prefilled message from resident to business: "Hola, te vi en EnMiRumbo. ¿Me das informes?"
+- Prefilled message from resident to business: "Hola, te vi en enmirumbo. ¿Me das informes?"
 - WhatsApp green is the action colour and is used only for the main action.
 - Every text that names the locality reads it from the locality record; no locality name is hard-coded.
 

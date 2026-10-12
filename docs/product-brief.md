@@ -1,8 +1,8 @@
-# En Mi Rumbo: product brief
+# enmirumbo: product brief
 
 > This is a copy. The canonical version is the Plane page "Product Overview" of the EMR project.
 
-> One-page format (Linear): why, what, how. Updated when a product decision changes, not every week. Technical matters live in `github.com/urekz-dev/en-mi-rumbo/docs` (PRD and ADR).
+> One-page format (Linear): why, what, how. Updated when a product decision changes, not every week. Technical matters live in `github.com/urekz-dev/enmirumbo/docs` (PRD and ADR).
 
 **Product owner:** Alexis Zazueta (interim, until the roles meeting confirms it).
 
@@ -46,5 +46,5 @@ Epic "EMR v1: del prototipo al primer usuario real" in cycle 1 (closes 2026-11-0
 
 - PRD: `docs/PRD.md` in the repository. ADR: `docs/adr/`, 0002 (rewrite) to 0018.
 - Accounts: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Infisical, Resend, Umami Cloud, Twilio when the SMS flag is needed. Custodians in Notion → Tools & Vendors. Vercel and Namecheap until the cut-over.
-- Secrets: Infisical → project "En Mi Rumbo" (`dev`, `stage`, `prod`).
-- Files: Drive → `Products/En Mi Rumbo`.
+- Secrets: Infisical → project "enmirumbo" (`dev`, `stage`, `prod`).
+- Files: Drive → `Products/enmirumbo`.

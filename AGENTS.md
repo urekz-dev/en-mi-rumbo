@@ -1,4 +1,4 @@
-# EnMiRumbo
+# enmirumbo
 
 Hyperlocal business directory: Astro in server mode on Cloudflare Workers, built with Vite+. [README.md](README.md) explains how to run it.
 
@@ -32,7 +32,7 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 ## Rules
 
 - Code, comments, documentation, commit messages, pull requests and Plane work items are in English. UI copy is in colloquial Mexican Spanish ("Registra tu negocio gratis", never "Crear listado").
-- The brand is EnMiRumbo, one word. Never write "EnMiRumbo Tizayuca". Texts that name a locality read it from the locality record; never hard-code a locality name.
+- The brand is enmirumbo, one word, always lowercase. Never write "enmirumbo Tizayuca". Texts that name a locality read it from the locality record; never hard-code a locality name.
 - The public site works without JavaScript. Only the registration and edit forms need it. No React or other client framework; mutations use Astro Actions with `accept: 'form'`.
 - Mobile first: design for a 390 px wide phone.
 - Read bindings with `import { env } from "cloudflare:workers"`. Astro sessions stay off.
