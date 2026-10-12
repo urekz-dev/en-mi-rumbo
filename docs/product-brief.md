@@ -46,5 +46,5 @@ Epic "EMR v1: del prototipo al primer usuario real" in cycle 1 (closes 2026-11-0
 
 - PRD: `docs/PRD.md` in the repository. ADR: `docs/adr/`, 0002 (rewrite) to 0018.
 - Accounts: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Infisical, Resend, Umami Cloud, Twilio when the SMS flag is needed. Custodians in Notion → Tools & Vendors. Vercel and Namecheap until the cut-over.
-- Secrets: Infisical → project "En Mi Rumbo" (`dev`, `staging`, `production`).
+- Secrets: Infisical → project "En Mi Rumbo" (`dev`, `stage`, `prod`).
 - Files: Drive → `Products/En Mi Rumbo`.
