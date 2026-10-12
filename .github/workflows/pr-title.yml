@@ -1,0 +1,28 @@
+name: PR title
+
+on:
+  pull_request:
+    # edited: re-check the title when it is fixed.
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check that the title starts with an EMR key
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$PR_TITLE" =~ ^EMR-[0-9]+\  ]]; then
+            echo "::error::The pull request title must start with an EMR key and a space, for example 'EMR-14 Add the pull request CI'."
+            exit 1
+          fi
