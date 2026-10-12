@@ -82,21 +82,21 @@ The published privacy notice is a contract. What it promises, the system does.
 
 ## 8. What changes from the prototype
 
-| Area | Prototype | v2 |
-|---|---|---|
-| Localities | Tizayuca hard-coded in texts, catalogues and URLs | Locality as a first-class record keyed by the INEGI municipality code; zones from the SEPOMEX postal catalogue; categories global; one admin with a locality filter hidden while there is one |
-| URLs | `/plomeria-haciendas-de-tizayuca` | `/hidalgo/tizayuca/plomeria-haciendas-de-tizayuca`; root and `/tizayuca` redirect while there is one locality |
-| Geolocation | none | Suggestion of the nearest locality on the root page when there are two or more; never an automatic redirect |
-| Admin access | Environment password and signed session | Cloudflare Access with one-time code by email; the identity feeds the audit log |
-| Audit log | none | Destructive admin actions logged with who, when, card and previous state |
-| Retention | Rejected purged at 90 days; pending edits kept forever | Pending revisions and unverified registrations purged at 30 days with a reminder |
-| Anti-bot | Honeypot and per-IP quotas | Plus Turnstile in managed mode, with a kill switch |
-| Search flood | none | Per-IP quota on the search endpoint |
-| Rights handling | Delete and unpublish from the panel; access and rectification by hand | Access and rectification from the panel |
-| Analytics | Umami with page views | Umami with three product events |
-| Photos | sharp on the server, bucket on Supabase | Transformed on upload with Cloudflare Images, stored in R2, served from a dedicated hostname |
-| Minor debt | Legal pages missing from the sitemap, report routes indexable, heading jumps, phone auto-detection | Fixed as part of the corresponding stories |
-| Backups and monitoring | External daily backup documented, no monitoring | Nightly dump to a private bucket with 30-day retention; an availability check every 30 minutes |
+| Area                   | Prototype                                                                                          | v2                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Localities             | Tizayuca hard-coded in texts, catalogues and URLs                                                  | Locality as a first-class record keyed by the INEGI municipality code; zones from the SEPOMEX postal catalogue; categories global; one admin with a locality filter hidden while there is one |
+| URLs                   | `/plomeria-haciendas-de-tizayuca`                                                                  | `/hidalgo/tizayuca/plomeria-haciendas-de-tizayuca`; root and `/tizayuca` redirect while there is one locality                                                                                 |
+| Geolocation            | none                                                                                               | Suggestion of the nearest locality on the root page when there are two or more; never an automatic redirect                                                                                   |
+| Admin access           | Environment password and signed session                                                            | Cloudflare Access with one-time code by email; the identity feeds the audit log                                                                                                               |
+| Audit log              | none                                                                                               | Destructive admin actions logged with who, when, card and previous state                                                                                                                      |
+| Retention              | Rejected purged at 90 days; pending edits kept forever                                             | Pending revisions and unverified registrations purged at 30 days with a reminder                                                                                                              |
+| Anti-bot               | Honeypot and per-IP quotas                                                                         | Plus Turnstile in managed mode, with a kill switch                                                                                                                                            |
+| Search flood           | none                                                                                               | Per-IP quota on the search endpoint                                                                                                                                                           |
+| Rights handling        | Delete and unpublish from the panel; access and rectification by hand                              | Access and rectification from the panel                                                                                                                                                       |
+| Analytics              | Umami with page views                                                                              | Umami with three product events                                                                                                                                                               |
+| Photos                 | sharp on the server, bucket on Supabase                                                            | Transformed on upload with Cloudflare Images, stored in R2, served from a dedicated hostname                                                                                                  |
+| Minor debt             | Legal pages missing from the sitemap, report routes indexable, heading jumps, phone auto-detection | Fixed as part of the corresponding stories                                                                                                                                                    |
+| Backups and monitoring | External daily backup documented, no monitoring                                                    | Nightly dump to a private bucket with 30-day retention; an availability check every 30 minutes                                                                                                |
 
 ## 9. Out of scope
 

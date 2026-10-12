@@ -5,8 +5,10 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Added
+
 - Architecture decision records 0001–0018 and the product requirements document.
 - Devlog template.
 
 ### Changed
+
 - The brand is written enmirumbo, lowercase and in one word.

@@ -25,7 +25,7 @@ The prototype exists and works, but its stack and its process are not the team's
 
 ## What it is
 
-A local directory with search by text and by category (restaurants, home services, beauty, health, groceries, workshops, sports clubs, among others), business cards with direct WhatsApp contact, and free registration for owners, verified by a person before publishing. Tagline: *"Encuentra negocios y servicios de aquí cerquita y contáctalos directo por WhatsApp."* Version 2 adds a locality-aware data model (one city at launch, ready for more), the admin panel behind Cloudflare Access with an audit log, and product events in Umami.
+A local directory with search by text and by category (restaurants, home services, beauty, health, groceries, workshops, sports clubs, among others), business cards with direct WhatsApp contact, and free registration for owners, verified by a person before publishing. Tagline: _"Encuentra negocios y servicios de aquí cerquita y contáctalos directo por WhatsApp."_ Version 2 adds a locality-aware data model (one city at launch, ready for more), the admin panel behind Cloudflare Access with an audit log, and product events in Umami.
 
 ## What it is not (for now)
 
