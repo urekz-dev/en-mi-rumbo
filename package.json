@@ -11,6 +11,8 @@
     "@astrojs/cloudflare": "14.3.4",
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.3.8",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
@@ -18,6 +20,8 @@
     "@cloudflare/vitest-plugin": "1.4.0",
     "@playwright/test": "1.64.0",
     "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
     "prettier": "3.9.10",
     "prettier-plugin-astro": "1.1.1",
     "typescript": "6.0.3",
