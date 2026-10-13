@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+    # No edited: the title check lives in pr-title.yml, so description edits
+    # do not re-run the full CI.
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+env:
+  # Install without the git hooks that `vp config` sets up in `prepare`.
+  VP_GIT_HOOKS: "0"
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # The organisation allows only GitHub-owned actions, so Vite+ comes from npm.
+      - run: npm install --global vite-plus@1.1.0 # zizmor: ignore[adhoc-packages] exact version; the lockfile pins everything else
+      - run: vp install --frozen-lockfile
+      # The project's own vp, so its bundled Vitest matches the one the tests import.
+      - run: ./node_modules/.bin/vp run check:all
+
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: enmirumbo
+          POSTGRES_PASSWORD: enmirumbo
+          POSTGRES_DB: enmirumbo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U enmirumbo -d enmirumbo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The tests apply the migrations themselves in a global setup.
+      DATABASE_URL: postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # The organisation allows only GitHub-owned actions, so Vite+ comes from npm.
+      - run: npm install --global vite-plus@1.1.0 # zizmor: ignore[adhoc-packages] exact version; the lockfile pins everything else
+      - run: vp install --frozen-lockfile
+      - run: ./node_modules/.bin/vp test
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: enmirumbo
+          POSTGRES_PASSWORD: enmirumbo
+          POSTGRES_DB: enmirumbo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U enmirumbo -d enmirumbo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # The organisation allows only GitHub-owned actions, so Vite+ comes from npm.
+      - run: npm install --global vite-plus@1.1.0 # zizmor: ignore[adhoc-packages] exact version; the lockfile pins everything else
+      - run: vp install --frozen-lockfile
+      - run: ./node_modules/.bin/vp exec playwright install --with-deps chromium
+      # Builds first (dependsOn: build), then runs Playwright against astro preview.
+      - run: ./node_modules/.bin/vp run e2e
+      - name: Upload the Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  workflows:
+    name: workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Release binaries pinned by checksum, because the organisation allows
+      # only GitHub-owned actions.
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tar.gz" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: zizmor
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/zizmor.tar.gz" "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $RUNNER_TEMP/zizmor.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/zizmor.tar.gz" -C "$RUNNER_TEMP" zizmor
+          "$RUNNER_TEMP/zizmor" --format=github .github/workflows
