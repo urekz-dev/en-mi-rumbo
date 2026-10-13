@@ -40,11 +40,11 @@ Confirmed metric for v1: **at least 50 active registered businesses and at least
 
 ## Active bet
 
-Epic "EMR v1: del prototipo al primer usuario real" in cycle 1 (closes 2026-11-01): brief and decision (done), minimal infrastructure (public repository with LICENSE, Infisical environments, accounts with custodians; the DNS move to Cloudflare waits for EMR-63). The rewrite follows as epics A to H, proposed over cycles 2 to 5; the betting table decides each cycle.
+Epic "EMR v1: del prototipo al primer usuario real" in cycle 1 (closes 2026-11-01): brief and decision (done), minimal infrastructure (public repository with LICENSE, GitHub Environments for secrets, accounts with custodians; the DNS move to Cloudflare waits for EMR-63). The rewrite follows as epics A to H, proposed over cycles 2 to 5; the betting table decides each cycle.
 
 ## Decisions and links
 
 - PRD: `docs/PRD.md` in the repository. ADR: `docs/adr/`, 0002 (rewrite) to 0018.
-- Accounts: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Infisical, Resend, Umami Cloud, Twilio when the SMS flag is needed. Custodians in Notion → Tools & Vendors. Vercel and Namecheap until the cut-over.
-- Secrets: Infisical → project "enmirumbo" (`dev`, `stage`, `prod`).
+- Accounts: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Resend, Umami Cloud, Twilio when the SMS flag is needed. Custodians in Notion → Tools & Vendors. Vercel and Namecheap until the cut-over.
+- Secrets: GitHub Environments `dev`, `stage`, `prod` of the repository (ADR 0020).
 - Files: Drive → `Products/enmirumbo`.

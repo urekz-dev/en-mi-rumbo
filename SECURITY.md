@@ -15,4 +15,4 @@ Do not access, change or delete data that is not yours, and stop as soon as you 
 
 ## How this repository keeps secrets out
 
-The repository is public. Secrets never live in it: they are kept in Infisical and reach the Workers and the CI from there. GitHub secret scanning with push protection, and a `secrets` job in the CI, check every push and pull request.
+The repository is public. Secrets never live in it: they are kept in the repository's GitHub Environments, one per deployed environment, and reach the CI and the Workers only through the deploy jobs of that environment. GitHub secret scanning with push protection, and a `secrets` job in the CI, check every push and pull request.
