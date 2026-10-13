@@ -85,4 +85,18 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 - Migrations are additive only. A destructive statement (`DROP`, `RENAME`, `ALTER ... TYPE`, `SET NOT NULL`, `TRUNCATE`) is allowed only in a file that carries the line `-- destructive-ok: <reason>`, and lands in its own pull request, one version after the code stopped using the column or table.
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
 
+## Secrets
+
+Every secret lives in the GitHub Environments of this repository, `dev`, `stage` and `prod` ([ADR 0020](docs/adr/0020-secrets-in-github-environments.md)): Settings > Environments. A secret reaches only the jobs that declare its environment, and `prod` and `stage` release theirs only to tags `v*` and to `main`. GitHub masks their values in the logs and never shows them again, so the originals stay in each provider and in the custodian's password manager.
+
+| Secret                  | Environments           | What it is                                                                                          |
+| ----------------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | `dev`, `stage`, `prod` | An account API token with the Editor role on that environment's Worker only.                        |
+| `CLOUDFLARE_ACCOUNT_ID` | `dev`, `stage`, `prod` | The Cloudflare account id.                                                                          |
+| `DATABASE_URL`          | `dev`, `stage`, `prod` | The direct (non-pooled) connection string of that environment's Neon branch, `sslmode=verify-full`. |
+| `NEON_API_KEY`          | `dev`                  | A Neon project-scoped API key, to reset the `dev` branch from `stage`.                              |
+| `NEON_PROJECT_ID`       | `dev`                  | The Neon project id.                                                                                |
+
+The Worker has no secrets yet. When one arrives, its name goes in `secrets.required` of each Wrangler environment, its value in the GitHub Environments, and the deploy step uploads it with `wrangler deploy --secrets-file`. Changing a secret takes a new deploy of that environment. Locally no real secret is needed; a `.dev.vars` file, ignored by git, holds any local value.
+
 Deployment to Cloudflare arrives with the stories that add the environments and the workflows, and this README will describe it then.

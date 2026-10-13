@@ -1,6 +1,6 @@
 # ADR 0009: Secrets managed in Infisical
 
-- Status: accepted
+- Status: superseded by ADR 0020
 - Date: 2026-10-11
 - Owner: Alexis Zazueta
 

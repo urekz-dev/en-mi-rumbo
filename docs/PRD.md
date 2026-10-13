@@ -110,7 +110,7 @@ From the brief: at least 50 active businesses and at least 200 WhatsApp contacts
 
 1. Every scenario of the seven specifications, with the v2 amendments, is covered by tests and green in CI.
 2. The professional legal review of the privacy notice and the terms is done and the responsible party is filled in.
-3. Accounts exist with a custodian recorded: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Infisical, Resend, Umami Cloud, Twilio (may wait for the flag).
+3. Accounts exist with a custodian recorded: Cloudflare (zone, Workers, R2, Access, Turnstile), Neon, Resend, Umami Cloud, Twilio (may wait for the flag). Secrets live in the GitHub Environments (ADR 0020).
 4. DNS of enmirumbo.com is served by Cloudflare; the registrar transfer may happen later.
 5. Backups and the availability check are running against production.
 6. The cut-over plan is written: tag 1.0.0, production deploy, DNS switch from the Vercel prototype, archive the prototype repository, delete the Vercel and Supabase projects.
