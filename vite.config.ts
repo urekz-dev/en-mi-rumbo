@@ -2,14 +2,32 @@
 // Astro has its own configuration in astro.config.mjs and ignores this file,
 // so `vp dev`, `vp build` and `vp preview` do not run Astro: use the
 // `vp run dev`, `vp run build` and `vp run preview` tasks below.
+import { builtinModules } from "node:module";
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vite-plus";
+import { LOCAL_TEST_DATABASE_URL } from "./src/core/db/url.ts";
+
+// Tests use their own database, never the development one. The Hyperdrive
+// bindings of the workers project and the global setup (test/global-setup.ts)
+// must reach the same database: DATABASE_URL, or enmirumbo_test locally.
+const testDatabaseUrl = process.env["DATABASE_URL"] ?? LOCAL_TEST_DATABASE_URL;
+for (const binding of ["HYPERDRIVE", "HYPERDRIVE_FRESH"]) {
+  process.env[`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_${binding}`] = testDatabaseUrl;
+}
 
 const generated = ["dist/**", ".astro/**", "worker-configuration.d.ts"];
 
 export default defineConfig({
   test: {
     projects: [
+      {
+        // Plain Node tests for the scripts (migration guard, ...).
+        test: {
+          name: "scripts",
+          environment: "node",
+          include: ["test/scripts/**/*.test.ts"],
+        },
+      },
       {
         // Runs inside workerd with the bindings from wrangler.jsonc.
         plugins: [
@@ -20,7 +38,24 @@ export default defineConfig({
         ],
         test: {
           name: "workers",
+          // pg is CommonJS and its require() calls cannot be loaded one by one
+          // inside workerd, so Vite bundles it ahead of time. Node built-ins and
+          // cloudflare:* stay external and come from workerd (nodejs_compat).
+          deps: {
+            optimizer: {
+              ssr: {
+                enabled: true,
+                include: ["pg"],
+                rolldownOptions: {
+                  platform: "node",
+                  external: [/^cloudflare:/, /^node:/, ...builtinModules],
+                },
+              },
+            },
+          },
           include: ["test/worker/**/*.test.ts"],
+          // Applies the migrations (Node side) before the tests run in workerd.
+          globalSetup: ["./test/global-setup.ts"],
         },
       },
     ],
@@ -28,10 +63,25 @@ export default defineConfig({
   lint: {
     ignorePatterns: generated,
     options: { typeAware: true, typeCheck: true },
+    overrides: [
+      {
+        // ADR 0019: business rules and data access never depend on Astro.
+        files: ["src/core/**"],
+        rules: {
+          "no-restricted-imports": [
+            "error",
+            {
+              paths: [{ name: "astro", message: "src/core must not import Astro." }],
+              patterns: [{ group: ["astro:*"], message: "src/core must not import Astro." }],
+            },
+          ],
+        },
+      },
+    ],
   },
   fmt: {
-    // Prettier formats .astro files (prettier.config.mjs).
-    ignorePatterns: [...generated, "**/*.astro", "pnpm-lock.yaml"],
+    // Prettier formats .astro files (prettier.config.mjs). Drizzle Kit owns drizzle/.
+    ignorePatterns: [...generated, "**/*.astro", "pnpm-lock.yaml", "drizzle/**"],
   },
   staged: {
     "!(*.astro)": "vp check --fix --no-error-on-unmatched-pattern",
@@ -51,10 +101,19 @@ export default defineConfig({
           'prettier --check "**/*.astro"',
           "astro check",
           "wrangler types --check",
+          "node scripts/check-migrations.ts",
         ],
         cache: false,
       },
       "fmt:astro": { command: 'prettier --write "**/*.astro"', cache: false },
+      // Database (ADR 0005). Local PostgreSQL 18 in Docker; see README.
+      "db:up": { command: "docker compose up -d --wait", cache: false },
+      "db:down": { command: "docker compose down", cache: false },
+      "db:generate": { command: "drizzle-kit generate", cache: false },
+      "db:migrate": { command: "drizzle-kit migrate", cache: false },
+      "db:seed": { command: "node scripts/db-seed.ts", cache: false },
+      // Fails on destructive statements without a `-- destructive-ok: <reason>` marker.
+      "db:check": { command: "node scripts/check-migrations.ts", cache: false },
       // End-to-end tests against `astro preview` (workerd); builds first.
       e2e: { command: "playwright test", dependsOn: ["build"], cache: false },
     },

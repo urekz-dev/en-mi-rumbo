@@ -12,5 +12,22 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",
-  },
+  }, // Local-only values. The real Hyperdrive configuration ids per environment
+  // (dev, stage, prod) arrive with EMR-15, inside each environment block.
+  // The all-zero id is a placeholder and `localConnectionString` points both
+  // bindings at the PostgreSQL 18 in compose.yaml (`vp run db:up`).
+  // HYPERDRIVE is cached: public reads only. HYPERDRIVE_FRESH has caching
+  // disabled: writes, the admin panel and any read that follows a write.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000000000000000000000000000",
+      "localConnectionString": "postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo",
+    },
+    {
+      "binding": "HYPERDRIVE_FRESH",
+      "id": "00000000000000000000000000000000",
+      "localConnectionString": "postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo",
+    },
+  ],
 }

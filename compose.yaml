@@ -1,0 +1,24 @@
+# Local PostgreSQL 18 for development, tests and wrangler's Hyperdrive bindings
+# (ADR 0005). Start it with `vp run db:up`. Development credentials only.
+services:
+  postgres:
+    image: postgres:18
+    container_name: enmirumbo-postgres
+    environment:
+      POSTGRES_USER: enmirumbo
+      POSTGRES_PASSWORD: enmirumbo
+      POSTGRES_DB: enmirumbo
+    ports:
+      - "5432:5432"
+    volumes:
+      - enmirumbo-pgdata:/var/lib/postgresql
+      # Creates the enmirumbo_test database used by `vp test` on the first start.
+      - ./docker/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enmirumbo -d enmirumbo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  enmirumbo-pgdata:
