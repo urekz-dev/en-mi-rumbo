@@ -1,0 +1,18 @@
+# Security
+
+## Reporting a vulnerability
+
+Report vulnerabilities privately through GitHub: open the repository's **Security** tab and select **Report a vulnerability**. Do not open a public issue, pull request or discussion about it.
+
+Include what you found, where (a URL or a file and line), how to reproduce it and what an attacker could do with it. We answer within five working days and keep you informed until it is fixed.
+
+## Scope
+
+- This repository and the enmirumbo sites it deploys, including their `workers.dev` addresses.
+- Out of scope: the prototype at `enmirumbo.com` while it still runs on Vercel, denial of service, social engineering, and reports from automated scanners without a working proof.
+
+Do not access, change or delete data that is not yours, and stop as soon as you can prove the problem.
+
+## How this repository keeps secrets out
+
+The repository is public. Secrets never live in it: they are kept in Infisical and reach the Workers and the CI from there. GitHub secret scanning with push protection, and a `secrets` job in the CI, check every push and pull request.
