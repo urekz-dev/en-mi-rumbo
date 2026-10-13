@@ -1,0 +1,33 @@
+name: Monitor prod
+
+# Checks every 30 minutes that production answers (ADR 0016): the home page and
+# /health, which also reaches the database. GitHub emails a failed run to the
+# person who last changed this schedule; README, Operations, says what to do.
+on:
+  schedule:
+    # Off the hour, when GitHub's scheduler is busiest.
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: monitor-prod
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check production
+        env:
+          # SITE_URL of prod in wrangler.jsonc (test/scripts/wrangler-config.test.ts).
+          SITE_URL: https://enmirumbo.urekz.workers.dev
+        run: scripts/monitor/check-site.sh "${SITE_URL}"

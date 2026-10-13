@@ -116,14 +116,67 @@ The Hyperdrive configurations hold the database credentials and are created by h
 
 ## Secrets
 
-Every secret lives in the GitHub Environments of this repository, `dev`, `stage` and `prod` ([ADR 0020](docs/adr/0020-secrets-in-github-environments.md)): Settings > Environments. A secret reaches only the jobs that declare its environment, and `prod` and `stage` release theirs only to tags `v*` and to `main`. GitHub masks their values in the logs and never shows them again, so the originals stay in each provider and in the custodian's password manager.
+Every secret lives in the GitHub Environments of this repository, `dev`, `stage` and `prod`, plus `backup` for the nightly backup ([ADR 0020](docs/adr/0020-secrets-in-github-environments.md)): Settings > Environments. A secret reaches only the jobs that declare its environment; `prod` releases its secrets only to tags `v*`, and `stage` and `backup` only to `main`. GitHub masks their values in the logs and never shows them again, so the originals stay in each provider and in the custodian's password manager.
 
-| Secret                  | Environments           | What it is                                                                                          |
-| ----------------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`  | `dev`, `stage`, `prod` | An account API token with the Editor role on that environment's Worker only.                        |
-| `CLOUDFLARE_ACCOUNT_ID` | `dev`, `stage`, `prod` | The Cloudflare account id.                                                                          |
-| `DATABASE_URL`          | `dev`, `stage`, `prod` | The direct (non-pooled) connection string of that environment's Neon branch, `sslmode=verify-full`. |
-| `NEON_API_KEY`          | `dev`                  | A Neon project-scoped API key, to reset the `dev` branch from `stage`.                              |
-| `NEON_PROJECT_ID`       | `dev`                  | The Neon project id.                                                                                |
+| Secret                  | Environments                     | What it is                                                                                                                                                                |
+| ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | `dev`, `stage`, `prod`           | An account API token with the Editor role on that environment's Worker only.                                                                                              |
+| `CLOUDFLARE_ACCOUNT_ID` | `dev`, `stage`, `prod`, `backup` | The Cloudflare account id.                                                                                                                                                |
+| `DATABASE_URL`          | `dev`, `stage`, `prod`, `backup` | The direct (non-pooled) connection string of that environment's Neon branch, `sslmode=verify-full`. In `backup`, production's, for the read-only role `enmirumbo_backup`. |
+| `NEON_API_KEY`          | `dev`                            | A Neon project-scoped API key, to reset the `dev` branch from `stage`.                                                                                                    |
+| `NEON_PROJECT_ID`       | `dev`                            | The Neon project id.                                                                                                                                                      |
+| `R2_ACCESS_KEY_ID`      | `backup`                         | The Access Key ID of an R2 token with Object Read & Write on the `enmirumbo-backups` bucket only.                                                                         |
+| `R2_SECRET_ACCESS_KEY`  | `backup`                         | The Secret Access Key of that token.                                                                                                                                      |
 
 The Worker has no secrets yet. When one arrives, its name goes in `secrets.required` of each Wrangler environment, its value in the GitHub Environments, and the deploy step uploads it with `wrangler deploy --secrets-file`. Changing a secret takes a new deploy of that environment. Locally no real secret is needed; a `.dev.vars` file, ignored by git, holds any local value.
+
+## Operations
+
+### Availability check
+
+`monitor.yml` requests the home page of production and `/health` at minutes 7 and 37 of every hour ([ADR 0016](docs/adr/0016-ci-cd-monitoring-and-backups.md)). `/health` answers 200 `ok` only when the Worker reaches the database (`SELECT 1` through `HYPERDRIVE_FRESH`), and 503 `unavailable` otherwise. Each check is tried three times, 20 seconds apart, before the run fails, and the run names every check that failed. GitHub emails a failed run to the person who last changed the workflow's schedule.
+
+When it fails: open the run to see which check failed, look at the live logs of the `enmirumbo` Worker in the Cloudflare dashboard (the health route logs why the database did not answer), and at the `prod` branch in the Neon console. To check again by hand: Actions, "Monitor prod", "Run workflow".
+
+Every check wakes production's Neon compute, which then stays up about five minutes: up to about 30 of the 100 compute-unit hours a month of Neon's free plan.
+
+### Backups
+
+`backup.yml` runs every night at 03:23 Mexico City time, from `main`, with the secrets of the `backup` environment. It dumps production with `pg_dump` 18 in the custom format, as the read-only role `enmirumbo_backup`, checks that the dump reads back and holds table data, and uploads it to the private R2 bucket `enmirumbo-backups` as `prod/enmirumbo-<UTC date and time>.dump`. The run summary names the object with its size and SHA-256, which is also stored in the object's metadata. To take a backup by hand: Actions, "Backup prod", "Run workflow".
+
+The bucket has no public hostname. Its lifecycle rule deletes each dump after 30 days, and its bucket lock keeps each dump at least that long, so nobody can delete or overwrite one earlier, not even the backup's token. The R2 token has Object Read & Write on that bucket only.
+
+`enmirumbo_backup` exists only on the production branch. It was created once in the Neon SQL Editor, as the role that runs the migrations (`enmirumbodb_owner`), so the default privileges cover every table and sequence the migrations add to `public` and `drizzle`. A new schema needs the same grants, or the backup fails:
+
+```sql
+CREATE ROLE enmirumbo_backup WITH LOGIN PASSWORD '<generated password>';
+GRANT USAGE ON SCHEMA public, drizzle TO enmirumbo_backup;
+GRANT SELECT ON ALL TABLES IN SCHEMA public, drizzle TO enmirumbo_backup;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public, drizzle TO enmirumbo_backup;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON TABLES TO enmirumbo_backup;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON SEQUENCES TO enmirumbo_backup;
+```
+
+### Restore
+
+In an incident, first use Neon's instant restore of the `prod` branch (Neon console, Branches, `prod`, Restore), which reaches 6 hours back on the free plan. For anything older, restore a dump. The steps below restore into `dev`, which is how the procedure is rehearsed; the next "Deploy dev" resets `dev` from `stage` again.
+
+1. Download the dump: Cloudflare dashboard, R2, `enmirumbo-backups`, `prod/`, the object, Download. Compare `shasum -a 256 <file>` with the SHA-256 of its run summary.
+2. Copy the direct connection string of the target branch from the Neon console (Connect, connection pooling off) and change `sslmode=require` to `sslmode=verify-full`. Keep it out of the shell history: run `read -rs TARGET_DATABASE_URL && export TARGET_DATABASE_URL`, paste it and press Enter.
+3. Restore it with the PostgreSQL 18 client of the `postgres:18` image, from the folder that holds the dump. The image has no certificate authorities, so the machine's are mounted (`/etc/ssl/cert.pem` on macOS, `/etc/ssl/certs/ca-certificates.crt` on Debian and Ubuntu). It runs in a single transaction: on any error nothing changes.
+
+   ```sh
+   docker run --rm -e TARGET_DATABASE_URL -e PGSSLROOTCERT=/certs/ca.pem \
+     -v /etc/ssl/cert.pem:/certs/ca.pem:ro -v "$PWD:/backup:ro" postgres:18 \
+     sh -c 'pg_restore --clean --if-exists --no-owner --no-acl --single-transaction --exit-on-error --dbname "$TARGET_DATABASE_URL" /backup/<file>'
+   ```
+
+4. Check it: the migrations the dump knew are there.
+
+   ```sh
+   docker run --rm -e TARGET_DATABASE_URL -e PGSSLROOTCERT=/certs/ca.pem \
+     -v /etc/ssl/cert.pem:/certs/ca.pem:ro postgres:18 \
+     sh -c 'psql "$TARGET_DATABASE_URL" -c "SELECT count(*) FROM drizzle.__drizzle_migrations"'
+   ```
+
+5. On `dev`, run "Deploy dev" afterwards. On `prod`, take a backup by hand first, so the broken state is kept too, then restore and run the availability check.

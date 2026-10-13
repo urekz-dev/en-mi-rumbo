@@ -1,0 +1,47 @@
+name: Backup prod
+
+# Dumps production every night and uploads the dump to the private R2 bucket
+# enmirumbo-backups (ADR 0016), which deletes each dump after 30 days and locks
+# it until then. The secrets come from the `backup` GitHub Environment, which
+# only main can use: a read-only database role and an R2 token for that bucket.
+# README, Operations, says how to restore.
+on:
+  schedule:
+    # 03:23 in Mexico City (UTC-6 all year).
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup-prod
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  backup:
+    name: backup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: backup
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pg_dump must be at least the server's major version, PostgreSQL 18. The
+      # runner has an older client, so 18 comes from the PGDG repository and
+      # goes first on PATH.
+      - name: Install the PostgreSQL 18 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >>"${GITHUB_PATH}"
+      - name: Dump production and upload it to R2
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_BUCKET: enmirumbo-backups
+        run: scripts/backup/dump-to-r2.sh
