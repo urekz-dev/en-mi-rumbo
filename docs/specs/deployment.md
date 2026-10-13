@@ -533,3 +533,87 @@ The per-IP quotas of registration, edits, reports, search and SMS MUST be kept i
 
 - **WHEN** the database schema and its data are reviewed after quotas are exhausted
 - **THEN** no column or row holds an IP or a value derived from it
+
+### Requirement: Three deployed environments, each with its own Worker, bindings and variables (v2)
+
+Added in v2 — source: ADR 0008, ADR 0005, ADR 0010.
+
+The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environments `dev`, `stage` and `prod` inside `env`, and each MUST declare for itself, without relying on the top level: its Worker name (`dev-enmirumbo`, `stage-enmirumbo` and `enmirumbo`), the `workers.dev` URL on, Version and Preview URLs off (`preview_urls: false`, so no URL can bypass Access), its `HYPERDRIVE` (cached) and `HYPERDRIVE_FRESH` (caching disabled) bindings with ids of its own, and the variables `ENVIRONMENT` (its own identifier), `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `SITE_URL` (its `workers.dev` URL, `https://<worker>.urekz.workers.dev`, the base of every absolute URL). The Cron Trigger follows "Scheduled work runs from one hourly Cron Trigger per environment (v2)"; `dev` MUST declare an empty list, so a deploy also removes a trigger left on its Worker. No route or Custom Domain is declared until the DNS move. The top level is the local Worker (`enmirumbo-local`, `ENVIRONMENT` `local`) with the `workers.dev` URL and Version URLs off, so a deploy without an environment by mistake publishes nothing reachable. While the Access application does not exist, `ACCESS_AUD` is empty and the panel stays closed.
+
+#### Scenario: per environment
+
+- **WHEN** the configuration of `dev`, `stage` and `prod` is read as Wrangler resolves it
+- **THEN** each has its Worker name, `workers_dev` on, `preview_urls` off, both Hyperdrive bindings with two ids that no other environment uses, and the four variables with its own `ENVIRONMENT` and `SITE_URL`
+
+#### Scenario: nothing inherited
+
+- **WHEN** a binding or a variable is added at the top level
+- **THEN** a check fails until every environment declares it too
+
+#### Scenario: the local Worker
+
+- **WHEN** the top level is read
+- **THEN** its name is `enmirumbo-local`, `ENVIRONMENT` is `local`, and the `workers.dev` URL, the Version URLs and the triggers are off
+
+### Requirement: Each environment is built and deployed by its own workflow (v2)
+
+Added in v2 — source: ADR 0008, ADR 0005, ADR 0016.
+
+Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, or a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id. An empty `ACCESS_AUD` is only a warning.
+
+- `dev` (`deploy-dev.yml`): run by hand from any branch, never from a tag. It resets the Neon branch named `dev` to its parent `stage` and waits until Neon finishes, applies the branch's migrations, runs the fictitious seed, deploys, and writes the branch and the commit to the run summary and to the page footer. The reset MUST touch only the branch named `dev`, and MUST refuse, without writing, unless there is exactly one branch named `dev` and one named `stage`, `dev` is not the default branch, its parent is `stage` and it has no children.
+- `stage` (`deploy-stage.yml`): on every push to `main`, or by hand on `main`. It applies the migrations, runs the fictitious seed and deploys.
+- `prod` (`deploy-prod.yml`): on a tag `vX.Y.Z` (three numbers without leading zeros and nothing after them), or by hand on such a tag. It applies the migrations without seeding, deploys, and then creates the GitHub Release of the tag with generated notes; only that job may write to the repository.
+
+After each deploy a smoke test MUST request the site URL and fail unless the home answers 200 with `X-Robots-Tag: noindex` and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
+
+#### Scenario: a placeholder Hyperdrive id
+
+- **WHEN** the build of an environment still has a placeholder Hyperdrive id
+- **THEN** the workflow stops before the migrations and the deploy, naming the binding and the environment
+
+#### Scenario: a build for another environment
+
+- **WHEN** the configuration was built for `dev` and the workflow deploys `stage`
+- **THEN** the check names the target, the Worker name, `ENVIRONMENT` and the triggers that do not match, and nothing is deployed
+
+#### Scenario: the wrong ref
+
+- **WHEN** the production workflow runs on a branch or on a tag such as `v1.2.3-rc1`, the stage workflow on a branch other than `main`, or the dev workflow on a tag
+- **THEN** it stops before building
+
+#### Scenario: resetting dev
+
+- **WHEN** the dev workflow runs
+- **THEN** the branch named `dev` is restored from `stage`, the API key never appears in a command line or the log, and the workflow continues only after every Neon operation of the reset has finished
+
+#### Scenario: a branch layout that is not the expected one
+
+- **WHEN** `dev` is not a child of `stage`, is the default branch, has children, or there is not exactly one branch with each name
+- **THEN** the reset sends no write to Neon and the workflow fails saying why
+
+#### Scenario: the smoke test
+
+- **WHEN** after a deploy the home does not answer 200, does not carry `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
+- **THEN** the workflow fails
+
+### Requirement: The dev footer names the branch and commit deployed (v2)
+
+Added in v2 — source: ADR 0008.
+
+On `dev`, the page footer MUST say "Versión de prueba: rama <branch>, commit <first seven characters of the commit>", from the variables `DEPLOY_BRANCH` and `DEPLOY_COMMIT` that the dev workflow sets at deploy time. No other environment MUST show it, even with both variables set, and nothing MUST be shown when a value is missing or the commit is not a hexadecimal SHA.
+
+#### Scenario: dev
+
+- **WHEN** the home of `dev` is opened after a deploy of a branch
+- **THEN** its footer shows that branch and the first seven characters of the commit
+
+#### Scenario: another environment
+
+- **WHEN** the home of `stage`, production or a local run is opened
+- **THEN** there is no deploy footer
+
+#### Scenario: a missing or invalid value
+
+- **WHEN** `DEPLOY_BRANCH` is empty, or `DEPLOY_COMMIT` is empty or not hexadecimal
+- **THEN** there is no deploy footer

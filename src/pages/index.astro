@@ -1,7 +1,12 @@
 ---
 // Placeholder page that proves the stack end to end. The real home page
-// arrives with its story.
+// arrives with its story. On dev, the footer names the branch and commit
+// deployed (src/lib/deploy-info.ts).
+import { env } from "cloudflare:workers";
+import { readDeployInfo } from "../lib/deploy-info.ts";
 import "../styles/global.css";
+
+const deploy = readDeployInfo(env);
 ---
 
 <!doctype html>
@@ -19,5 +24,16 @@ import "../styles/global.css";
         Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
       </p>
     </main>
+    {deploy && (
+      <footer
+        class="mx-auto max-w-md px-6 pb-8 text-sm text-gray-600 md:max-w-xl"
+        data-testid="deploy-info"
+      >
+        <p class="break-all">
+          Versión de prueba: rama <code>{deploy.branch}</code>, commit{" "}
+          <code title={deploy.commit}>{deploy.shortCommit}</code>
+        </p>
+      </footer>
+    )}
   </body>
 </html>

@@ -1,0 +1,113 @@
+// Scenarios of docs/specs/deployment.md, requirements "Three deployed
+// environments, each with its own Worker, bindings and variables (v2)" and
+// "Scheduled work runs from one hourly Cron Trigger per environment (v2)"
+// (scenario "one trigger"). Reads wrangler.jsonc the way Wrangler resolves it
+// for each environment, so a binding or variable that an environment only
+// inherits, or forgets, fails here instead of in a deploy.
+import { unstable_readConfig } from "wrangler";
+import { describe, expect, it } from "vite-plus/test";
+
+const ENVIRONMENTS = [
+  { env: "dev", name: "dev-enmirumbo", crons: [] },
+  { env: "stage", name: "stage-enmirumbo", crons: ["0 * * * *"] },
+  { env: "prod", name: "enmirumbo", crons: ["0 * * * *"] },
+] as const;
+
+const VARIABLES = ["ENVIRONMENT", "ACCESS_TEAM_DOMAIN", "ACCESS_AUD", "SITE_URL"];
+const HYPERDRIVE_BINDINGS = ["HYPERDRIVE", "HYPERDRIVE_FRESH"];
+
+// The fields these tests read. Wrangler's own Config type comes from a package
+// it bundles without its types, so it is narrowed here.
+interface ResolvedConfig {
+  name?: string;
+  workers_dev?: boolean;
+  preview_urls?: boolean;
+  route?: unknown;
+  routes?: unknown[];
+  triggers: { crons?: string[] };
+  vars: Record<string, unknown>;
+  hyperdrive: { binding: string; id: string; localConnectionString?: string }[];
+}
+
+function read(env?: string): ResolvedConfig {
+  const args = { config: "wrangler.jsonc", ...(env === undefined ? {} : { env }) };
+  return unstable_readConfig(args) as ResolvedConfig;
+}
+
+describe("Three deployed environments, each with its own Worker, bindings and variables (v2)", () => {
+  it.for(ENVIRONMENTS)(
+    "per environment: $env has its Worker, workers.dev on and Version URLs off",
+    ({ env, name }) => {
+      const config = read(env);
+      expect(config.name).toBe(name);
+      expect(config.workers_dev).toBe(true);
+      expect(config.preview_urls).toBe(false);
+      // Custom Domains and routes arrive with EMR-63.
+      expect(config.routes ?? []).toEqual([]);
+      expect(config.route).toBeUndefined();
+    },
+  );
+
+  it.for(ENVIRONMENTS)(
+    "per environment: $env declares its own variables and SITE_URL",
+    ({ env, name }) => {
+      const config = read(env);
+      expect(Object.keys(config.vars)).toEqual(expect.arrayContaining(VARIABLES));
+      expect(config.vars["ENVIRONMENT"]).toBe(env);
+      expect(config.vars["ACCESS_TEAM_DOMAIN"]).toBe("urekz.cloudflareaccess.com");
+      expect(config.vars["SITE_URL"]).toBe(`https://${name}.urekz.workers.dev`);
+    },
+  );
+
+  it.for(ENVIRONMENTS)(
+    "per environment: $env has both Hyperdrive bindings, with ids of its own",
+    ({ env }) => {
+      const config = read(env);
+      expect(config.hyperdrive.map((h) => h.binding).sort()).toEqual(HYPERDRIVE_BINDINGS);
+      const ids = config.hyperdrive.map((h) => h.id);
+      // Two configs: cached and fresh.
+      expect(new Set(ids).size).toBe(2);
+      // Never the local placeholder, and never another environment's id.
+      expect(ids).not.toContain("00000000000000000000000000000000");
+      for (const other of ENVIRONMENTS.filter((e) => e.env !== env)) {
+        for (const id of read(other.env).hyperdrive.map((h) => h.id)) {
+          expect(ids).not.toContain(id);
+        }
+      }
+      // A deployed binding never points at a local database.
+      for (const binding of config.hyperdrive) {
+        expect(binding.localConnectionString).toBeUndefined();
+      }
+    },
+  );
+
+  it("nothing inherited: every top-level binding and variable is declared again in each environment", () => {
+    const top = read();
+    for (const { env } of ENVIRONMENTS) {
+      const config = read(env);
+      for (const variable of Object.keys(top.vars)) {
+        expect(config.vars, `${env} declares ${variable}`).toHaveProperty(variable);
+      }
+      expect(config.hyperdrive.map((h) => h.binding).sort()).toEqual(
+        top.hyperdrive.map((h) => h.binding).sort(),
+      );
+      expect(config.vars["ENVIRONMENT"]).not.toBe("local");
+    }
+  });
+
+  it("the local Worker: enmirumbo-local, ENVIRONMENT local, no public URL and no trigger", () => {
+    const config = read();
+    expect(config.name).toBe("enmirumbo-local");
+    expect(config.vars["ENVIRONMENT"]).toBe("local");
+    expect(config.workers_dev).toBe(false);
+    expect(config.preview_urls).toBe(false);
+    expect(config.triggers.crons ?? []).toEqual([]);
+  });
+});
+
+describe("Scheduled work runs from one hourly Cron Trigger per environment (v2)", () => {
+  it.for(ENVIRONMENTS)("one trigger: $env has $crons", ({ env, crons }) => {
+    // dev declares an empty list, which removes any trigger left on its Worker.
+    expect(read(env).triggers.crons).toEqual(crons);
+  });
+});

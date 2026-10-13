@@ -609,3 +609,34 @@ Every surface of the site —public pages, admin panel, metadata, share preview,
 
 - **WHEN** the HTML of the public pages, the admin panel and the legal pages is reviewed
 - **THEN** neither "EnMiRumbo" nor "En Mi Rumbo" appears
+
+### Requirement: Deployed environments stay out of search engines until the cut-over (v2)
+
+Added in v2 — source: ADR 0008.
+
+In `dev`, `stage` and production, every response of the Worker —pages, errors, `/robots.txt` and any other route— MUST carry `X-Robots-Tag: noindex`, and `/robots.txt` MUST close the whole site (`User-agent: *` and `Disallow: /`). Production is included until the cut-over attaches the apex and `www`; the story of the cut-over lifts it. Until then this requirement wins over the ones that make pages indexable (the legal pages, trade pages with published businesses) and over the open `robots.txt` of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant". A response that already carries a stricter value, such as the admin panel's `noindex, nofollow`, MUST keep it. An `ENVIRONMENT` that is missing or is not exactly `local`, `dev`, `stage` or `prod` MUST count as deployed. Locally nothing changes: no header, and `/robots.txt` allows the site and excludes `/admin`. Static files that Cloudflare serves without the Worker (the hashed CSS and JavaScript under `/_astro/`) do not carry the header; the closed `robots.txt` covers them.
+
+#### Scenario: any response of a deployed environment
+
+- **WHEN** a page, a nonexistent address or any other route of `dev`, `stage` or production is requested
+- **THEN** the response carries `X-Robots-Tag: noindex`
+
+#### Scenario: the panel keeps its stricter value
+
+- **WHEN** an `/admin` address of a deployed environment is requested
+- **THEN** the response carries `X-Robots-Tag: noindex, nofollow`, not the weaker global value
+
+#### Scenario: robots.txt closes the site
+
+- **WHEN** `/robots.txt` of `dev`, `stage` or production is requested
+- **THEN** it says `User-agent: *` and `Disallow: /`, and nothing else
+
+#### Scenario: an unknown environment
+
+- **WHEN** `ENVIRONMENT` is missing or says something other than `local`, `dev`, `stage` or `prod`
+- **THEN** the site behaves as a deployed environment
+
+#### Scenario: local
+
+- **WHEN** the site runs locally (`ENVIRONMENT` is `local`)
+- **THEN** no response carries `X-Robots-Tag`, and `/robots.txt` says `User-agent: *` and `Disallow: /admin`
