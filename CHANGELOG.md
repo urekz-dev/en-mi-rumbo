@@ -8,6 +8,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 
 - Architecture decision records 0001–0018 and the product requirements document.
 - Devlog template.
+- ADR 0019: backend structure and local development.
 
 ### Changed
 

@@ -126,6 +126,6 @@ From the brief: at least 50 active businesses and at least 200 WhatsApp contacts
 ## 13. Related documents
 
 - Functional specifications: `docs/specs/` (seven capabilities, OpenSpec requirement and scenario format, English with UI copy quoted in Spanish).
-- Technical decisions: `docs/adr/0002` to `docs/adr/0018`.
+- Technical decisions: `docs/adr/0002` to `docs/adr/0019`.
 - Work: Plane project EMR, epics EMR-5 (A · Foundations of v2) to EMR-12 (H · Launch).
 - Brief: Plane, Project Page "Product Overview", mirrored in `docs/product-brief.md`.
