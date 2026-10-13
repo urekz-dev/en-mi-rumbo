@@ -35,7 +35,9 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 - The brand is enmirumbo, one word, always lowercase. Never write "enmirumbo Tizayuca". Texts that name a locality read it from the locality record; never hard-code a locality name.
 - The public site works without JavaScript. Only the registration and edit forms need it. No React or other client framework; mutations use Astro Actions with `accept: 'form'`.
 - Mobile first: design for a 390 px wide phone.
+- Business rules and data access live in `src/core/`, which never imports Astro. Pages and Actions validate input, authorize the request and call the core (ADR 0019).
 - Read bindings with `import { env } from "cloudflare:workers"`. Astro sessions stay off.
+- The application runs natively; only supporting services, such as PostgreSQL, run in containers through Docker Compose (ADR 0019).
 - Do not build anything that `docs/PRD.md` lists as out of scope.
 - The repository is public. Never commit secrets, tokens, account ids, or real business names or phone numbers. Seeds and tests use fictional data.
 - Dependencies use exact versions. Only `esbuild` and `workerd` may run install scripts (`allowBuilds` in `pnpm-workspace.yaml`). `vite-plus`, Vite+ core and `vitest` are upgraded together through the catalog in `pnpm-workspace.yaml`.
