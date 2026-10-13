@@ -9,6 +9,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - Architecture decision records 0001–0018 and the product requirements document.
 - Devlog template.
 - ADR 0019: backend structure and local development.
+- The admin panel at `/admin`, protected by Cloudflare Access: the Worker verifies the Access token of every admin request and answers 403 without one. Locally it opens with a fixed identity.
 
 ### Changed
 

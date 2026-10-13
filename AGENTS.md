@@ -25,6 +25,7 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 ## Layout
 
 - `src/worker.ts`: the Worker entry. `fetch` goes to Astro; `scheduled` runs the hourly jobs in `src/scheduled.ts`.
+- `src/middleware.ts`: Astro middleware. It sends every request for `/admin` and below, and every admin action, through the Cloudflare Access check in `src/lib/access/`.
 - `src/pages/`: Astro routes.
 - `src/core/`: business rules and data access. It never imports `astro` or `astro:*` (an Oxlint rule enforces it). `src/core/db/` holds the Drizzle client (`withDb`), the schema and the seed.
 - `drizzle/`: generated migrations and Drizzle Kit's journal. `scripts/`: Node scripts for the database tasks.
@@ -44,6 +45,7 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 - Migrations are additive only: never edit an applied migration, and never drop, rename, retype, make `NOT NULL` or truncate in the same version that stops using a column or table. The destructive change comes one version later, in its own pull request, with `-- destructive-ok: <reason>` in the SQL file; `vp run db:check` fails without it.
 - Use `HYPERDRIVE` (cached, 60 seconds, not invalidated by writes) only for public reads. Use `HYPERDRIVE_FRESH` for writes, the admin panel, verification flows and any read that follows a write. Get a database through `withDb`; never create a `pg` client by hand.
 - A `DATABASE_URL` that leaves the machine must use `sslmode=verify-full`. Seeds hold fictional data, use `.onConflictDoNothing()` and never run against `prod`.
+- Admin pages live under `src/pages/admin/`. Admin actions live under the `admin` key of the actions object, and each handler starts with `const admin = await requireAdmin(context)` (`src/lib/access/require-admin.ts`): actions are reachable outside `/admin`, so the middleware alone does not protect them. Admin forms post to a page under `/admin`, because Access only adds its token to requests for `/admin` and below; a call to `/_actions/admin.*` carries no token and is refused.
 - Do not build anything that `docs/PRD.md` lists as out of scope.
 - The repository is public. Never commit secrets, tokens, account ids, or real business names or phone numbers. Seeds and tests use fictional data.
 - Dependencies use exact versions. Only `esbuild` and `workerd` may run install scripts (`allowBuilds` in `pnpm-workspace.yaml`). `vite-plus`, Vite+ core and `vitest` are upgraded together through the catalog in `pnpm-workspace.yaml`.

@@ -3,6 +3,7 @@
 // so `vp dev`, `vp build` and `vp preview` do not run Astro: use the
 // `vp run dev`, `vp run build` and `vp run preview` tasks below.
 import { builtinModules } from "node:module";
+import { fileURLToPath } from "node:url";
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vite-plus";
 import { LOCAL_TEST_DATABASE_URL } from "./src/core/db/url.ts";
@@ -36,6 +37,16 @@ export default defineConfig({
             wrangler: { configPath: "./wrangler.jsonc" },
           }),
         ],
+        resolve: {
+          alias: {
+            // `astro:actions` is a virtual module that only Astro's build
+            // resolves. Its ActionError class lives in this file, which needs
+            // no other virtual module, so tests get the real class.
+            "astro:actions": fileURLToPath(
+              new URL("./node_modules/astro/dist/actions/runtime/client.js", import.meta.url),
+            ),
+          },
+        },
         test: {
           name: "workers",
           // pg is CommonJS and its require() calls cannot be loaded one by one
