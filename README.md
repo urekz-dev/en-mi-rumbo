@@ -46,7 +46,7 @@ The dev server, the build and the preview run Astro in workerd, the Workers runt
 
 ### Admin panel
 
-`/admin` is protected by Cloudflare Access ([ADR 0010](docs/adr/0010-admin-access-with-cloudflare-access.md)), and the Worker verifies the Access token on every request. Locally it opens without signing in, as `admin@enmirumbo.test`, because `wrangler.jsonc` sets `ENVIRONMENT` to `local`; that identity works only on `localhost`. The Worker variables:
+`/admin` is protected by Cloudflare Access ([ADR 0010](docs/adr/0010-admin-access-with-cloudflare-access.md)), and the Worker verifies the Access token on every request. Locally it opens without signing in, as `admin@enmirumbo.test`, because `wrangler.jsonc` sets `ENVIRONMENT` to `local`; that identity works only on `localhost`. The Worker variables that configure it (all of them are in [Deployment](#deployment)):
 
 | Variable             | What it is                                                                    |
 | -------------------- | ----------------------------------------------------------------------------- |
@@ -70,20 +70,49 @@ vp run db:migrate   # apply the migrations in drizzle/ to the development databa
 vp run db:seed      # insert the fictitious seed data (safe to run again)
 ```
 
-| Task                 | What it does                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------- |
-| `vp run db:up`       | Starts PostgreSQL 18 in Docker.                                                               |
-| `vp run db:down`     | Stops it. Data stays in the `enmirumbo-pgdata` volume; `docker compose down -v` deletes it.   |
-| `vp run db:generate` | Generates a migration from `src/core/db/schema/`. Add `--custom --name=<name>` for plain SQL. |
-| `vp run db:migrate`  | Applies the migrations to `DATABASE_URL` (default: the local development database).           |
-| `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.           |
-| `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.   |
+| Task                 | What it does                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| `vp run db:up`       | Starts PostgreSQL 18 in Docker.                                                                    |
+| `vp run db:down`     | Stops it. Data stays in the `enmirumbo-postgres-data` volume; `docker compose down -v` deletes it. |
+| `vp run db:generate` | Generates a migration from `src/core/db/schema/`. Add `--custom --name=<name>` for plain SQL.      |
+| `vp run db:migrate`  | Applies the migrations to `DATABASE_URL` (default: the local development database).                |
+| `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.                |
+| `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.        |
 
 - `DATABASE_URL` is a direct connection string used by Drizzle Kit, the seed and the test setup. A database that is not on this machine must use `sslmode=verify-full`; anything else is refused.
-- The Worker reaches the database through two Hyperdrive bindings, both pointing at the local database in `wrangler.jsonc` (`localConnectionString`). The real ids per environment arrive with the deployment stories. `HYPERDRIVE` is cached and only for public reads; `HYPERDRIVE_FRESH` is for everything else. `withDb` in `src/core/db/client.ts` opens a client per request and closes it with `ctx.waitUntil`.
+- The Worker reaches the database through two Hyperdrive bindings, both pointing at the local database in `wrangler.jsonc` (`localConnectionString`). Each deployed environment has its own pair (see [Deployment](#deployment)). `HYPERDRIVE` is cached and only for public reads; `HYPERDRIVE_FRESH` is for everything else. `withDb` in `src/core/db/client.ts` opens a client per request and closes it with `ctx.waitUntil`.
 - `vp test` applies the migrations to `DATABASE_URL`, or to `enmirumbo_test` when it is unset, then runs the workers tests against that database. CI provides PostgreSQL 18 on `localhost:5432` and sets `DATABASE_URL`.
 - Migrations are additive only. A destructive statement (`DROP`, `RENAME`, `ALTER ... TYPE`, `SET NOT NULL`, `TRUNCATE`) is allowed only in a file that carries the line `-- destructive-ok: <reason>`, and lands in its own pull request, one version after the code stopped using the column or table.
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
+
+## Deployment
+
+Three deployed environments ([ADR 0008](docs/adr/0008-environments-and-deployment-flow.md)), each a Wrangler environment in `wrangler.jsonc` with its own Worker, bindings and variables. The top level of `wrangler.jsonc` is the local Worker, `enmirumbo-local`, which is never deployed.
+
+| Environment | Worker            | URL                                       | Deployed by                                         | Database (Neon branch)    | Cron Trigger |
+| ----------- | ----------------- | ----------------------------------------- | --------------------------------------------------- | ------------------------- | ------------ |
+| `dev`       | `dev-enmirumbo`   | https://dev-enmirumbo.urekz.workers.dev   | `deploy-dev.yml`, by hand from any branch           | `dev`, reset from `stage` | none         |
+| `stage`     | `stage-enmirumbo` | https://stage-enmirumbo.urekz.workers.dev | `deploy-stage.yml`, on every push to `main`         | `stage`                   | hourly       |
+| `prod`      | `enmirumbo`       | https://enmirumbo.urekz.workers.dev       | `deploy-prod.yml`, on a tag `vX.Y.Z` (with Release) | `prod`                    | hourly       |
+
+Every deployed environment answers with `X-Robots-Tag: noindex` and a closed `robots.txt` until the cut-over, production included. Version and Preview URLs are off, so `/admin` is reachable only through Access.
+
+Each workflow checks the ref, builds for its environment, checks the generated configuration (`scripts/deploy/check-build.sh`), applies the migrations, seeds (not on `prod`), deploys with the project's Wrangler and runs a smoke test (`scripts/deploy/smoke-test.sh`). The dev workflow first resets the Neon `dev` branch from `stage` (`scripts/deploy/reset-neon-dev.sh`), so anything stored in dev is lost on each deploy. Each step receives only the secrets it needs from the GitHub Environment of the same name (see [Secrets](#secrets)). To deploy a branch to dev: Actions, "Deploy dev", "Run workflow", pick the branch. To release: push a tag `vX.Y.Z` from `main`.
+
+The build fixes the environment: `CLOUDFLARE_ENV=<env> vp run build` writes `dist/server/wrangler.json` for that environment only, and `wrangler deploy` refuses to deploy it to another one. Never run `wrangler deploy` by hand.
+
+Worker variables:
+
+| Variable             | What it is                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`        | `local`, `dev`, `stage` or `prod`. Any other value, or none, closes `/admin` and asks not to index. |
+| `ACCESS_TEAM_DOMAIN` | The Access team domain, `urekz.cloudflareaccess.com`.                                               |
+| `ACCESS_AUD`         | The AUD tag of the `enmirumbo admin` Access application. While it is empty, `/admin` answers 403.   |
+| `SITE_URL`           | The public URL of the environment, without a trailing slash: the base of every absolute URL.        |
+| `DEPLOY_BRANCH`      | `dev` only: the branch deployed, set by `deploy-dev.yml` and shown in the page footer.              |
+| `DEPLOY_COMMIT`      | `dev` only: the commit deployed, set by `deploy-dev.yml` and shown in the page footer.              |
+
+The Hyperdrive configurations hold the database credentials and are created by hand, two per environment: `enmirumbo-<env>` (cached) and `enmirumbo-<env>-fresh` (caching disabled), both on the direct (non-pooled) host of that environment's Neon branch. Their ids go in `wrangler.jsonc`; while an id is a placeholder, the deploy of that environment stops before changing anything.
 
 ## Secrets
 
@@ -98,5 +127,3 @@ Every secret lives in the GitHub Environments of this repository, `dev`, `stage`
 | `NEON_PROJECT_ID`       | `dev`                  | The Neon project id.                                                                                |
 
 The Worker has no secrets yet. When one arrives, its name goes in `secrets.required` of each Wrangler environment, its value in the GitHub Environments, and the deploy step uploads it with `wrangler deploy --secrets-file`. Changing a secret takes a new deploy of that environment. Locally no real secret is needed; a `.dev.vars` file, ignored by git, holds any local value.
-
-Deployment to Cloudflare arrives with the stories that add the environments and the workflows, and this README will describe it then.

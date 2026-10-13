@@ -1,22 +1,30 @@
-// Local development and builds only. Environments (dev, stage, production),
-// their routes and the hourly Cron Trigger arrive with the deployment stories.
+// The top level is the local Worker (`vp run dev`, `vp run preview`, the
+// tests). The deployed environments dev, stage and prod live under "env"
+// (ADR 0008), and each declares its own bindings, vars and triggers: Wrangler
+// does not inherit bindings or vars, and nothing is declared at the top level
+// for an environment to inherit by accident. Build for an environment with
+// `CLOUDFLARE_ENV=<env> vp run build`; the deploy workflows in
+// .github/workflows/ are the only way to deploy.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Local name only. Each environment sets its own Worker name (dev-enmirumbo,
-  // stage-enmirumbo, enmirumbo), so a deploy without --env never touches them.
+  // Local name only. Each environment sets its own Worker name, so a deploy
+  // without an environment never touches dev-enmirumbo, stage-enmirumbo or
+  // enmirumbo.
   "name": "enmirumbo-local",
   // Custom entry: Astro's fetch handler plus the scheduled handler.
   "main": "./src/worker.ts",
   // Node.js compatibility is on by default from 2026-08-04.
   "compatibility_date": "2026-10-01",
+  // The local Worker is never deployed. If it were, by mistake, it would get no
+  // workers.dev URL and no Version URLs. The environments turn workers.dev on.
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",
   },
-  // Local-only values. The real Hyperdrive configuration ids per environment
-  // (dev, stage, prod) arrive with EMR-15, inside each environment block.
-  // The all-zero id is a placeholder and `localConnectionString` points both
-  // bindings at the PostgreSQL 18 in compose.yaml (`vp run db:up`).
+  // Local values. The all-zero id is a placeholder and `localConnectionString`
+  // points both bindings at the PostgreSQL 18 in compose.yaml (`vp run db:up`).
   // HYPERDRIVE is cached: public reads only. HYPERDRIVE_FRESH has caching
   // disabled: writes, the admin panel and any read that follows a write.
   "hyperdrive": [
@@ -31,15 +39,91 @@
       "localConnectionString": "postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo",
     },
   ],
-  // Local values. Wrangler environments do not inherit vars, so each deployed
-  // environment declares its own.
   "vars": {
     // local, dev, stage or prod. Only "local" lets /admin open with the fixed
     // identity admin@enmirumbo.test, and only on a loopback host (ADR 0010).
+    // Every other value sends X-Robots-Tag: noindex and a closed robots.txt.
     "ENVIRONMENT": "local",
     // Cloudflare Access: the team domain and the AUD tag of the admin
     // application. Locally the panel does not check them.
     "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
     "ACCESS_AUD": "",
+    // The public URL of the site, without a trailing slash: the base of every
+    // absolute URL (canonicals, sitemap, share previews).
+    "SITE_URL": "http://localhost:4321",
+  },
+  "env": {
+    // Deployed by hand from any branch (deploy-dev.yml). Its database is reset
+    // from stage on every deploy.
+    "dev": {
+      "name": "dev-enmirumbo",
+      "workers_dev": true,
+      "preview_urls": false,
+      // No Cron Trigger on dev (ADR 0013). The empty list also removes any
+      // trigger left on the Worker; omitting it would keep them.
+      "triggers": { "crons": [] },
+      // The Hyperdrive configs enmirumbo-dev (cached) and enmirumbo-dev-fresh
+      // (caching disabled), both on this environment's Neon branch.
+      "hyperdrive": [
+        { "binding": "HYPERDRIVE", "id": "0a3272c97e4d4fc98be93810797b2da3" },
+        { "binding": "HYPERDRIVE_FRESH", "id": "e54b23629d3d4b5491020a29a4b041fd" },
+      ],
+      "vars": {
+        "ENVIRONMENT": "dev",
+        "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
+        // The AUD tag of the "enmirumbo admin" Access application, the same in
+        // the three environments (ADR 0010).
+        "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
+        "SITE_URL": "https://dev-enmirumbo.urekz.workers.dev",
+        // The branch and commit deployed, shown in the page footer of dev only.
+        // deploy-dev.yml sets them with `wrangler deploy --var`.
+        "DEPLOY_BRANCH": "",
+        "DEPLOY_COMMIT": "",
+      },
+    },
+    // Deployed on every push to main (deploy-stage.yml).
+    "stage": {
+      "name": "stage-enmirumbo",
+      "workers_dev": true,
+      "preview_urls": false,
+      // The hourly job (ADR 0013).
+      "triggers": { "crons": ["0 * * * *"] },
+      // The Hyperdrive configs enmirumbo-stage (cached) and enmirumbo-stage-fresh
+      // (caching disabled), both on this environment's Neon branch.
+      "hyperdrive": [
+        { "binding": "HYPERDRIVE", "id": "5eb632efe8ec4ae7acb051de4fbfbdc0" },
+        { "binding": "HYPERDRIVE_FRESH", "id": "1c9b85b07a3d4df2811c2ec83046ecec" },
+      ],
+      "vars": {
+        "ENVIRONMENT": "stage",
+        "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
+        // The AUD tag of the "enmirumbo admin" Access application, the same in
+        // the three environments (ADR 0010).
+        "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
+        "SITE_URL": "https://stage-enmirumbo.urekz.workers.dev",
+      },
+    },
+    // Production, deployed from a tag vX.Y.Z (deploy-prod.yml).
+    "prod": {
+      "name": "enmirumbo",
+      "workers_dev": true,
+      "preview_urls": false,
+      // The hourly job (ADR 0013).
+      "triggers": { "crons": ["0 * * * *"] },
+      // The Hyperdrive configs enmirumbo-prod (cached) and enmirumbo-prod-fresh
+      // (caching disabled), both on this environment's Neon branch.
+      "hyperdrive": [
+        { "binding": "HYPERDRIVE", "id": "9c3586cc9df74be2b745eccd83efb81b" },
+        { "binding": "HYPERDRIVE_FRESH", "id": "6759de1d09dc48229664e712f38fee30" },
+      ],
+      "vars": {
+        "ENVIRONMENT": "prod",
+        "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
+        // The AUD tag of the "enmirumbo admin" Access application, the same in
+        // the three environments (ADR 0010).
+        "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
+        "SITE_URL": "https://enmirumbo.urekz.workers.dev",
+      },
+    },
   },
 }

@@ -1,0 +1,15 @@
+# The CI secrets job runs gitleaks with its default rules and these exceptions.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+# The AUD tag of the `enmirumbo admin` Access application identifies it and
+# is not a secret: it lives in wrangler.jsonc and in the generated types.
+[[rules.allowlists]]
+description = "Access AUD tag"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''ACCESS_AUD''']
+paths = ['''^wrangler\.jsonc$''', '''^worker-configuration\.d\.ts$''']

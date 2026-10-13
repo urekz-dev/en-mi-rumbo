@@ -1,5 +1,9 @@
 # Local PostgreSQL 18 for development, tests and wrangler's Hyperdrive bindings
 # (ADR 0005). Start it with `vp run db:up`. Development credentials only.
+# One project name for every clone and worktree, so they share one database
+# container instead of colliding on its name.
+name: enmirumbo
+
 services:
   postgres:
     image: postgres:18
@@ -9,9 +13,10 @@ services:
       POSTGRES_PASSWORD: enmirumbo
       POSTGRES_DB: enmirumbo
     ports:
-      - "5432:5432"
+      # Loopback only: other machines on the same network cannot reach it.
+      - "127.0.0.1:5432:5432"
     volumes:
-      - enmirumbo-pgdata:/var/lib/postgresql
+      - postgres-data:/var/lib/postgresql
       # Creates the enmirumbo_test database used by `vp test` on the first start.
       - ./docker/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
     healthcheck:
@@ -21,4 +26,6 @@ services:
       retries: 30
 
 volumes:
-  enmirumbo-pgdata:
+  postgres-data:
+    # A fixed name, so the data survives a change of folder or Compose project.
+    name: enmirumbo-postgres-data

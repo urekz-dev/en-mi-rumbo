@@ -11,6 +11,8 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - ADR 0019: backend structure and local development.
 - ADR 0020: secrets in GitHub Environments, replacing ADR 0009.
 - The admin panel at `/admin`, protected by Cloudflare Access: the Worker verifies the Access token of every admin request and answers 403 without one. Locally it opens with a fixed identity.
+- Three deployed environments, `dev`, `stage` and `prod`, on `workers.dev`, with their deploy workflows: `dev` by hand from any branch (its database is reset from `stage`, and the page footer names the branch and commit), `stage` on every push to `main`, and `prod` from a tag `vX.Y.Z`, which also creates the GitHub Release. Each deploy checks its build first and runs a smoke test after.
+- Every deployed environment, production included, asks search engines not to index it (`X-Robots-Tag: noindex` and a closed `robots.txt`) until the cut-over.
 
 ### Changed
 
