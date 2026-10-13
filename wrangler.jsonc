@@ -12,7 +12,8 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",
-  }, // Local-only values. The real Hyperdrive configuration ids per environment
+  },
+  // Local-only values. The real Hyperdrive configuration ids per environment
   // (dev, stage, prod) arrive with EMR-15, inside each environment block.
   // The all-zero id is a placeholder and `localConnectionString` points both
   // bindings at the PostgreSQL 18 in compose.yaml (`vp run db:up`).
@@ -30,4 +31,15 @@
       "localConnectionString": "postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo",
     },
   ],
+  // Local values. Wrangler environments do not inherit vars, so each deployed
+  // environment declares its own.
+  "vars": {
+    // local, dev, stage or prod. Only "local" lets /admin open with the fixed
+    // identity admin@enmirumbo.test, and only on a loopback host (ADR 0010).
+    "ENVIRONMENT": "local",
+    // Cloudflare Access: the team domain and the AUD tag of the admin
+    // application. Locally the panel does not check them.
+    "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
+    "ACCESS_AUD": "",
+  },
 }

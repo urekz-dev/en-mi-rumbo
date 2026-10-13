@@ -11,7 +11,8 @@ import {
 } from "../src/core/db/url.ts";
 
 const url = process.env["DATABASE_URL"] ?? LOCAL_DATABASE_URL;
-const environment = process.env["ENVIRONMENT"];
+// Typed as string on purpose: `wrangler types` narrows ENVIRONMENT to the local value.
+const environment: string | undefined = process.env["ENVIRONMENT"];
 
 if (environment === "prod") {
   console.log("db:seed: skipped, seeds never run against prod.");

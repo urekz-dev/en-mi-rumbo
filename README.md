@@ -44,6 +44,16 @@ The dev server, the build and the preview run Astro in workerd, the Workers runt
 | `vp run fmt:astro` | Formats `.astro` files with Prettier.                                                |
 | `vp run types`     | Regenerates `worker-configuration.d.ts` after a change to `wrangler.jsonc`.          |
 
+### Admin panel
+
+`/admin` is protected by Cloudflare Access ([ADR 0010](docs/adr/0010-admin-access-with-cloudflare-access.md)), and the Worker verifies the Access token on every request. Locally it opens without signing in, as `admin@enmirumbo.test`, because `wrangler.jsonc` sets `ENVIRONMENT` to `local`; that identity works only on `localhost`. The Worker variables:
+
+| Variable             | What it is                                                                    |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `ENVIRONMENT`        | `local`, `dev`, `stage` or `prod`. Any other value, or none, closes `/admin`. |
+| `ACCESS_TEAM_DOMAIN` | The Access team domain, `urekz.cloudflareaccess.com`.                         |
+| `ACCESS_AUD`         | The AUD tag of the `enmirumbo admin` Access application. Empty locally.       |
+
 To run the scheduled handler while `vp run dev` is running:
 
 ```sh

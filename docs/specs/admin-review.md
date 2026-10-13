@@ -1098,7 +1098,7 @@ One self-hosted Cloudflare Access application MUST protect `/admin` in every env
 
 Added in v2 — source: ADR 0010.
 
-On every `/admin` request, page or action, the Worker MUST verify the JWT of the `Cf-Access-Jwt-Assertion` header against the JWKS of the team (`https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`), checking its signature, expiry, issuer and the AUD tag of the application, before reading or writing anything. It MUST read the email claim as the identity of the admin. A request without a valid token MUST get a 403, even if it reached the Worker without passing through Access, and the response MUST NOT show any data of a card, a report or an edit, nor confirm that an identifier exists. The team domain and the AUD tag are per-environment variables. No public surface MUST be able to change the state, origin, trades or zone of a business, unpublish it, delete it, resolve an edit, generate a link or mark a report as attended.
+On every `/admin` request, page or action, the Worker MUST verify the JWT of the `Cf-Access-Jwt-Assertion` header against the JWKS of the team (`https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`), checking its signature, expiry, issuer and the AUD tag of the application, before reading or writing anything. It MUST read the email claim as the identity of the admin. A request without a valid token MUST get a 403, even if it reached the Worker without passing through Access, and the response MUST NOT show any data of a card, a report or an edit, nor confirm that an identifier exists. The team domain and the AUD tag are per-environment variables. The token MUST come only from that header and MUST be signed with RS256 by a key of the team's JWKS and carry an expiry. Astro Actions are reachable outside `/admin`, so every admin action MUST verify the token of its own request inside its handler before reading or writing anything, and refuse with `FORBIDDEN` otherwise. Every response under `/admin`, the 403 included, MUST send `X-Robots-Tag: noindex, nofollow` and `Cache-Control: no-store`, and every 403 MUST carry the same generic body whatever the reason. No public surface MUST be able to change the state, origin, trades or zone of a business, unpublish it, delete it, resolve an edit, generate a link or mark a report as attended.
 
 #### Scenario: a valid token
 
@@ -1120,6 +1120,16 @@ On every `/admin` request, page or action, the Worker MUST verify the JWT of the
 - **WHEN** a request to approve, reject, unpublish, apply or discard an edit, generate a link, mark a report as attended or delete arrives without a valid token
 - **THEN** the answer is 403, the card does not change, no reason or token is saved and the response carries no data of the business
 
+#### Scenario: an admin action called outside `/admin`
+
+- **WHEN** an admin action is called through `/_actions/<name>` or with `?_action=<name>` on a public page, without a valid token
+- **THEN** its handler refuses with `FORBIDDEN` before reading or writing anything
+
+#### Scenario: no caching and no indexing
+
+- **WHEN** any response under `/admin` is reviewed, a 403 included
+- **THEN** it sends `X-Robots-Tag: noindex, nofollow` and `Cache-Control: no-store`
+
 #### Scenario: nothing from the public surfaces
 
 - **WHEN** the registration form, the edit mode, the listings, the cards and the report form are reviewed
@@ -1129,7 +1139,7 @@ On every `/admin` request, page or action, the Worker MUST verify the JWT of the
 
 Added in v2 — source: ADR 0010, PRD §2 (principle 5).
 
-When the team domain or the AUD tag of an environment is missing or empty, the panel MUST NOT open for anyone: every `/admin` request MUST get a 403, no transition can run, and the log MUST name the variable that is missing without putting the detail in the response. The system MUST NOT invent a default identity or leave the panel open.
+When the team domain or the AUD tag of an environment is missing or empty, the panel MUST NOT open for anyone: every `/admin` request MUST get a 403, no transition can run, and the log MUST name the variable that is missing without putting the detail in the response. A team domain that is not of the form `<team>.cloudflareaccess.com`, and an environment variable that is missing or is not exactly `local`, `dev`, `stage` or `prod`, count as missing configuration too. The system MUST NOT invent a default identity or leave the panel open.
 
 #### Scenario: missing AUD
 
@@ -1141,11 +1151,16 @@ When the team domain or the AUD tag of an environment is missing or empty, the p
 - **WHEN** the panel is not configured and a request to approve or reject arrives directly
 - **THEN** nothing changes in the database and the response has no data of the card
 
+#### Scenario: unknown environment
+
+- **WHEN** the environment variable is missing or says something other than `local`, `dev`, `stage` or `prod`, and a request with an otherwise valid token arrives
+- **THEN** the answer is 403 and the log names the environment variable
+
 ### Requirement: Locally, a fixed identity is injected only when the environment says `local` (v2)
 
 Added in v2 — source: ADR 0010.
 
-In local development a fixed admin identity MAY be injected, and only when the environment variable says `local`. Deployed environments (`dev`, `stage`, production) MUST NEVER accept it, and a test MUST prove it.
+In local development a fixed admin identity (`admin@enmirumbo.test`) MAY be injected, and only when the environment variable says exactly `local` and the request arrives on a loopback host (`localhost`, `127.0.0.1` or `[::1]`), so that a Worker deployed by mistake with the local variables still refuses it. Deployed environments (`dev`, `stage`, production) MUST NEVER accept it, and a test MUST prove it.
 
 #### Scenario: local
 
@@ -1156,6 +1171,11 @@ In local development a fixed admin identity MAY be injected, and only when the e
 
 - **WHEN** the environment is `dev`, `stage` or production and a request relies on the fixed identity
 - **THEN** it is rejected with a 403, and a test covers it
+
+#### Scenario: local variables on a deployed host
+
+- **WHEN** the environment variable says `local` but the request arrives on a host that is not a loopback one
+- **THEN** it is rejected with a 403 and the log says why
 
 ### Requirement: The destructive actions of the admin write to the audit log with the Access identity (v2)
 
