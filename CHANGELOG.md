@@ -18,6 +18,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - Production is checked every 30 minutes, and backed up every night to a private bucket that keeps each backup for 30 days. The README describes how to restore one.
 - The data model: states and municipalities from INEGI, localities, zones, categories, trades, businesses, pending edits, reports and the admin audit log. A WhatsApp number has one card per locality, and each card has a short random identifier.
 - Panel users, roles and permissions in the database: super admins manage everything, locality admins only their localities, and new roles are created as data. ADR 0021.
+- The INEGI catalogue of the 32 states and 2,478 municipalities, with the slugs of the public URLs, in every environment, and the locality of Tizayuca, inactive until a super admin sets its contact WhatsApp and activates it.
 
 ### Changed
 

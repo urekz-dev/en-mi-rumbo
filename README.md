@@ -78,6 +78,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 | `vp run db:migrate`  | Applies the migrations to `DATABASE_URL` (default: the local development database).                |
 | `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.                |
 | `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.        |
+| `vp run db:inegi`    | Writes the INEGI catalogue migration from its extract. See [INEGI catalogue](#inegi-catalogue).    |
 
 - `DATABASE_URL` is a direct connection string used by Drizzle Kit, the seed and the test setup. A database that is not on this machine must use `sslmode=verify-full`; anything else is refused.
 - The Worker reaches the database through two Hyperdrive bindings, both pointing at the local database in `wrangler.jsonc` (`localConnectionString`). Each deployed environment has its own pair (see [Deployment](#deployment)). `HYPERDRIVE` is cached and only for public reads; `HYPERDRIVE_FRESH` is for everything else. `withDb` in `src/core/db/client.ts` opens a client per request and closes it with `ctx.waitUntil`.
@@ -85,6 +86,20 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 - Migrations are additive only. A destructive statement (`DROP`, `RENAME`, `ALTER ... TYPE`, `SET NOT NULL`, `TRUNCATE`) is allowed only in a file that carries the line `-- destructive-ok: <reason>`, and lands in its own pull request, one version after the code stopped using the column or table.
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
 - The data model lives in `src/core/db/schema/` ([data-model spec](docs/specs/data-model.md)): the INEGI states and municipalities, the localities the directory serves, their zones, the global categories and trades, businesses and their trades, pending edits, reports and the admin audit log. Every relation to a business deletes with it, so a permanent deletion leaves nothing behind; the tests fail when one does not, and when the schema changes without its migration.
+- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, and Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)).
+
+### INEGI catalogue
+
+The 32 states and 2,478 municipalities come from INEGI's [Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades](https://www.inegi.org.mx/app/ageeml/): its complete catalogues of states ([`catun_entidad.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_entidad.zip)) and municipalities ([`catun_municipio.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_municipio.zip)), fecha de corte 2026-06, downloaded on 2026-10-14. INEGI's [terms of free use](https://www.inegi.org.mx/inegi/terminos.html) ask for this credit, which the extract and the migration carry:
+
+> Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, fecha de corte 2026-06.
+
+The codes and names are INEGI's, unchanged. The slugs are ours, and INEGI does not endorse this product.
+
+- `scripts/catalogues/inegi.json` is the extract: the codes and official names, with the source, the files it was read from and their SHA-256.
+- `vp run db:inegi` writes `drizzle/0003_inegi_catalogue.sql` from the extract, with the slug of every state and municipality. The slug rules and the slugs chosen by hand are in `scripts/catalogues/inegi-catalogue.ts`. When two municipalities of a state would share a slug, the script stops and names them until someone chooses their slugs in `MUNICIPALITY_SLUGS`. A test fails when the migration and the extract differ.
+- To check the extract against INEGI, download both zips, unzip them, and run `vp run db:inegi extract <states.csv> <municipalities.csv> <YYYY-MM>` with the UTF-8 CSV of each zip (`AGEEML_*_utf*.csv`) and the fecha de corte shown on the catalogue page. While INEGI has not changed the catalogue, `git diff` shows only the details of the source.
+- The migration is applied and never changes: a newer INEGI catalogue ships in a new data migration with its own extract.
 
 ## Deployment
 
@@ -171,7 +186,11 @@ SELECT u.id, r.id, r.scope FROM users u, roles r
 WHERE u.email = '<the same email>' AND r.key = 'super_admin';
 ```
 
-A locality is served only with its contact WhatsApp, the number "Perdí mi enlace" opens. A super admin sets it, together with the active flag, in `localities`.
+A locality is served only with its contact WhatsApp, the number "Perdí mi enlace" opens. The migrations create Tizayuca's locality inactive and without one. Until the panel can do it, a super admin sets the number and the active flag in `localities`, in the Neon SQL Editor of each environment:
+
+```sql
+UPDATE localities SET contact_whatsapp = '<ten digits>', active = true WHERE code = '13069';
+```
 
 ### Restore
 
