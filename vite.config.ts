@@ -21,6 +21,8 @@ const generated = ["dist/**", ".astro/**", "worker-configuration.d.ts"];
 export default defineConfig({
   test: {
     projects: [
+      // Astro components rendered with the Container API, in Node.
+      "./test/astro/vitest.config.ts",
       {
         // Plain Node tests for the scripts (migration guard, ...).
         test: {

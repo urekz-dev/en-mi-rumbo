@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+// The end-to-end database has one active locality, so / leads to its home.
 test("the home page answers in Spanish with the Tailwind styles", async ({ page }) => {
   const response = await page.goto("/");
 
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle("enmirumbo");
+  expect(new URL(page.url()).pathname).toBe("/hidalgo/tizayuca");
+  await expect(page).toHaveTitle("enmirumbo — Encuentra negocios y servicios en Tizayuca");
   await expect(page.locator("html")).toHaveAttribute("lang", "es-MX");
   const heading = page.getByRole("heading", { level: 1, name: "enmirumbo" });
   await expect(heading).toBeVisible();

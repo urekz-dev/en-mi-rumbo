@@ -11,10 +11,10 @@ This repository is being rebuilt from scratch. The code is public for reading on
 ## Stack
 
 - [Astro](https://astro.build/) in server mode on Cloudflare Workers, through `@astrojs/cloudflare`. A custom Worker entry (`src/worker.ts`) sends requests to Astro and also handles the scheduled jobs.
-- Tailwind CSS 4.
+- Tailwind CSS 4. The palette and the typography are tokens in `src/styles/global.css`; Tailwind's default palette is removed, so a colour that is not a token does not exist. The font is the system font stack: nothing is downloaded.
 - [Vite+](https://viteplus.dev/) (`vp`) as the toolchain: pnpm, Oxlint, Oxfmt, Vitest and Vite Task. Prettier formats `.astro` files until Oxfmt supports them.
 - PostgreSQL 18 (Neon in the cloud, Docker locally) through Hyperdrive, with the `pg` driver and Drizzle ORM and Drizzle Kit.
-- Tests run inside workerd with `@cloudflare/vitest-plugin`; end-to-end tests use Playwright.
+- Tests run inside workerd with `@cloudflare/vitest-plugin`; Astro pages and components are rendered in Node with Astro's Container API (`test/astro/`); end-to-end tests use Playwright.
 
 ## Requirements
 
@@ -32,17 +32,17 @@ vp run dev                           # http://localhost:4321
 
 The dev server, the build and the preview run Astro in workerd, the Workers runtime. Astro's commands are tasks: `vp dev`, `vp build` and `vp preview` run plain Vite and do not work in this project.
 
-| Command            | What it does                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| `vp run dev`       | Starts the dev server at http://localhost:4321.                                      |
-| `vp run build`     | Builds the site and the Worker into `dist/`.                                         |
-| `vp run preview`   | Serves the build at http://localhost:4321.                                           |
-| `vp check`         | Formats, lints and type checks.                                                      |
-| `vp run check:all` | Runs `vp check`, Prettier on `.astro` files, `astro check` and a Worker types check. |
-| `vp test`          | Runs the tests inside workerd.                                                       |
-| `vp run e2e`       | Builds, migrates and seeds the database, then runs the Playwright tests.             |
-| `vp run fmt:astro` | Formats `.astro` files with Prettier.                                                |
-| `vp run types`     | Regenerates `worker-configuration.d.ts` after a change to `wrangler.jsonc`.          |
+| Command            | What it does                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `vp run dev`       | Starts the dev server at http://localhost:4321.                                                             |
+| `vp run build`     | Builds the site and the Worker into `dist/`.                                                                |
+| `vp run preview`   | Serves the build at http://localhost:4321.                                                                  |
+| `vp check`         | Formats, lints and type checks.                                                                             |
+| `vp run check:all` | Runs `vp check`, Prettier on `.astro` files, `astro check` and a Worker types check.                        |
+| `vp test`          | Runs the tests inside workerd.                                                                              |
+| `vp run e2e`       | Builds, migrates and seeds the database, then runs the Playwright tests (port `E2E_PORT`, 4321 by default). |
+| `vp run fmt:astro` | Formats `.astro` files with Prettier.                                                                       |
+| `vp run types`     | Regenerates `worker-configuration.d.ts` after a change to `wrangler.jsonc`.                                 |
 
 ### Admin panel
 

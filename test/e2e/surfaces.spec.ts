@@ -1,0 +1,179 @@
+// Checks of docs/specs/base-layout.md that hold on every page of the site, run
+// on every page reachable by links from the start pages, so a page added later
+// is checked as soon as something links to it: "Global layout with header and
+// footer on every page", "Mobile-first design with no horizontal scroll",
+// "Base accessibility from PRD §8", "Server Component with a document in es-MX
+// and base metadata", "Phone number auto-detection is turned off (v2)" and "No
+// surface of the site names the previous brand or attaches the locality to the
+// name". The 390px checks run in the phone project of playwright.config.ts,
+// with the viewport emulated, as the spec asks.
+import { expect, test, type Page } from "@playwright/test";
+import { brandFindings } from "../brand-rules.ts";
+import { collapseProblems } from "../responsive-rules.ts";
+
+/** Where the crawl starts: the root, the panel (never linked) and a 404. */
+const START = ["/", "/admin", "/no-existe"];
+const MAX_PAGES = 60;
+
+/** Every path reachable by links from START, after redirects. */
+async function crawl(page: Page): Promise<string[]> {
+  const seen = new Set<string>();
+  const queue = [...START];
+  while (queue.length > 0 && seen.size < MAX_PAGES) {
+    const path = queue.shift() ?? "/";
+    const response = await page.request.get(path);
+    const url = new URL(response.url());
+    const landed = `${url.pathname}${url.search}`;
+    if (seen.has(landed)) continue;
+    seen.add(landed);
+    if (!(response.headers()["content-type"] ?? "").startsWith("text/html")) continue;
+    for (const [, href = ""] of (await response.text()).matchAll(/<a\b[^>]*\bhref="([^"]*)"/g)) {
+      if (!href.startsWith("/") || href.startsWith("//") || href.startsWith("/_astro/")) continue;
+      const next = href.split("#")[0] ?? href;
+      if (!seen.has(next) && !queue.includes(next)) queue.push(next);
+    }
+  }
+  return [...seen];
+}
+
+let pages: string[] = [];
+
+test.beforeEach(async ({ page }) => {
+  if (pages.length === 0) pages = await crawl(page);
+});
+
+test("the crawl reaches the start pages", () => {
+  expect(pages).toEqual(expect.arrayContaining(["/admin", "/no-existe"]));
+});
+
+test("every page is an es-MX document inside the layout, with its base metadata", async ({
+  page,
+}) => {
+  for (const path of pages) {
+    await page.goto(path);
+    expect.soft(await page.locator("html").getAttribute("lang"), path).toBe("es-MX");
+    await expect.soft(page.locator("meta[charset]"), path).toHaveAttribute("charset", "utf-8");
+    await expect
+      .soft(page.locator('meta[name="viewport"]'), path)
+      .toHaveAttribute("content", "width=device-width, initial-scale=1");
+    await expect
+      .soft(page.locator('meta[name="format-detection"]'), path)
+      .toHaveAttribute("content", "telephone=no");
+    expect.soft(await page.title(), path).toMatch(/enmirumbo/);
+    // Scenario: semantic structure
+    for (const landmark of ["banner", "main", "contentinfo"] as const) {
+      await expect.soft(page.getByRole(landmark), `${path} ${landmark}`).toHaveCount(1);
+    }
+    await expect.soft(page.locator("h1"), path).toHaveCount(1);
+    // Scenario: header with the wordmark
+    await expect
+      .soft(page.getByRole("banner").getByRole("link", { name: "enmirumbo", exact: true }), path)
+      .toBeVisible();
+    // Scenario: no client JS in the layout. Third-party scripts are not the
+    // layout's (the analytics, docs/specs/base-layout.md).
+    await expect.soft(page.locator('script:not([src^="https://"])'), path).toHaveCount(0);
+  }
+});
+
+// Scenarios: touch areas; the footer links can be tapped on a phone
+test("every tappable element of the header and the footer measures at least 44px", async ({
+  page,
+}) => {
+  for (const path of pages) {
+    await page.goto(path);
+    const tappable = page.locator(
+      "header :is(a, button, input, select, textarea, summary), footer :is(a, button, input, select, textarea, summary)",
+    );
+    for (const element of await tappable.all()) {
+      const box = await element.boundingBox();
+      const label = `${path} "${await element.innerText()}"`;
+      expect.soft(box, label).not.toBeNull();
+      if (box) expect.soft(Math.min(box.width, box.height), label).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+// Scenarios: phone at 390px; width measurement does not depend on the window size
+test("no page scrolls sideways on a 390px phone", async ({ page }) => {
+  expect(page.viewportSize()?.width).toBe(390);
+  for (const path of pages) {
+    await page.goto(path);
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect.soft(clientWidth, path).toBe(390);
+    expect.soft(scrollWidth, path).toBeLessThanOrEqual(clientWidth);
+  }
+});
+
+// Scenario: desktop adaptation
+for (const width of [768, 1280]) {
+  test(`at ${width}px every page keeps a centred maximum width with no horizontal scroll`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of pages) {
+      await page.goto(path);
+      const layout = await page.evaluate(() => {
+        const main = document.querySelector("main")?.getBoundingClientRect();
+        return {
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+          left: main?.left ?? 0,
+          right: document.documentElement.clientWidth - (main?.right ?? 0),
+          width: main?.width ?? 0,
+        };
+      });
+      expect.soft(layout.scrollWidth, path).toBeLessThanOrEqual(layout.clientWidth);
+      expect.soft(layout.width, path).toBeLessThanOrEqual(768);
+      expect.soft(Math.abs(layout.left - layout.right), path).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
+// Scenario: no public screen blocks responsive collapse
+test("no served page uses a class that blocks the responsive collapse", async ({ page }) => {
+  for (const path of pages) {
+    await page.goto(path);
+    const lists = await page
+      .locator("[class]")
+      .evaluateAll((elements) => elements.map((element) => element.getAttribute("class") ?? ""));
+    expect.soft(lists.flatMap(collapseProblems), path).toEqual([]);
+  }
+});
+
+// Scenarios: a new literal brings the old brand; someone attaches the locality
+// to the brand again; the wordmark and the title are lowercase; no old
+// spelling on any surface
+test("no page names the previous brand, spells the brand otherwise or attaches a place to it", async ({
+  page,
+}) => {
+  for (const path of pages) {
+    await page.goto(path);
+    const metadata = await page
+      .locator('meta[name="description"], meta[property^="og:"]')
+      .evaluateAll((elements) => elements.map((element) => element.getAttribute("content") ?? ""));
+    const text = [await page.title(), ...metadata, await page.locator("body").innerText()].join(
+      "\n",
+    );
+    expect.soft(brandFindings(text), path).toEqual([]);
+    expect.soft(brandFindings(await page.content()), path).toEqual([]);
+  }
+});
+
+// Palette and typography: the system font stack, so no page downloads a font
+// or asks anything of another origin.
+test("every page uses the system font and requests nothing outside the site", async ({ page }) => {
+  const outside: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") outside.push(request.url());
+  });
+  for (const path of pages) {
+    await page.goto(path);
+    const font = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+    expect.soft(font, path).toMatch(/^system-ui,/);
+  }
+  expect(outside).toEqual([]);
+});

@@ -3,7 +3,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import { LOCAL_DATABASE_URL } from "./src/core/db/url.ts";
 
-const port = 4321;
+// E2E_PORT lets parallel worktrees run their end-to-end tests at once: outside
+// CI, Playwright reuses a server already listening on its port, which would be
+// another worktree's.
+const port = Number(process.env["E2E_PORT"] ?? 4321);
 
 // The preview reaches the database through the Hyperdrive bindings, and the
 // global setup (test/e2e/global-setup.ts) migrates and seeds it: both use

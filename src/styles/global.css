@@ -1,1 +1,58 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens of enmirumbo (Tailwind 4, CSS-first configuration): the
+ * prototype's palette and typography, one to one, under English names
+ * (docs/specs/base-layout.md, "Palette and typography as reusable tokens with
+ * WhatsApp green as the primary action"). Screens use them by name
+ * (bg-background, text-ink, bg-action, ...), never loose values.
+ *
+ * Tailwind's default palette is removed, so a colour that is not a token does
+ * not exist: `text-gray-600` generates no CSS, and
+ * test/scripts/design-tokens.test.ts fails on it.
+ *
+ * A one-way palette: neutrals for everything, green only for the action. Every
+ * text and background pair reaches AA contrast (WCAG 2.1, at least 4.5:1); the
+ * ratios are noted next to each token and checked by the same test.
+ */
+@theme {
+  --color-*: initial;
+
+  /* Typography: the system font stack. No font is downloaded, so it costs no
+     bytes and no layout shift (PRD §6.2: under two seconds on 4G), and the
+     content security policy needs no font origin. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* --- Neutrals --------------------------------------------------------- */
+  /* Page background. */
+  --color-background: #ffffff;
+  /* Raised surfaces: the footer, cards. */
+  --color-surface: #f4f4f5;
+  /* Decorative borders and separators (cards, header, footer, navigation
+     pills). About 1.1:1 against background and surface, on purpose: it never
+     outlines a control and never carries text. */
+  --color-line: #e4e4e7;
+  /* Outline of form CONTROLS (input, select, textarea, checkbox, radio) and
+     of the secondary action button. WCAG 2.1, 1.4.11 (non-text contrast) asks
+     for at least 3:1 against the background: 4.83:1 on background, 4.40:1 on
+     surface. */
+  --color-control: #71717a;
+  /* Main text. 17.9:1 on background, 16.3:1 on surface, 9.0:1 on action. */
+  --color-ink: #171717;
+  /* Secondary text. 7.7:1 on background, 7.0:1 on surface. */
+  --color-ink-muted: #52525b;
+
+  /* --- Action green ----------------------------------------------------- */
+  /* THE PRIMARY ACTION COLOUR of the site: WhatsApp green (PRD §5). It is
+     reserved for the main action, contacting or acting; no other token of
+     this palette competes with it. Two tokens, to reach AA:
+
+     - `action` (#25d366, WhatsApp's brand green): ONLY surfaces and accents
+       (button backgrounds with `ink` text, seals, details). NEVER as a text
+       colour on a light background: it reaches only 1.9:1.
+     - `action-strong`: the accessible dark variant, for green text and links
+       and for green buttons with white text. 5.4:1 on background, 4.9:1 on
+       surface; background (white) on it: 5.4:1. */
+  --color-action: #25d366;
+  --color-action-strong: #0f7a41;
+}

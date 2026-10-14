@@ -499,6 +499,22 @@ No locality name MAY be hard-coded in any surface. Every text that names the loc
 - **WHEN** any surface of any locality is reviewed
 - **THEN** none says "enmirumbo" with the locality glued to it, as already required by "No surface of the site names the previous brand or attaches the locality to the name"
 
+### Requirement: Pages outside a locality name no locality (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14.
+
+The pages that belong to no locality (the site root, the admin panel, a 404 outside a locality and the legal pages, which every locality shares) MUST NOT name any locality, not even while only one is active: the footer keeps the brand and its links but leaves out the line "Hecho para los vecinos de {municipio}, {estado}.", the title is the brand alone, the wordmark leads to the root and there is no locality description. Naming one would be wrong as soon as a second locality is active, and the legal pages are prerendered without reading the database.
+
+#### Scenario: a page without a locality
+
+- **WHEN** the footer and the metadata of the site root, of `/admin` or of a 404 outside a locality are read
+- **THEN** no locality is named and the footer has no line for the neighbours
+
+#### Scenario: a page of a locality
+
+- **WHEN** the footer of a page under `/hidalgo/tizayuca` is read
+- **THEN** it reads "Hecho para los vecinos de Tizayuca, Hidalgo."
+
 ### Requirement: Canonical URLs, share previews and the sitemap use the full locality path (v2)
 
 Added in v2 — source: ADR 0007, ADR 0008.
