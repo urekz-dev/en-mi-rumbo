@@ -1,5 +1,5 @@
 {
-  "id": "c85e7f6c-64c1-4b67-8b36-c008db5b0d8a",
+  "id": "502805d8-3d9e-41e1-86e3-8bbcd4ef33e5",
   "prevId": "e8e0b6d2-bfbe-4552-b100-5ef911e9e0a6",
   "version": "7",
   "dialect": "postgresql",
@@ -20,18 +20,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "admin_whatsapp": {
-          "name": "admin_whatsapp",
+        "contact_whatsapp": {
+          "name": "contact_whatsapp",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
-        },
-        "admin_emails": {
-          "name": "admin_emails",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
+          "notNull": false
         },
         "daily_registration_threshold": {
           "name": "daily_registration_threshold",
@@ -71,9 +64,13 @@
           "name": "localities_time_zone_check",
           "value": "btrim(\"localities\".\"time_zone\") <> ''"
         },
-        "localities_admin_whatsapp_check": {
-          "name": "localities_admin_whatsapp_check",
-          "value": "\"localities\".\"admin_whatsapp\" ~ '^[0-9]{10}$'"
+        "localities_contact_whatsapp_check": {
+          "name": "localities_contact_whatsapp_check",
+          "value": "\"localities\".\"contact_whatsapp\" ~ '^[0-9]{10}$'"
+        },
+        "localities_active_contact_check": {
+          "name": "localities_active_contact_check",
+          "value": "NOT \"localities\".\"active\" OR \"localities\".\"contact_whatsapp\" IS NOT NULL"
         },
         "localities_daily_registration_threshold_check": {
           "name": "localities_daily_registration_threshold_check",
@@ -1398,6 +1395,390 @@
         "admin_audit_log_actor_check": {
           "name": "admin_audit_log_actor_check",
           "value": "btrim(\"admin_audit_log\".\"actor\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.permissions": {
+      "name": "permissions",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "permissions_key_check": {
+          "name": "permissions_key_check",
+          "value": "\"permissions\".\"key\" ~ '^[a-z_]+(\\.[a-z_]+)+$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.role_assignments": {
+      "name": "role_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "role_assignments_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_scope": {
+          "name": "role_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locality_code": {
+          "name": "locality_code",
+          "type": "char(5)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "role_assignments_locality_idx": {
+          "name": "role_assignments_locality_idx",
+          "columns": [
+            {
+              "expression": "locality_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "role_assignments_user_id_users_id_fk": {
+          "name": "role_assignments_user_id_users_id_fk",
+          "tableFrom": "role_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "role_assignments_locality_code_localities_code_fk": {
+          "name": "role_assignments_locality_code_localities_code_fk",
+          "tableFrom": "role_assignments",
+          "tableTo": "localities",
+          "columnsFrom": [
+            "locality_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "role_assignments_role_fk": {
+          "name": "role_assignments_role_fk",
+          "tableFrom": "role_assignments",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role_id",
+            "role_scope"
+          ],
+          "columnsTo": [
+            "id",
+            "scope"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "role_assignments_unique": {
+          "name": "role_assignments_unique",
+          "nullsNotDistinct": true,
+          "columns": [
+            "user_id",
+            "role_id",
+            "locality_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "role_assignments_scope_check": {
+          "name": "role_assignments_scope_check",
+          "value": "(\"role_assignments\".\"role_scope\" = 'global') = (\"role_assignments\".\"locality_code\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.role_permissions": {
+      "name": "role_permissions",
+      "schema": "",
+      "columns": {
+        "role_id": {
+          "name": "role_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "permission_key": {
+          "name": "permission_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "role_permissions_role_id_roles_id_fk": {
+          "name": "role_permissions_role_id_roles_id_fk",
+          "tableFrom": "role_permissions",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "role_permissions_permission_key_permissions_key_fk": {
+          "name": "role_permissions_permission_key_permissions_key_fk",
+          "tableFrom": "role_permissions",
+          "tableTo": "permissions",
+          "columnsFrom": [
+            "permission_key"
+          ],
+          "columnsTo": [
+            "key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "role_permissions_pk": {
+          "name": "role_permissions_pk",
+          "columns": [
+            "role_id",
+            "permission_key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.roles": {
+      "name": "roles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "roles_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "system": {
+          "name": "system",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "all_permissions": {
+          "name": "all_permissions",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "roles_key_unique": {
+          "name": "roles_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        },
+        "roles_id_scope_unique": {
+          "name": "roles_id_scope_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "scope"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "roles_key_check": {
+          "name": "roles_key_check",
+          "value": "\"roles\".\"key\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "roles_name_check": {
+          "name": "roles_name_check",
+          "value": "btrim(\"roles\".\"name\") <> ''"
+        },
+        "roles_scope_check": {
+          "name": "roles_scope_check",
+          "value": "\"roles\".\"scope\" IN ('global', 'locality')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_email_check": {
+          "name": "users_email_check",
+          "value": "\"users\".\"email\" = lower(btrim(\"users\".\"email\")) AND \"users\".\"email\" ~ '^[^@\\s]+@[^@\\s]+$'"
+        },
+        "users_name_check": {
+          "name": "users_name_check",
+          "value": "btrim(\"users\".\"name\") <> ''"
         }
       },
       "isRLSEnabled": false

@@ -47,8 +47,10 @@ export const municipalities = pgTable(
 /**
  * A municipality the directory can serve. Its name, slug and state come from
  * its INEGI entry. Only an active locality is served; every other state and
- * municipality answers 404. The admin WhatsApp and mailboxes are real team
- * contacts: they live in the database, never in the repository.
+ * municipality answers 404. The contact WhatsApp is the public number of the
+ * locality's admins ("Perdí mi enlace", ARCO requests): a real number that a
+ * super admin sets in the database, never in the repository. Who administers
+ * a locality is in `role_assignments` (./access.ts).
  */
 export const localities = pgTable(
   "localities",
@@ -57,17 +59,18 @@ export const localities = pgTable(
       .primaryKey()
       .references(() => municipalities.code),
     timeZone: text("time_zone").notNull(),
-    adminWhatsapp: text("admin_whatsapp").notNull(),
-    adminEmails: text("admin_emails")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
+    contactWhatsapp: text("contact_whatsapp"),
     dailyRegistrationThreshold: integer("daily_registration_threshold"),
     active: boolean("active").notNull().default(false),
   },
   (t) => [
     check("localities_time_zone_check", sql`btrim(${t.timeZone}) <> ''`),
-    check("localities_admin_whatsapp_check", matches(t.adminWhatsapp, PHONE_PATTERN)),
+    check("localities_contact_whatsapp_check", matches(t.contactWhatsapp, PHONE_PATTERN)),
+    // A locality is served only with a number for "Perdí mi enlace".
+    check(
+      "localities_active_contact_check",
+      sql`NOT ${t.active} OR ${t.contactWhatsapp} IS NOT NULL`,
+    ),
     check(
       "localities_daily_registration_threshold_check",
       sql`${t.dailyRegistrationThreshold} IS NULL OR ${t.dailyRegistrationThreshold} > 0`,

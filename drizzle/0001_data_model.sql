@@ -1,12 +1,12 @@
 CREATE TABLE "localities" (
 	"code" char(5) PRIMARY KEY NOT NULL,
 	"time_zone" text NOT NULL,
-	"admin_whatsapp" text NOT NULL,
-	"admin_emails" text[] DEFAULT '{}'::text[] NOT NULL,
+	"contact_whatsapp" text,
 	"daily_registration_threshold" integer,
 	"active" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "localities_time_zone_check" CHECK (btrim("localities"."time_zone") <> ''),
-	CONSTRAINT "localities_admin_whatsapp_check" CHECK ("localities"."admin_whatsapp" ~ '^[0-9]{10}$'),
+	CONSTRAINT "localities_contact_whatsapp_check" CHECK ("localities"."contact_whatsapp" ~ '^[0-9]{10}$'),
+	CONSTRAINT "localities_active_contact_check" CHECK (NOT "localities"."active" OR "localities"."contact_whatsapp" IS NOT NULL),
 	CONSTRAINT "localities_daily_registration_threshold_check" CHECK ("localities"."daily_registration_threshold" IS NULL OR "localities"."daily_registration_threshold" > 0)
 );
 --> statement-breakpoint
@@ -169,6 +169,55 @@ CREATE TABLE "admin_audit_log" (
 	CONSTRAINT "admin_audit_log_actor_check" CHECK (btrim("admin_audit_log"."actor") <> '')
 );
 --> statement-breakpoint
+CREATE TABLE "permissions" (
+	"key" text PRIMARY KEY NOT NULL,
+	"description" text NOT NULL,
+	CONSTRAINT "permissions_key_check" CHECK ("permissions"."key" ~ '^[a-z_]+(\.[a-z_]+)+$')
+);
+--> statement-breakpoint
+CREATE TABLE "role_assignments" (
+	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "role_assignments_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
+	"user_id" uuid NOT NULL,
+	"role_id" integer NOT NULL,
+	"role_scope" text NOT NULL,
+	"locality_code" char(5),
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "role_assignments_unique" UNIQUE NULLS NOT DISTINCT("user_id","role_id","locality_code"),
+	CONSTRAINT "role_assignments_scope_check" CHECK (("role_assignments"."role_scope" = 'global') = ("role_assignments"."locality_code" IS NULL))
+);
+--> statement-breakpoint
+CREATE TABLE "role_permissions" (
+	"role_id" integer NOT NULL,
+	"permission_key" text NOT NULL,
+	CONSTRAINT "role_permissions_pk" PRIMARY KEY("role_id","permission_key")
+);
+--> statement-breakpoint
+CREATE TABLE "roles" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "roles_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"key" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"scope" text NOT NULL,
+	"system" boolean DEFAULT false NOT NULL,
+	"all_permissions" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "roles_key_unique" UNIQUE("key"),
+	CONSTRAINT "roles_id_scope_unique" UNIQUE("id","scope"),
+	CONSTRAINT "roles_key_check" CHECK ("roles"."key" ~ '^[a-z][a-z0-9_]*$'),
+	CONSTRAINT "roles_name_check" CHECK (btrim("roles"."name") <> ''),
+	CONSTRAINT "roles_scope_check" CHECK ("roles"."scope" IN ('global', 'locality'))
+);
+--> statement-breakpoint
+CREATE TABLE "users" (
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"email" text NOT NULL,
+	"name" text NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_email_check" CHECK ("users"."email" = lower(btrim("users"."email")) AND "users"."email" ~ '^[^@\s]+@[^@\s]+$'),
+	CONSTRAINT "users_name_check" CHECK (btrim("users"."name") <> '')
+);
+--> statement-breakpoint
 ALTER TABLE "localities" ADD CONSTRAINT "localities_code_municipalities_code_fk" FOREIGN KEY ("code") REFERENCES "public"."municipalities"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "municipalities" ADD CONSTRAINT "municipalities_state_code_states_code_fk" FOREIGN KEY ("state_code") REFERENCES "public"."states"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "zones" ADD CONSTRAINT "zones_locality_code_localities_code_fk" FOREIGN KEY ("locality_code") REFERENCES "public"."localities"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -182,6 +231,11 @@ ALTER TABLE "pending_edits" ADD CONSTRAINT "pending_edits_business_fk" FOREIGN K
 ALTER TABLE "pending_edits" ADD CONSTRAINT "pending_edits_zone_fk" FOREIGN KEY ("zone_id","locality_code") REFERENCES "public"."zones"("id","locality_code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reports" ADD CONSTRAINT "reports_business_fk" FOREIGN KEY ("business_id","locality_code") REFERENCES "public"."businesses"("id","locality_code") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "admin_audit_log" ADD CONSTRAINT "admin_audit_log_locality_code_localities_code_fk" FOREIGN KEY ("locality_code") REFERENCES "public"."localities"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_assignments" ADD CONSTRAINT "role_assignments_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_assignments" ADD CONSTRAINT "role_assignments_locality_code_localities_code_fk" FOREIGN KEY ("locality_code") REFERENCES "public"."localities"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_assignments" ADD CONSTRAINT "role_assignments_role_fk" FOREIGN KEY ("role_id","role_scope") REFERENCES "public"."roles"("id","scope") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_key_permissions_key_fk" FOREIGN KEY ("permission_key") REFERENCES "public"."permissions"("key") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "business_trades_trade_idx" ON "business_trades" USING btree ("trade_id");--> statement-breakpoint
 CREATE INDEX "businesses_locality_status_idx" ON "businesses" USING btree ("locality_code","status");--> statement-breakpoint
 CREATE INDEX "businesses_category_idx" ON "businesses" USING btree ("category_id");--> statement-breakpoint
@@ -191,4 +245,5 @@ CREATE INDEX "pending_edits_status_created_idx" ON "pending_edits" USING btree (
 CREATE INDEX "pending_edits_business_status_idx" ON "pending_edits" USING btree ("business_id","status");--> statement-breakpoint
 CREATE INDEX "reports_business_status_created_idx" ON "reports" USING btree ("business_id","status","created_at");--> statement-breakpoint
 CREATE INDEX "admin_audit_log_locality_occurred_idx" ON "admin_audit_log" USING btree ("locality_code","occurred_at");--> statement-breakpoint
-CREATE INDEX "admin_audit_log_business_idx" ON "admin_audit_log" USING btree ("business_id");
+CREATE INDEX "admin_audit_log_business_idx" ON "admin_audit_log" USING btree ("business_id");--> statement-breakpoint
+CREATE INDEX "role_assignments_locality_idx" ON "role_assignments" USING btree ("locality_code");

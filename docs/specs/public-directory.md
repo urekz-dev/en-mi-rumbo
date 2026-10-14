@@ -1327,19 +1327,19 @@ Photos are served from the environment's photo hostname under opaque keys genera
 
 ### Requirement: "Perdí mi enlace" opens WhatsApp to the admin of the card's locality (v2)
 
-Added in v2 — source: ADR 0006, PRD §3 (Flows C and D).
+Added in v2 — source: ADR 0006, ADR 0021, PRD §3 (Flows C and D).
 
-The button "Perdí mi enlace" MUST open WhatsApp to the admin WhatsApp stored in the locality record of the card, not to a global number.
+The button "Perdí mi enlace" MUST open WhatsApp to the contact WhatsApp stored in the locality record of the card, not to a global number.
 
 #### Scenario: Tizayuca
 
 - **WHEN** an owner taps "Perdí mi enlace" on a card of Tizayuca
-- **THEN** WhatsApp opens to the admin WhatsApp of the locality of Tizayuca
+- **THEN** WhatsApp opens to the contact WhatsApp of the locality of Tizayuca
 
 #### Scenario: another locality
 
-- **WHEN** a second locality is active with a different admin WhatsApp and an owner taps "Perdí mi enlace" on one of its cards
-- **THEN** WhatsApp opens to the admin WhatsApp of that locality
+- **WHEN** a second locality is active with a different contact WhatsApp and an owner taps "Perdí mi enlace" on one of its cards
+- **THEN** WhatsApp opens to the contact WhatsApp of that locality
 
 ### Requirement: The honeypot of the report form is trimmed before it is checked (v2)
 

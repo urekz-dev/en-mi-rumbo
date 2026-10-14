@@ -584,18 +584,18 @@ The fictitious business seed MUST leave at least one published business **with a
 
 ### Requirement: The locality is a first-class record keyed by the INEGI municipality code (v2)
 
-Added in v2 — source: ADR 0006, PRD §8.
+Added in v2 — source: ADR 0006, PRD §8, ADR 0021.
 
-The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, the admin WhatsApp of that locality, the admin mailboxes that receive its daily email, the daily registrations threshold that triggers the alert (none when unset) and an active flag. Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The admin WhatsApp and mailboxes are real contacts of the team: they live in the database and never in the repository. No text, catalogue or route of the system MAY assume that a single locality exists.
+The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset) and an active flag. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. No text, catalogue or route of the system MAY assume that a single locality exists.
 
 #### Scenario: Tizayuca as a locality
 
 - **WHEN** the catalogue seed runs for the municipality of Tizayuca
-- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), an IANA time zone, an admin WhatsApp and the active flag on
+- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), an IANA time zone, a contact WhatsApp and the active flag on
 
 #### Scenario: a locality without its required data
 
-- **WHEN** a locality is saved without a time zone or an admin WhatsApp, with an admin WhatsApp that is not ten digits, or with a code that is not a municipality of the INEGI catalogue
+- **WHEN** a locality is saved without a time zone, with a contact WhatsApp that is not ten digits, active without a contact WhatsApp, or with a code that is not a municipality of the INEGI catalogue
 - **THEN** the database rejects the write
 
 #### Scenario: one record per municipality
@@ -607,7 +607,7 @@ The system MUST persist each locality as its own record from the first migration
 
 Added in v2 — source: ADR 0006.
 
-The full INEGI catalogue of states and municipalities MUST be loaded as reference data from the first migration, each entry with its precomputed slug. A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: seed its zones, set its admin WhatsApp and turn its flag on, with no code change.
+The full INEGI catalogue of states and municipalities MUST be loaded as reference data from the first migration, each entry with its precomputed slug. A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: seed its zones, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
 
 #### Scenario: the catalogue is complete and sluggable
 
@@ -621,7 +621,7 @@ The full INEGI catalogue of states and municipalities MUST be loaded as referenc
 
 #### Scenario: activating a locality is data only
 
-- **WHEN** the zones of a municipality are seeded, its admin WhatsApp is set and its active flag is turned on
+- **WHEN** the zones of a municipality are seeded, its contact WhatsApp is set, its admins are assigned and its active flag is turned on
 - **THEN** the municipality is served without any change in the code
 
 ### Requirement: Zones belong to a locality and are seeded from the SEPOMEX postal catalogue (v2)
@@ -811,3 +811,43 @@ The status of a pending edit MUST be one of `pending`, `applied`, `discarded` or
 
 - **WHEN** an edit is saved as `applied`, `discarded` or `superseded` without a resolution date
 - **THEN** the database rejects the write
+
+### Requirement: Panel users, roles and permissions live in the database (v2)
+
+Added in v2 — source: ADR 0021, ADR 0010.
+
+The people who use the admin panel MUST be `users`, identified by the email that Cloudflare Access verifies, stored lowercase and unique, with a name and an active flag. What they may do MUST come from roles stored in the database: a role bundles permissions from the catalogue and has a scope, `global` or `locality`, and a role assignment gives a role to a user, everywhere for a global role and in one locality for a locality role. The database MUST reject an assignment whose locality does not match its role's scope, the same role twice in the same place, the deletion of a role in use and a change of scope of a role in use.
+
+The permission catalogue MUST be the same in the database and in the code that checks it; an automatic check MUST fail when they differ. The migrations MUST create the catalogue and two base roles: `super_admin` (global, holding every permission, including those added later) and `locality_admin` (per locality: review, edit, unpublish and delete cards, resolve pending edits, attend reports, generate links, manage zones and read the audit log). `super_admin` is a system role: it MUST NOT be updated, deleted or given permissions one by one. Other roles are data that super admins create and edit.
+
+A user MAY do an action in a locality only when an active assignment that applies there grants its permission; an action that is not about one locality (users, roles, localities) needs a global assignment. An inactive user, or one without assignments, MAY do nothing. The first super admin of each environment is inserted by hand in the database; nothing about people lives in the repository or in its configuration.
+
+#### Scenario: the catalogue matches the code
+
+- **WHEN** the permissions of the database are compared with the ones the code checks
+- **THEN** they are the same keys with the same descriptions
+
+#### Scenario: a super admin
+
+- **WHEN** the permissions of a user with `super_admin` are resolved in any locality, or for an action that is not about one
+- **THEN** the user holds every permission of the catalogue
+
+#### Scenario: a locality admin
+
+- **WHEN** a user with `locality_admin` in locality A asks to delete a card of A, a card of B, or to manage users
+- **THEN** only the first is allowed
+
+#### Scenario: a role created as data
+
+- **WHEN** a super admin creates a locality role with only `businesses.review` and assigns it to a user in locality A
+- **THEN** that user may review registrations in A and do nothing else
+
+#### Scenario: the system role is fixed
+
+- **WHEN** an attempt is made to rename, delete or give a permission row to `super_admin`
+- **THEN** the database rejects it
+
+#### Scenario: no assignment, no access
+
+- **WHEN** the user is inactive, or has no assignment
+- **THEN** no permission is granted anywhere

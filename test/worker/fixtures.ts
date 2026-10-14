@@ -61,10 +61,10 @@ export async function createFixture(stateCode: string): Promise<Fixture> {
       {
         code: localityA,
         timeZone: "America/Mexico_City",
-        adminWhatsapp: "7719990001",
+        contactWhatsapp: "7719990001",
         active: true,
       },
-      { code: localityB, timeZone: "America/Mexico_City", adminWhatsapp: "7719990002" },
+      { code: localityB, timeZone: "America/Mexico_City", contactWhatsapp: "7719990002" },
     ]);
     const [zoneA] = await tx
       .insert(zones)

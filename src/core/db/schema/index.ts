@@ -4,3 +4,4 @@ export * from "./locality.ts";
 export * from "./catalogue.ts";
 export * from "./business.ts";
 export * from "./audit-log.ts";
+export * from "./access.ts";

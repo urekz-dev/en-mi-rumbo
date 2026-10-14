@@ -524,9 +524,14 @@ describe("The migration tree applies in full and its constraints survive", () =>
       "localities",
       "municipalities",
       "pending_edits",
+      "permissions",
       "reports",
+      "role_assignments",
+      "role_permissions",
+      "roles",
       "states",
       "trades",
+      "users",
       "zones",
     ]);
   });
@@ -680,7 +685,7 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
         tx.insert(localities).values({
           code: `${STATE}003`,
           timeZone: "America/Mexico_City",
-          adminWhatsapp: "7719990003",
+          contactWhatsapp: "7719990003",
           ...values,
         }),
       );
@@ -689,8 +694,35 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
     expect(await pgErrorCode(() => insert({ code: f.localityB, timeZone: null as never }))).toBe(
       PG.notNull,
     );
-    expect(await pgErrorCode(() => insert({ code: f.localityB, adminWhatsapp: "123" }))).toBe(
+    expect(await pgErrorCode(() => insert({ code: f.localityB, contactWhatsapp: "123" }))).toBe(
       PG.check,
+    );
+  });
+
+  it("a locality is served only with a contact WhatsApp", async () => {
+    expect(
+      (await db((tx) => tx.select().from(localities).where(eq(localities.code, f.localityB))))[0],
+    ).toMatchObject({
+      active: false,
+    });
+    expect(
+      await pgErrorCode(() =>
+        db((tx) =>
+          tx
+            .update(localities)
+            .set({ contactWhatsapp: null, active: true })
+            .where(eq(localities.code, f.localityB)),
+        ),
+      ),
+    ).toBe(PG.check);
+    await db((tx) =>
+      tx.update(localities).set({ contactWhatsapp: null }).where(eq(localities.code, f.localityB)),
+    );
+    await db((tx) =>
+      tx
+        .update(localities)
+        .set({ contactWhatsapp: "7719990002" })
+        .where(eq(localities.code, f.localityB)),
     );
   });
 
@@ -701,7 +733,7 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
           tx.insert(localities).values({
             code: f.localityA,
             timeZone: "America/Mexico_City",
-            adminWhatsapp: "7719990009",
+            contactWhatsapp: "7719990009",
           }),
         ),
       ),

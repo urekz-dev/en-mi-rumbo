@@ -158,6 +158,21 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON TABLES TO enm
 ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON SEQUENCES TO enmirumbo_backup;
 ```
 
+### Panel users and roles
+
+Cloudflare Access lets in the emails on its policy; what each person may do comes from the database ([ADR 0021](docs/adr/0021-panel-users-roles-and-permissions.md)): `users`, `roles` with their `permissions`, and `role_assignments`, global or per locality. The migrations create the permission catalogue and the roles `super_admin` and `locality_admin`. Super admins manage users, roles and assignments from the panel. To add or remove a person, change both the Access policy and their user.
+
+The first super admin of each environment is created by hand in the Neon SQL Editor, on that environment's branch:
+
+```sql
+INSERT INTO users (email, name) VALUES ('<email on the Access policy, lowercase>', '<name>');
+INSERT INTO role_assignments (user_id, role_id, role_scope)
+SELECT u.id, r.id, r.scope FROM users u, roles r
+WHERE u.email = '<the same email>' AND r.key = 'super_admin';
+```
+
+A locality is served only with its contact WhatsApp, the number "Perdí mi enlace" opens. A super admin sets it, together with the active flag, in `localities`.
+
 ### Restore
 
 In an incident, first use Neon's instant restore of the `prod` branch (Neon console, Branches, `prod`, Restore), which reaches 6 hours back on the free plan. For anything older, restore a dump. The steps below restore into `dev`, which is how the procedure is rehearsed; the next "Deploy dev" resets `dev` from `stage` again.
