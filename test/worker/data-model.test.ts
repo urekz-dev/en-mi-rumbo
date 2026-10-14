@@ -92,7 +92,7 @@ describe("The `Business` model covers the registration fields", () => {
       longitude: -98.9813,
       openingHours: "Lunes a sábado de 9 de la mañana a 7 de la tarde",
       facebookUrl: "https://www.facebook.com/negocio-de-prueba",
-      photoKey: "fotodelnegocio",
+      photoKey: "businessphoto",
     });
     await db((tx) => tx.insert(businesses).values(values));
 
@@ -119,8 +119,8 @@ describe("The `Business` model covers the registration fields", () => {
   });
 
   it("two businesses do not share the same photo", async () => {
-    await insertBusiness(f, { photoKey: "fotocompartida01" });
-    expect(await pgErrorCode(() => insertBusiness(f, { photoKey: "fotocompartida01" }))).toBe(
+    await insertBusiness(f, { photoKey: "sharedphoto01" });
+    expect(await pgErrorCode(() => insertBusiness(f, { photoKey: "sharedphoto01" }))).toBe(
       PG.unique,
     );
   });

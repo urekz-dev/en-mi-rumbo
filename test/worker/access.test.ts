@@ -16,7 +16,7 @@ import {
 import { cleanup, createFixture, db, type Fixture, PG, pgErrorCode } from "./fixtures.ts";
 
 const STATE = "97";
-const DOMAIN = "@acceso.enmirumbo.test";
+const DOMAIN = "@access.enmirumbo.test";
 let f: Fixture;
 
 async function removeTestData(): Promise<void> {
@@ -125,7 +125,7 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
         .insert(rolePermissions)
         .values({ roleId: reviewer!.id, permissionKey: "businesses.review" }),
     );
-    const user = await createUser("revisor");
+    const user = await createUser("reviewer");
     await assign(user.id, "test_reviewer", f.localityA);
 
     const granted = await db((tx) => permissionsOf(tx, user.email, f.localityA));
@@ -133,7 +133,7 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
   });
 
   it("a super admin may do everything, everywhere", async () => {
-    const user = await createUser("fundador");
+    const user = await createUser("founder");
     await assign(user.id, "super_admin", null);
 
     for (const locality of [f.localityA, f.localityB, null]) {
@@ -143,7 +143,7 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
   });
 
   it("a locality admin may act only in the localities assigned", async () => {
-    const user = await createUser("admin-ciudad");
+    const user = await createUser("locality-admin");
     await assign(user.id, "locality_admin", f.localityA);
 
     expect(await db((tx) => can(tx, user.email, "businesses.delete", f.localityA))).toBe(true);
@@ -154,9 +154,9 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
   });
 
   it("an inactive user, or one without assignments, may do nothing", async () => {
-    const inactive = await createUser("inactivo", false);
+    const inactive = await createUser("inactive", false);
     await assign(inactive.id, "super_admin", null);
-    const unassigned = await createUser("sin-rol");
+    const unassigned = await createUser("no-role");
 
     for (const user of [inactive, unassigned]) {
       expect((await db((tx) => permissionsOf(tx, user.email, f.localityA))).size).toBe(0);
@@ -164,20 +164,20 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
   });
 
   it("the email is matched without regard to case or spaces", async () => {
-    const user = await createUser("mayusculas");
+    const user = await createUser("uppercase");
     await assign(user.id, "locality_admin", f.localityA);
     const shouted = ` ${user.email.toUpperCase()} `;
     expect(await db((tx) => can(tx, shouted, "businesses.review", f.localityA))).toBe(true);
   });
 
   it("an assignment carries a locality exactly when its role is a locality role", async () => {
-    const user = await createUser("alcance");
+    const user = await createUser("scope");
     expect(await pgErrorCode(() => assign(user.id, "locality_admin", null))).toBe(PG.check);
     expect(await pgErrorCode(() => assign(user.id, "super_admin", f.localityA))).toBe(PG.check);
   });
 
   it("the same role is not assigned twice in the same place, not even globally", async () => {
-    const user = await createUser("doble");
+    const user = await createUser("twice");
     await assign(user.id, "super_admin", null);
     expect(await pgErrorCode(() => assign(user.id, "super_admin", null))).toBe(PG.unique);
     await assign(user.id, "locality_admin", f.localityA);
@@ -192,7 +192,7 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
         .values({ key: "test_temporal", name: "Temporal", scope: "locality" })
         .returning(),
     );
-    const user = await createUser("temporal");
+    const user = await createUser("temporary");
     await assign(user.id, "test_temporal", f.localityA);
 
     expect(
@@ -213,10 +213,10 @@ describe("Panel users, roles and permissions live in the database (v2)", () => {
   it("emails are stored lowercase and are unique", async () => {
     expect(
       await pgErrorCode(() =>
-        db((tx) => tx.insert(users).values({ email: `Mayus${DOMAIN}`, name: "Mayus" })),
+        db((tx) => tx.insert(users).values({ email: `Upper${DOMAIN}`, name: "Upper" })),
       ),
     ).toBe(PG.check);
-    const user = await createUser("unico");
+    const user = await createUser("unique");
     expect(
       await pgErrorCode(() =>
         db((tx) => tx.insert(users).values({ email: user.email, name: "Otro" })),
