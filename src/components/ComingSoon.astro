@@ -1,53 +1,31 @@
 ---
-// Placeholder page that proves the stack end to end, until the global layout
-// and the real home pages arrive with their stories. With a locality it names
-// it, from its record, and declares the canonical and Open Graph URL of its
-// home. On dev, the footer names the branch and commit deployed
-// (src/lib/deploy-info.ts).
-import { env } from "cloudflare:workers";
-import type { ServedLocality } from "../core/locality/served.ts";
-import { readDeployInfo } from "../lib/deploy-info.ts";
-import "../styles/global.css";
+// The notice that the directory is coming, inside the global layout, until
+// the real pages arrive with their stories: at the root while no locality is
+// active, and as the home of a locality, which it names from its record. With
+// a canonical URL it declares it and its Open Graph URL.
+import BaseLayout from "../layouts/BaseLayout.astro";
 
 interface Props {
-  locality?: ServedLocality;
   /** The absolute URL of the page, or null when the environment has no base. */
   canonical?: string | null;
 }
 
-const { locality, canonical } = Astro.props;
-const deploy = readDeployInfo(env);
+const { canonical } = Astro.props;
+const locality = Astro.locals.locality;
 ---
 
-<!doctype html>
-<html lang="es-MX">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>enmirumbo</title>
+<BaseLayout>
+  <Fragment slot="head">
     {canonical && <link rel="canonical" href={canonical} />}
     {canonical && <meta property="og:url" content={canonical} />}
-  </head>
-  <body class="bg-white text-gray-900 antialiased">
-    <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-6 py-12 md:max-w-xl">
-      <h1 class="text-3xl font-bold">enmirumbo</h1>
-      <p class="text-lg">
-        Estamos armando el directorio de negocios de {locality ? locality.name : "tu colonia"}.
-      </p>
-      <p class="text-gray-600">
-        Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
-      </p>
-    </main>
-    {deploy && (
-      <footer
-        class="mx-auto max-w-md px-6 pb-8 text-sm text-gray-600 md:max-w-xl"
-        data-testid="deploy-info"
-      >
-        <p class="break-all">
-          Versión de prueba: rama <code>{deploy.branch}</code>, commit{" "}
-          <code title={deploy.commit}>{deploy.shortCommit}</code>
-        </p>
-      </footer>
-    )}
-  </body>
-</html>
+  </Fragment>
+  <section class="flex flex-1 flex-col justify-center gap-4">
+    <h1 class="text-3xl font-bold">enmirumbo</h1>
+    <p class="text-lg">
+      Estamos armando el directorio de negocios de {locality ? locality.name : "tu colonia"}.
+    </p>
+    <p class="text-ink-muted">
+      Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
+    </p>
+  </section>
+</BaseLayout>

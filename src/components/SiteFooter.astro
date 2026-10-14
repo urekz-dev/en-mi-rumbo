@@ -1,0 +1,36 @@
+---
+// The global footer (docs/specs/base-layout.md, "Global layout with header and
+// footer on every page"): the brand alone and the line for the neighbours of
+// the locality, read from the locality record (PRD §5). The two legal links
+// arrive with their pages (EMR-31), each with a touch area of at least 44px,
+// since no link may lead to a page that does not exist. Outside a locality
+// there is no locality to name, so the neighbours line is left out (v2). On dev it also names
+// the branch and commit deployed (docs/specs/deployment.md, "The dev footer
+// names the branch and commit deployed (v2)"). No client JavaScript.
+import type { ServedLocality } from "../core/locality/served.ts";
+import type { DeployInfo } from "../lib/deploy-info.ts";
+
+interface Props {
+  locality: ServedLocality | undefined;
+  deploy: DeployInfo | undefined;
+}
+
+const { locality, deploy } = Astro.props;
+---
+
+<footer class="border-t border-line bg-surface">
+  <div class="mx-auto flex w-full max-w-3xl flex-col gap-1 px-4 py-6 text-sm text-ink-muted sm:px-6">
+    <p class="font-semibold text-ink">enmirumbo</p>
+    {locality && (
+      <p data-testid="neighbours-line">
+        Hecho para los vecinos de {locality.name}, {locality.state.name}.
+      </p>
+    )}
+    {deploy && (
+      <p class="mt-2 break-all" data-testid="deploy-info">
+        Versión de prueba: rama <code>{deploy.branch}</code>, commit{" "}
+        <code title={deploy.commit}>{deploy.shortCommit}</code>
+      </p>
+    )}
+  </div>
+</footer>

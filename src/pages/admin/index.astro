@@ -4,7 +4,7 @@
 // stories. src/middleware.ts has already verified the token and set
 // Astro.locals.admin.
 import { forbiddenResponse } from "../../lib/access/admin-gate.ts";
-import "../../styles/global.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 
 const admin = Astro.locals.admin;
 if (admin === undefined) {
@@ -13,25 +13,19 @@ if (admin === undefined) {
 }
 ---
 
-<!doctype html>
-<html lang="es-MX">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<BaseLayout title="Panel de revisión">
+  <Fragment slot="head">
     <meta name="robots" content="noindex, nofollow" />
     <meta name="referrer" content="strict-origin" />
-    <title>Panel · enmirumbo</title>
-  </head>
-  <body class="bg-white text-gray-900 antialiased">
-    <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-6 py-12 md:max-w-xl">
-      <h1 class="text-3xl font-bold">Panel de enmirumbo</h1>
-      <p class="text-lg">Entraste con este correo:</p>
-      <p class="text-lg font-semibold break-all" data-testid="admin-email">
-        {admin.email}
-      </p>
-      <p class="text-gray-600">
-        Aquí vas a revisar los registros de los negocios. Todavía lo estamos armando.
-      </p>
-    </main>
-  </body>
-</html>
+  </Fragment>
+  <section class="flex flex-1 flex-col justify-center gap-4">
+    <h1 class="text-3xl font-bold">Panel de enmirumbo</h1>
+    <p class="text-lg">Entraste con este correo:</p>
+    <p class="text-lg font-semibold break-all" data-testid="admin-email">
+      {admin.email}
+    </p>
+    <p class="text-ink-muted">
+      Aquí vas a revisar los registros de los negocios. Todavía lo estamos armando.
+    </p>
+  </section>
+</BaseLayout>

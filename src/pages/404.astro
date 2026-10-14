@@ -1,0 +1,29 @@
+---
+// The site's 404 (docs/specs/base-layout.md, "404 page in Spanish inside the
+// layout"), for any unknown URL and for whatever a route marks as nonexistent.
+// It renders inside the layout, so a 404 under a locality keeps that
+// locality's footer, and "Ir al inicio" leads to that locality's home.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { homePath } from "../lib/site.ts";
+
+// Also when a route or the middleware rewrites to this page.
+Astro.response.status = 404;
+const home = homePath(Astro.locals.locality);
+---
+
+<BaseLayout>
+  <section class="flex flex-1 flex-col items-center justify-center gap-6 py-12 text-center">
+    <h1 class="max-w-md text-2xl font-bold tracking-tight sm:text-3xl">
+      No encontramos esta página
+    </h1>
+    <p class="max-w-md text-ink-muted">
+      A lo mejor el negocio ya no está publicado o la dirección quedó mal escrita.
+    </p>
+    <a
+      href={home}
+      class="inline-flex min-h-11 items-center justify-center px-4 text-base font-semibold text-action-strong underline underline-offset-4"
+    >
+      Ir al inicio
+    </a>
+  </section>
+</BaseLayout>

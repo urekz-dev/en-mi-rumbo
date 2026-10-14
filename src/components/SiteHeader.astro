@@ -1,0 +1,22 @@
+---
+// The global header (docs/specs/base-layout.md, "Global layout with header and
+// footer on every page"): the typographic wordmark alone, linked to the home,
+// with no locality attached to the name. The hyperlocal positioning lives in
+// the home's h1, the footer and the metadata. No client JavaScript.
+import type { ServedLocality } from "../core/locality/served.ts";
+import { homePath } from "../lib/site.ts";
+
+interface Props {
+  locality: ServedLocality | undefined;
+}
+
+const { locality } = Astro.props;
+---
+
+<header class="border-b border-line bg-background">
+  <div class="mx-auto w-full max-w-3xl px-4 sm:px-6">
+    <a href={homePath(locality)} class="inline-flex min-h-11 items-center py-2">
+      <span class="text-xl font-bold tracking-tight text-ink">enmirumbo</span>
+    </a>
+  </div>
+</header>

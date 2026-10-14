@@ -1,6 +1,7 @@
 // Scenarios of docs/specs/deployment.md, requirement "The dev footer names the
-// branch and commit deployed (v2)". src/pages/index.astro renders the footer
-// only when readDeployInfo returns something.
+// branch and commit deployed (v2)". The footer of every page
+// (src/components/SiteFooter.astro) shows it only when readDeployInfo returns
+// something; test/astro/layout.test.ts renders it.
 import { describe, expect, it } from "vite-plus/test";
 import { readDeployInfo } from "../../src/lib/deploy-info.ts";
 

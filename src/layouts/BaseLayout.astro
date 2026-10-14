@@ -1,0 +1,57 @@
+---
+// The global layout of every page (docs/specs/base-layout.md): the document in
+// es-MX with its base metadata, the header with the wordmark, the page and the
+// footer. It sends no client JavaScript.
+//
+// The locality comes from Astro.locals.locality, which the middleware sets on
+// every route under /{estado}/{municipio}/ (ADR 0007), so a page never passes
+// it. Without one (the root, /admin, a 404 outside a locality) the layout
+// names no locality: the title is the brand alone, there is no site
+// description, the wordmark leads to the root and the footer has no
+// neighbours line.
+//
+// The body is min-h-dvh, not min-h-full: on Android the browser bar collapses
+// while scrolling and the real viewport grows; dvh follows it, so the footer
+// always reaches the bottom edge.
+import { env } from "cloudflare:workers";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { readDeployInfo } from "../lib/deploy-info.ts";
+import { documentTitle, SITE_NAME, siteDescription } from "../lib/site.ts";
+import "../styles/global.css";
+
+interface Props {
+  /** The page's own title; the document shows it as "<title> — enmirumbo". */
+  title?: string | undefined;
+  /** The page's own description; without it, the site's description in the locality. */
+  description?: string | undefined;
+}
+
+const { title, description } = Astro.props;
+const locality = Astro.locals.locality;
+const metaDescription = description ?? siteDescription(locality);
+const deploy = readDeployInfo(env);
+---
+
+<!doctype html>
+<html lang="es-MX" class="h-full antialiased">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {/* Only the explicit tel: links call; numbers in the text stay text. */}
+    <meta name="format-detection" content="telephone=no" />
+    <title>{documentTitle(title, locality)}</title>
+    {metaDescription && <meta name="description" content={metaDescription} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:locale" content="es_MX" />
+    <slot name="head" />
+  </head>
+  <body class="flex min-h-dvh flex-col bg-background font-sans text-ink">
+    <SiteHeader locality={locality} />
+    <main class="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
+      <slot />
+    </main>
+    <SiteFooter locality={locality} deploy={deploy} />
+  </body>
+</html>

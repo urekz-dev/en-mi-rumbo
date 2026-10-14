@@ -28,6 +28,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The pages of a locality live under its state and municipality, such as `/hidalgo/tizayuca`. An unknown state or municipality, one under another state, or a locality that is not active answers 404. While one locality is active, `/` and its short name (`/tizayuca`) redirect to it; with none, `/` keeps the placeholder.
 - Canonical and share-preview URLs are absolute and carry the full path of the locality, from the public URL of each environment.
 - The tests fail when a link or a form of the site leads to a page that does not exist, when a link of a locality's page leaves out its state and municipality, or when a link that opens a new tab lacks `rel="noopener noreferrer"`.
+- The global layout of every page: a header with the enmirumbo wordmark, a footer with the line "Hecho para los vecinos de {municipio}, {estado}." read from the locality, the prototype's palette and typography as design tokens with WhatsApp green kept for the main action, and a 404 page in Spanish. Phones no longer turn numbers in the text into call links. On `dev`, the branch and commit deployed now show in the footer of every page.
 
 ### Changed
 
