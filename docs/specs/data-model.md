@@ -586,12 +586,13 @@ The fictitious business seed MUST leave at least one published business **with a
 
 Added in v2 — source: ADR 0006, PRD §8, ADR 0021.
 
-The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset) and an active flag. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. No text, catalogue or route of the system MAY assume that a single locality exists.
+The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset) and an active flag. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. The data migration that loads the INEGI catalogue also creates the locality of Tizayuca, inactive and without a contact WhatsApp, so that every environment has it, production included; a super admin then sets its contact WhatsApp and turns its flag on, which is a data change (ADR 0021). No text, catalogue or route of the system MAY assume that a single locality exists.
 
 #### Scenario: Tizayuca as a locality
 
-- **WHEN** the catalogue seed runs for the municipality of Tizayuca
-- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), an IANA time zone, a contact WhatsApp and the active flag on
+- **WHEN** the migrations are applied to an empty database
+- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), the IANA time zone `America/Mexico_City`, no contact WhatsApp and the active flag off
+- **AND** it is not served until a super admin sets its contact WhatsApp and turns its flag on
 
 #### Scenario: a locality without its required data
 
@@ -607,12 +608,31 @@ The system MUST persist each locality as its own record from the first migration
 
 Added in v2 — source: ADR 0006.
 
-The full INEGI catalogue of states and municipalities MUST be loaded as reference data from the first migration, each entry with its precomputed slug. A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: seed its zones, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
+The full INEGI catalogue of states and municipalities MUST be loaded as reference data by a data migration, so that it reaches every environment, production included, without seeds. Each entry keeps its INEGI code and its official name as INEGI writes it, and has its precomputed slug. The migration MUST be written by a script kept in the repository from INEGI's "Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades", and MUST carry the credit INEGI asks for; the migration is the only copy of the data in the repository, and an automatic check MUST verify what it leaves in the database.
+
+A slug is the official name in lowercase ASCII words joined by hyphens, without accents (`ñ` becomes `n`) and without punctuation. Five states use their common short name instead: Coahuila de Zaragoza is `coahuila`, Michoacán de Ocampo is `michoacan`, Veracruz de Ignacio de la Llave is `veracruz`, México is `estado-de-mexico` and Ciudad de México is `ciudad-de-mexico`. The slug of a state MUST be unique, and the slug of a municipality unique within its state. When two would collide, the generation MUST stop and name them, and MUST NOT add a suffix on its own: a person chooses their slugs. The catalogue has two such pairs in Oaxaca, San Juan Mixtepec and San Pedro Mixtepec, which INEGI tells apart by the district of their seat; their slugs carry it (`san-juan-mixtepec-distrito-08`, `san-juan-mixtepec-distrito-26`, `san-pedro-mixtepec-distrito-22`, `san-pedro-mixtepec-distrito-26`).
+
+A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: create its locality if it does not exist, seed its zones, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
 
 #### Scenario: the catalogue is complete and sluggable
 
 - **WHEN** the reference data is loaded
 - **THEN** every state has its two-digit code and slug, every municipality has its three-digit code, its state and its slug, and Tizayuca is among the municipalities of Hidalgo
+
+#### Scenario: the migration credits INEGI
+
+- **WHEN** the data migration is read
+- **THEN** it names INEGI's catalogue and carries the credit "Fuente: INEGI, …" with its fecha de corte
+
+#### Scenario: state slugs
+
+- **WHEN** the slugs of the states are read
+- **THEN** Hidalgo is `hidalgo`, San Luis Potosí is `san-luis-potosi`, México is `estado-de-mexico` and Veracruz de Ignacio de la Llave is `veracruz`, and their names stay as INEGI writes them
+
+#### Scenario: a slug collision stops the generation
+
+- **WHEN** two municipalities of the same state would get the same slug and no person has chosen their slugs
+- **THEN** the generation stops and names both, and the same name in two different states is not a collision
 
 #### Scenario: a municipality without an active locality is not served
 
