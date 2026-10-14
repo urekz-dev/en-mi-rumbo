@@ -658,7 +658,11 @@ describe("A pending edit stores the full content of what is to be published", ()
 describe('The business stores a normalized version of its name and of "¿Qué ofreces?" for the search', () => {
   it("a business without what it offers has an empty normalized value, not null", async () => {
     const id = await insertBusiness(f, { whatYouOffer: null });
-    expect(await getBusiness(id)).toMatchObject({ nameNormalized: "", whatYouOfferNormalized: "" });
+    expect(await getBusiness(id)).toMatchObject({ whatYouOffer: null, whatYouOfferNormalized: "" });
+    // The columns are NOT NULL; the test writes null on purpose.
+    expect(
+      await pgErrorCode(() => insertBusiness(f, { whatYouOfferNormalized: null as never })),
+    ).toBe(PG.notNull);
   });
 });
 

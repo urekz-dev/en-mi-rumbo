@@ -17,6 +17,7 @@ import {
   trades,
   zones,
 } from "../../src/core/db/schema/index.ts";
+import { searchColumns } from "../../src/core/search/normalize.ts";
 
 /** Runs `run` with a client on HYPERDRIVE_FRESH, as the application writes. */
 export function db<T>(run: (db: Db) => Promise<T>): Promise<T> {
@@ -104,12 +105,16 @@ export async function createFixture(stateCode: string): Promise<Fixture> {
 
 export type NewBusiness = typeof businesses.$inferInsert;
 
-/** The required fields of a business in locality A, overridable. */
+/**
+ * The required fields of a business in locality A, overridable. Like every
+ * write path, it fills the search columns with `searchColumns`, unless the
+ * overrides set them.
+ */
 export function businessValues(
   fixture: Fixture,
   overrides: Partial<NewBusiness> = {},
 ): NewBusiness {
-  return {
+  const values: NewBusiness = {
     id: newBusinessId(),
     localityCode: fixture.localityA,
     name: "Plomería de Prueba",
@@ -120,6 +125,7 @@ export function businessValues(
     consentedToNoticeVersion: "1",
     ...overrides,
   };
+  return { ...searchColumns(values.name, values.whatYouOffer), ...values };
 }
 
 export async function insertBusiness(

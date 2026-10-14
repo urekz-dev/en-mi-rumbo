@@ -1,0 +1,124 @@
+// The directory search (docs/specs/public-directory.md, "The search covers
+// name, keywords and trades, and only what is published", "Case- and
+// accent-insensitive matching, and partial by word stem", "Empty query and
+// hostile terms bounded, without error" and "Results page with the same cards
+// as the listing").
+//
+// Binding: the public search page must run this on HYPERDRIVE_FRESH. The spec
+// requires an unpublished card to leave the search results on the next
+// request, and HYPERDRIVE caches query results for 60 seconds without
+// invalidating them on writes, so it would keep showing the card.
+import { and, asc, eq, exists, like, or, type SQL, sql, type SQLWrapper } from "drizzle-orm";
+import type { Db } from "../db/client.ts";
+import { businesses, businessTrades, categories, trades, zones } from "../db/schema/index.ts";
+import { searchTerms } from "./normalize.ts";
+
+/** The locality the search runs in, as the page resolved it from the path. */
+export interface SearchLocality {
+  code: string;
+  /** Its name from the locality record: its words are filler words. */
+  name: string;
+}
+
+/** What a listing card shows, and nothing else. */
+export interface SearchResult {
+  id: string;
+  name: string;
+  /** The business's own category, for the placeholder and the analytics event. */
+  categorySlug: string;
+  /** The catalogue zone, or the free text of "Otra"; null when there is neither. */
+  zoneName: string | null;
+  /** Null when the zone is "Otra" pending normalization. */
+  zoneSlug: string | null;
+  homeDelivery: boolean;
+  whatsapp: string;
+  /** The stored photo reference, uninterpreted: the view builds the URL. */
+  photoKey: string | null;
+}
+
+/**
+ * Escapes the LIKE wildcards and the escape character itself. PostgreSQL's
+ * default LIKE escape character is the backslash. The stems are already
+ * `[a-z0-9]`, so this is a second line of defence, not the first.
+ */
+export function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, "\\$&");
+}
+
+/**
+ * SQL counterpart of `normalizeText` for the trade names, which are not stored
+ * normalized: `unaccent` strips the accents, the diaeresis and the tilde of
+ * "ñ" as NFD does. For Spanish text the result is the same; it differs only
+ * on letters that `unaccent` transliterates and NFD drops (œ, ß, æ), which the
+ * trade catalogue does not use.
+ */
+export function normalizedSql(text: SQLWrapper): SQL<string> {
+  return sql<string>`btrim(regexp_replace(lower(unaccent(${text})), '[^a-z0-9]+', ' ', 'g'))`;
+}
+
+/**
+ * The published cards of `locality` that match `query`, or null when nothing
+ * searchable remains (an empty, blank or only-symbols query): then no query
+ * runs, and the page shows the empty-query notice instead of the directory.
+ *
+ * Each stem from `searchTerms` must appear, as a substring, in the normalized
+ * name, in the normalized "¿Qué ofreces?" or in the normalized name of one of
+ * the trades the admin assigned; different stems may match in different
+ * places. There is no ranking: the order is the listing's, most recently
+ * published first, then by name, then by id so that it never changes between
+ * two identical searches. There is no page size: the spec shows every match.
+ */
+export async function searchPublishedBusinesses(
+  db: Db,
+  locality: SearchLocality,
+  query: string,
+): Promise<SearchResult[] | null> {
+  const terms = searchTerms(query, locality.name);
+  if (terms.length === 0) return null;
+
+  const matches = (term: string) => {
+    const pattern = `%${escapeLike(term)}%`;
+    const byTrade = db
+      .select({ one: sql`1` })
+      .from(businessTrades)
+      .innerJoin(trades, eq(trades.id, businessTrades.tradeId))
+      .where(
+        and(
+          eq(businessTrades.businessId, businesses.id),
+          like(normalizedSql(trades.name), pattern),
+        ),
+      );
+    return or(
+      like(businesses.nameNormalized, pattern),
+      like(businesses.whatYouOfferNormalized, pattern),
+      exists(byTrade),
+    );
+  };
+
+  return db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      categorySlug: categories.slug,
+      zoneName: sql<string | null>`coalesce(${zones.name}, ${businesses.zoneOther})`,
+      zoneSlug: zones.slug,
+      homeDelivery: businesses.homeDelivery,
+      whatsapp: businesses.whatsapp,
+      photoKey: businesses.photoKey,
+    })
+    .from(businesses)
+    .innerJoin(categories, eq(categories.id, businesses.categoryId))
+    .leftJoin(zones, eq(zones.id, businesses.zoneId))
+    .where(
+      and(
+        eq(businesses.localityCode, locality.code),
+        eq(businesses.status, "published"),
+        ...terms.map(matches),
+      ),
+    )
+    .orderBy(
+      sql`${businesses.publishedAt} DESC NULLS LAST`,
+      asc(businesses.name),
+      asc(businesses.id),
+    );
+}

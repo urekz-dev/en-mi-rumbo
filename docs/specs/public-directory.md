@@ -1283,6 +1283,22 @@ The search MUST have its own per-IP quota, separate from the quotas of registrat
 - **WHEN** the quota is exceeded and the database is reviewed
 - **THEN** it holds no IP and no value derived from it
 
+### Requirement: The name of the locality is a filler word of its own search (v2)
+
+Added in v2 — source: PRD §5, ADR 0006.
+
+"Case- and accent-insensitive matching, and partial by word stem" discards "tizayuca" because the whole site was about Tizayuca. With several localities, the search of a locality MUST discard instead the words of that locality's name, read from the locality record and normalized like the query, exactly as it discards the other filler words: before the term cap, and only while another word remains. No locality name MAY be written in the list of filler words. For Tizayuca the results are the ones that requirement describes; the name of another locality is a word like any other.
+
+#### Scenario: the name of the locality being searched
+
+- **WHEN** a resident searches "cerrajeria en «name of the locality»"
+- **THEN** they see the same businesses as when searching only "cerrajeria"
+
+#### Scenario: the name of another locality
+
+- **WHEN** a resident of Tizayuca searches "cerrajeria pachuca"
+- **THEN** "pachuca" is required like any other word with content
+
 ### Requirement: Heading levels never skip (v2)
 
 Added in v2 — source: PRD §8 (minor debt), prototype backlog (h1 to h3 jump in the listing cards).

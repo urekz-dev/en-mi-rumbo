@@ -143,6 +143,13 @@ export const businesses = pgTable(
     index("businesses_locality_status_idx").on(t.localityCode, t.status),
     index("businesses_category_idx").on(t.categoryId),
     index("businesses_zone_idx").on(t.zoneId),
+    // Trigram indexes (pg_trgm) for the search's `LIKE '%stem%'` on the
+    // normalized columns (src/core/search/query.ts).
+    index("businesses_name_normalized_trgm_idx").using("gin", t.nameNormalized.op("gin_trgm_ops")),
+    index("businesses_what_you_offer_normalized_trgm_idx").using(
+      "gin",
+      t.whatYouOfferNormalized.op("gin_trgm_ops"),
+    ),
   ],
 );
 

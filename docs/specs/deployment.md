@@ -690,3 +690,14 @@ A scheduled workflow (`backup.yml`) MUST run every night at 03:23 Mexico City ti
 
 - **WHEN** R2 refuses the upload or holds a different size afterwards
 - **THEN** the run fails
+
+### Requirement: The commands that write in bulk read the environment from `ENVIRONMENT` (v2)
+
+Added in v2 — source: ADR 0008, ADR 0019.
+
+In "Commands that write to the database recognize the real environment", the environment is the variable `ENVIRONMENT` (`dev`, `stage` or `prod`), not `NODE_ENV` or `VERCEL_ENV`, and the explicit permission to write to a remote database is that variable naming the deployed environment the database belongs to. "Local database" keeps the effective-host criterion. The fictitious seed never writes with `ENVIRONMENT=prod`. The search backfill (`vp run db:backfill:search`) MAY run with `ENVIRONMENT=prod`, because it only recomputes the normalized search columns from the fields they come from, which is what makes the cards that already existed findable.
+
+#### Scenario: search backfill pointing to a remote database
+
+- **WHEN** the search backfill is run with the address of a remote database and without `ENVIRONMENT`
+- **THEN** it changes nothing, ends with an error and says that the address is not a local database and which variable accepts the risk
