@@ -68,6 +68,8 @@ The business MUST also be able to store a **re-acceptance**: the date (`reconsen
 
 ### Requirement: One card per WhatsApp number
 
+Superseded in v2 by One card per WhatsApp number within a locality (v2) — source: ADR 0006.
+
 The database MUST prevent, through a uniqueness constraint, two businesses from having the same WhatsApp number (PRD §6.1: "una sola ficha por número").
 
 #### Scenario: duplicate WhatsApp
@@ -584,7 +586,7 @@ The fictitious business seed MUST leave at least one published business **with a
 
 Added in v2 — source: ADR 0006, PRD §8.
 
-The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). The record MUST also hold its slug, its name, its state, its IANA time zone, the admin WhatsApp of that locality and an active flag. The slug of a locality MUST be unique. No text, catalogue or route of the system MAY assume that a single locality exists.
+The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, the admin WhatsApp of that locality, the admin mailboxes that receive its daily email, the daily registrations threshold that triggers the alert (none when unset) and an active flag. Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The admin WhatsApp and mailboxes are real contacts of the team: they live in the database and never in the repository. No text, catalogue or route of the system MAY assume that a single locality exists.
 
 #### Scenario: Tizayuca as a locality
 
@@ -593,7 +595,7 @@ The system MUST persist each locality as its own record from the first migration
 
 #### Scenario: a locality without its required data
 
-- **WHEN** a locality is saved without a code, a slug, a name, a state, a time zone or an admin WhatsApp
+- **WHEN** a locality is saved without a time zone or an admin WhatsApp, with an admin WhatsApp that is not ten digits, or with a code that is not a municipality of the INEGI catalogue
 - **THEN** the database rejects the write
 
 #### Scenario: one record per municipality
@@ -678,7 +680,7 @@ Every business, pending edit, report and audit log entry MUST reference the loca
 
 Added in v2 — source: PRD §4, ADR 0010.
 
-The system MUST keep an audit log with one entry for each destructive or irreversible admin action: reject, unpublish, permanent deletion, purge, and edits to contact data. Nothing else MUST be logged. Each entry MUST hold who did it (the email of the Access identity, or the scheduled job for a purge), when, the locality, which card (its identifier) and the previous state of the card. An entry MUST NOT depend on the card existing: deleting the card MUST NOT delete its entries. The entries of a permanent deletion or a purge MUST NOT contain personal data of the deleted business (name, WhatsApp, address, reasons).
+The system MUST keep an audit log with one entry for each destructive or irreversible admin action: reject, unpublish, permanent deletion, purge, and edits to contact data. Nothing else MUST be logged. Each entry MUST hold who did it (the email of the Access identity, or `scheduled-job` for the scheduled job), when, the locality, which card (its identifier), the action (`reject`, `unpublish`, `delete`, `purge` or `edit_contact`) and the previous state of the card. The previous state is the status of the card before the action (`in_review`, `published` or `rejected`); an entry MUST NOT copy any field of the card, so the log holds no personal data of the business (LFPDPPP principles of proportionality and quality). An entry MUST NOT depend on the card existing: deleting the card MUST NOT delete its entries. The entries of a permanent deletion or a purge MUST NOT contain personal data of the deleted business (name, WhatsApp, address, reasons).
 
 #### Scenario: rejecting is logged
 
@@ -707,7 +709,7 @@ The system MUST keep an audit log with one entry for each destructive or irrever
 
 #### Scenario: nothing else is logged
 
-- **WHEN** the admin approves a registration, marks a report as attended or regenerates a management link
+- **WHEN** the admin approves a registration, applies a pending edit sent by the owner, marks a report as attended or regenerates a management link
 - **THEN** no audit log entry is saved
 
 ### Requirement: Applied, discarded and superseded pending edits, and never-verified registrations, are purged after 30 days (v2)
@@ -756,3 +758,56 @@ Every WhatsApp number and every landline of the seeds, of the tests and of the e
 
 - **WHEN** the numbers written by the seeds and used by the test fixtures are reviewed
 - **THEN** all start with `771999`
+
+### Requirement: One card per WhatsApp number within a locality (v2)
+
+Added in v2 — source: ADR 0006, PRD §6.1.
+
+The database MUST prevent, through a uniqueness constraint, two businesses of the same locality from having the same WhatsApp number. The same number MAY have one card in each of several localities: a business that serves two cities has one card per city, each with its own review, zone and management link. Wherever another requirement speaks of "the card of a number", it means the card of that number in that locality.
+
+#### Scenario: duplicate WhatsApp in a locality
+
+- **WHEN** an attempt is made to create a second business with a WhatsApp that already has a card in the same locality
+- **THEN** the database rejects the operation for violating the uniqueness constraint
+
+#### Scenario: the same number in two localities
+
+- **WHEN** a business is created in locality B with a WhatsApp that already has a card in locality A
+- **THEN** both cards exist, each in its locality
+
+#### Scenario: ten digits
+
+- **WHEN** a WhatsApp that is not exactly ten digits reaches the database
+- **THEN** the database rejects the write
+
+### Requirement: The card is identified by a short random id (v2)
+
+Added in v2 — source: ADR 0007.
+
+Each business MUST be identified by ten characters chosen at random by the server from `23456789abcdefghjkmnpqrstuvwxyz`: lowercase letters and digits without the ones people confuse (`0`, `1`, `i`, `l`, `o`). It is the stable part of the card's URL (`/{estado}/{municipio}/negocio/<slug>-<id>`), so it MUST NOT contain a hyphen, MUST NOT derive from the name or from the order of registration, and MUST NOT reveal how many businesses exist. The database MUST reject an identifier of any other shape, and a repeated one; the server then generates another.
+
+#### Scenario: new identifiers
+
+- **WHEN** businesses are created
+- **THEN** each has ten characters of that alphabet, and no two share one
+
+#### Scenario: an identifier of another shape
+
+- **WHEN** an identifier with capitals, a hyphen, a confusable character or another length reaches the database
+- **THEN** the database rejects the write
+
+### Requirement: A pending edit replaced by a newer one is kept as superseded (v2)
+
+Added in v2 — source: `business-registration` "Sending changes when others are already waiting replaces the previous ones", and the 30-day purge of this file.
+
+The status of a pending edit MUST be one of `pending`, `applied`, `discarded` or `superseded`. When the owner sends new changes while an edit is waiting, the waiting one MUST become `superseded`, with its resolution date, in the same transaction that saves the new one. Every status other than `pending` MUST carry its resolution date, and only a `discarded` edit MAY carry a discard reason. A superseded edit no longer counts as waiting: it does not block the new one and is purged 30 days after its resolution.
+
+#### Scenario: new changes supersede the waiting ones
+
+- **WHEN** the owner sends changes while an edit of theirs is `pending`
+- **THEN** that edit becomes `superseded` with its resolution date, and the new one is the only `pending` edit of the business
+
+#### Scenario: a resolution needs its date
+
+- **WHEN** an edit is saved as `applied`, `discarded` or `superseded` without a resolution date
+- **THEN** the database rejects the write

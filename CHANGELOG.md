@@ -15,6 +15,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - Every deployed environment, production included, asks search engines not to index it (`X-Robots-Tag: noindex` and a closed `robots.txt`) until the cut-over.
 - `/health` answers `ok` when the site reaches its database.
 - Production is checked every 30 minutes, and backed up every night to a private bucket that keeps each backup for 30 days. The README describes how to restore one.
+- The data model: states and municipalities from INEGI, localities, zones, categories, trades, businesses, pending edits, reports and the admin audit log. A WhatsApp number has one card per locality, and each card has a short random identifier.
 
 ### Changed
 

@@ -1,3 +1,6 @@
-// Drizzle schema entry point. The data model arrives with epic B: export each
-// table from here so `drizzle.config.ts` and `createDb` both see it.
-export {};
+// Drizzle schema entry point (docs/specs/data-model.md, ADR 0006). Export
+// every table from here so `drizzle.config.ts` and `withDb` both see it.
+export * from "./locality.ts";
+export * from "./catalogue.ts";
+export * from "./business.ts";
+export * from "./audit-log.ts";
