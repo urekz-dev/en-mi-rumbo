@@ -131,6 +131,17 @@ export async function insertBusiness(
   return values.id;
 }
 
+/**
+ * Whether a category or trade slug belongs to the fixtures of a test file
+ * that runs at the same time, rather than to the migrations.
+ */
+export function isFixtureSlug(slug: string): boolean {
+  return /^(categoria|giro)-prueba-/.test(slug);
+}
+
+/** The localities and zones of the fixtures are in states above INEGI's 32. */
+export const FIRST_FIXTURE_CODE = "33";
+
 /** Removes every row the fixture of `stateCode` created, in dependency order. */
 export async function cleanup(stateCode: string): Promise<void> {
   await db(async (tx) => {

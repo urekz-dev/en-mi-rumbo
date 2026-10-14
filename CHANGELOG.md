@@ -22,6 +22,9 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The INEGI catalogue of the 32 states and 2,478 municipalities, with the slugs of the public URLs, in every environment, and the locality of Tizayuca, inactive until a super admin sets its contact WhatsApp and activates it.
 - The zones of Tizayuca, in every environment: its 105 colonias, fraccionamientos, barrios, pueblos and other settlements from SEPOMEX's postal catalogue, each with its type and the slug of its public URLs.
 - The search, without its page yet: the published cards of a locality are found by their name, by what they offer and by the trades the admin assigned, ignoring capitals, accents and punctuation and matching the stem of each word ("plomero" finds "plomería"). Filler words and the name of the locality do not narrow the results, and an empty or hostile query searches nothing. The database keeps the normalized search text of every business itself.
+- The 8 categories and the 49 trades of the directory, in every environment, each with the slug of its public URLs.
+- No URL of a locality can be read in two ways: the tests fail when a category, a trade, a zone or a trade and zone pair would take the URL of another, or of one of the site's own pages.
+- Fictitious businesses for development, `dev` and `stage`: twelve made-up cards in Tizayuca, published in several categories and zones, one in review and one rejected, which also turn Tizayuca on there with a made-up contact WhatsApp while it has none. They never reach production.
 
 ### Changed
 

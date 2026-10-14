@@ -50,6 +50,13 @@
       "when": 1792009706404,
       "tag": "0006_tizayuca_zones",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792012216073,
+      "tag": "0007_categories_trades",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,11 @@
-// Idempotent seed runner: `vp run db:seed`. Fictitious data only (src/core/db/seed).
-// It never runs against prod, and runs against a remote database only when
-// ENVIRONMENT names a non-production environment.
+// Idempotent seed runner: `vp run db:seed`. Fictitious businesses only
+// (src/core/db/seed); reference data ships in the migrations. It never runs
+// against prod, and runs against a remote database only when ENVIRONMENT
+// names a non-production environment.
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import { seed } from "../src/core/db/seed/index.ts";
+import * as schema from "../src/core/db/schema/index.ts";
+import { seed, seedSummary } from "../src/core/db/seed/index.ts";
 import {
   assertSafeConnectionString,
   isLocalConnectionString,
@@ -30,7 +32,8 @@ assertSafeConnectionString(url);
 const client = new pg.Client({ connectionString: url });
 await client.connect();
 try {
-  await seed(drizzle({ client }));
+  const report = await seed(drizzle({ client, schema }));
+  for (const line of seedSummary(report)) console.log(line);
   console.log("db:seed: done.");
 } finally {
   await client.end();

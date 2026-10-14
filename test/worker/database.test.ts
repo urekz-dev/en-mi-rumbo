@@ -3,9 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { sql } from "drizzle-orm";
 import { withDb } from "../../src/core/db/client.ts";
 
-// Spec "A single database dialect in all environments": the migration tree
+// Spec "A single database dialect in all environments (v2)": the migration tree
 // (applied by test/global-setup.ts) gives a PostgreSQL database.
-describe("A single database dialect in all environments", () => {
+describe("A single database dialect in all environments (v2)", () => {
   it("queries PostgreSQL through HYPERDRIVE_FRESH and finds the extensions", async () => {
     const ctx = { waitUntil };
     const rows = await withDb(env, "HYPERDRIVE_FRESH", ctx, async (db) => {

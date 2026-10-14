@@ -59,7 +59,7 @@ const PROTOTYPE_COLONIAS: Readonly<Record<string, string | null>> = {
   "El Cid": "el-cid",
 };
 
-// The categories and trades arrive with their own story.
+// The categories and trades are checked in catalogues.test.ts.
 describe("Catalogues of categories, zones and trades with stable slug (v2)", () => {
   it("catalogues populated: every zone has a URL slug, unique within its locality", () => {
     const slug = new RegExp(SLUG_PATTERN);

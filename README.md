@@ -67,7 +67,7 @@ PostgreSQL 18 runs in Docker for development and tests (`compose.yaml`; user, pa
 ```sh
 vp run db:up        # start PostgreSQL and wait until it is healthy
 vp run db:migrate   # apply the migrations in drizzle/ to the development database
-vp run db:seed      # insert the fictitious seed data (safe to run again)
+vp run db:seed      # insert the fictitious businesses (safe to run again)
 ```
 
 | Task                 | What it does                                                                                       |
@@ -76,7 +76,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 | `vp run db:down`     | Stops it. Data stays in the `enmirumbo-postgres-data` volume; `docker compose down -v` deletes it. |
 | `vp run db:generate` | Generates a migration from `src/core/db/schema/`. Add `--custom --name=<name>` for plain SQL.      |
 | `vp run db:migrate`  | Applies the migrations to `DATABASE_URL` (default: the local development database).                |
-| `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.                |
+| `vp run db:seed`     | Inserts the fictitious businesses. See [Fictitious seed](#fictitious-seed).                        |
 | `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.        |
 | `vp run db:inegi`    | Writes the INEGI catalogue migration from INEGI's files. See [INEGI catalogue](#inegi-catalogue).  |
 | `vp run db:zones`    | Writes the zones migration of a locality from SEPOMEX's file. See [SEPOMEX zones](#sepomex-zones). |
@@ -88,7 +88,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
 - The search (`src/core/search/`) matches the normalized name and "¿Qué ofreces?" of each business (`name_normalized` and `what_you_offer_normalized`, with trigram indexes) and the names of its trades. The database generates those two columns with the SQL function `search_normalize`, so no code writes them; `normalizeText` (`src/core/search/normalize.ts`) normalizes what a resident types the same way. The public search, like every public page, reads through the cached `HYPERDRIVE`: a change made in the panel can take up to a minute to show.
 - The data model lives in `src/core/db/schema/` ([data-model spec](docs/specs/data-model.md)): the INEGI states and municipalities, the localities the directory serves, their zones, the global categories and trades, businesses and their trades, pending edits, reports and the admin audit log. Every relation to a business deletes with it, so a permanent deletion leaves nothing behind; the tests fail when one does not, and when the schema changes without its migration.
-- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)), and its zones from SEPOMEX.
+- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)), its zones from SEPOMEX, and the [categories and trades](#categories-and-trades). `vp run db:migrate` alone leaves a database ready to use; the only seed is the [fictitious one](#fictitious-seed).
 
 ### INEGI catalogue
 
@@ -113,7 +113,21 @@ The names and settlement types are SEPOMEX's; the slugs are ours, and SEPOMEX do
 - The migration holds the data; SEPOMEX's file is not kept in the repository. The tests check what it leaves in the database (`test/worker/zones.test.ts`), including the cross-check against the prototype's 21 colonias: 15 are in SEPOMEX with the same name, 5 with another (El Pedregal, Olmos, Tepojaco, Geo Villas, and "Tizayuca" for the Zona Industrial), and Real Toledo is missing.
 - It was written by `vp run db:zones <sepomex.txt> <municipality code> <YYYY-MM-DD> <migration.sql>`, here `vp run db:zones Hidalgo.txt 13069 2026-10-13 drizzle/0006_tizayuca_zones.sql`. The download page is a form: choose the state (or all of them) and "TXT", then the download button. The file is in ISO-8859-1 with its fields separated by `|`; the script also reads it converted to UTF-8, and prints what it merged, fixed and took from `ZONE_SLUGS`.
 - The script trims and collapses spaces and keeps every name as SEPOMEX writes it, except text garbled by its encoding, which it fixes and reports. Settlements whose names differ only in case, accents or spacing become one zone. A name that SEPOMEX lists with two settlement types, or two zones with the same slug, stop the script and are named until someone chooses their slugs in `ZONE_SLUGS` (`scripts/catalogues/sepomex-zones.ts`). Tizayuca has four such names, El Carmen, El Chopo, El Manantial and Tizayuca, and their slugs carry the type (`colonia-el-carmen`, `fraccionamiento-el-carmen`, …).
-- The migration is applied and never changes: zones that SEPOMEX adds later, or the zones of another locality, ship in a new data migration.
+- The migration is applied and never changes: zones that SEPOMEX adds later, or the zones of another locality, ship in a new data migration. `vp run db:zones` does not know the categories and trades, so run `vp test` after writing one: the [URL check](#categories-and-trades) fails when a new zone makes a URL of its locality read in two ways.
+
+### Categories and trades
+
+The 8 categories and the 49 trades are global: every locality shares them. Their names are copy, as the prototype's PRD writes them (§6.1 and Appendix B), and `drizzle/0007_categories_trades.sql` holds them, written by hand because it is a short fixed list with no source file to read. Their slugs follow the rule of `scripts/catalogues/slug.ts`, the one of the INEGI and SEPOMEX catalogues, and never change: a new category or trade ships in a new data migration. `test/worker/catalogues.test.ts` checks every name and slug.
+
+Under `/{estado}/{municipio}/`, one path segment is a category (`servicios-del-hogar`), a trade (`plomeria`) or a trade and a zone joined by a hyphen (`plomeria-haciendas-de-tizayuca`), next to the site's own pages. `rootUrlConflicts` (`src/core/catalogue/root-urls.ts`) lists the segments of a locality that read in more than one way, naming every reading, and `test/worker/root-urls.test.ts` runs it on the migrated database for every locality with zones. The site's own segments are `RESERVED_SEGMENTS`, in the same file: a new page of a locality whose first segment is not a catalogue slug adds it there.
+
+### Fictitious seed
+
+`vp run db:seed` (`src/core/db/seed/`) inserts twelve fake businesses in Tizayuca: published cards in seven categories (the eighth, "Otro", stays empty) and several zones, one in review and one rejected, with the cases the directory, the search and the panel need. Their names say they are made up, their numbers are of the `771999xxxx` series, their references point nowhere, and none has a photo yet. The command prints that the data is fake.
+
+- It inserts only what is missing and never changes a row that is already there. Each fake business has a fixed identifier; one whose identifier, or whose WhatsApp in Tizayuca, is already taken is left out, and trades are added only to the businesses it inserts. Running it again changes nothing.
+- While Tizayuca has no contact WhatsApp, it sets the fake one, `7719990100`, and turns the locality on, so the seeded directory can be seen. A number someone set, and the active flag next to it, are never touched.
+- It runs on every deploy to `dev` and `stage`, never on `prod`: with `ENVIRONMENT=prod` it seeds nothing, and against a database that is not on this machine it needs `ENVIRONMENT=dev` or `ENVIRONMENT=stage`.
 
 ## Deployment
 
@@ -205,6 +219,8 @@ A locality is served only with its contact WhatsApp, the number "Perdí mi enlac
 ```sql
 UPDATE localities SET contact_whatsapp = '<ten digits>', active = true WHERE code = '13069';
 ```
+
+On `dev` and `stage`, the [fictitious seed](#fictitious-seed) sets a fake number and turns Tizayuca on while no number is set; this statement replaces it, and the seed leaves it alone from then on.
 
 ### Restore
 
