@@ -84,6 +84,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 - `vp test` applies the migrations to `DATABASE_URL`, or to `enmirumbo_test` when it is unset, then runs the workers tests against that database. CI provides PostgreSQL 18 on `localhost:5432` and sets `DATABASE_URL`.
 - Migrations are additive only. A destructive statement (`DROP`, `RENAME`, `ALTER ... TYPE`, `SET NOT NULL`, `TRUNCATE`) is allowed only in a file that carries the line `-- destructive-ok: <reason>`, and lands in its own pull request, one version after the code stopped using the column or table.
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
+- The data model lives in `src/core/db/schema/` ([data-model spec](docs/specs/data-model.md)): the INEGI states and municipalities, the localities the directory serves, their zones, the global categories and trades, businesses and their trades, pending edits, reports and the admin audit log. Every relation to a business deletes with it, so a permanent deletion leaves nothing behind; the tests fail when one does not, and when the schema changes without its migration.
 
 ## Deployment
 
@@ -156,6 +157,21 @@ GRANT SELECT ON ALL SEQUENCES IN SCHEMA public, drizzle TO enmirumbo_backup;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON TABLES TO enmirumbo_backup;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public, drizzle GRANT SELECT ON SEQUENCES TO enmirumbo_backup;
 ```
+
+### Panel users and roles
+
+Cloudflare Access lets in the emails on its policy; what each person may do comes from the database ([ADR 0021](docs/adr/0021-panel-users-roles-and-permissions.md)): `users`, `roles` with their `permissions`, and `role_assignments`, global or per locality. The migrations create the permission catalogue and the roles `super_admin` and `locality_admin`. Super admins manage users, roles and assignments from the panel. To add or remove a person, change both the Access policy and their user.
+
+The first super admin of each environment is created by hand in the Neon SQL Editor, on that environment's branch:
+
+```sql
+INSERT INTO users (email, name) VALUES ('<email on the Access policy, lowercase>', '<name>');
+INSERT INTO role_assignments (user_id, role_id, role_scope)
+SELECT u.id, r.id, r.scope FROM users u, roles r
+WHERE u.email = '<the same email>' AND r.key = 'super_admin';
+```
+
+A locality is served only with its contact WhatsApp, the number "Perdí mi enlace" opens. A super admin sets it, together with the active flag, in `localities`.
 
 ### Restore
 

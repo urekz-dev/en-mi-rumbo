@@ -494,9 +494,9 @@ The sweep MUST list the objects of the R2 bucket that no card references and del
 
 ### Requirement: The daily email to the admin lists the pending items and what expires within seven days (v2)
 
-Added in v2 — source: PRD §4, ADR 0013, ADR 0018.
+Added in v2 — source: PRD §4, ADR 0013, ADR 0018, ADR 0021.
 
-The hourly job MUST send, at 8:00 local time of each locality, an email through Resend from the `enmirumbo.com` domain to the admin mailboxes configured for that locality. It MUST list the pending items (registrations, edits and resubmissions waiting) and what the purges will delete within the next seven days. Non-production environments MUST send only to team mailboxes. The email MUST NOT be sent more than once a day per locality.
+The hourly job MUST send, at 8:00 local time of each locality, an email through Resend from the `enmirumbo.com` domain to every active panel user who may review registrations in that locality (permission `businesses.review`, see `data-model`). It MUST list the pending items (registrations, edits and resubmissions waiting) and what the purges will delete within the next seven days. Non-production environments MUST send only to team mailboxes. The email MUST NOT be sent more than once a day per locality.
 
 #### Scenario: the content
 

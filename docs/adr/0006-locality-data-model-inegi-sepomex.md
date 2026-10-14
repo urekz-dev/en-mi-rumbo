@@ -10,7 +10,7 @@ Mexico has many towns with the same name, so a locality needs state and municipa
 
 ## Decision
 
-The locality is a first-class record from the first migration: INEGI code as identity, slug, name, state, IANA time zone, admin WhatsApp, active flag. The full catalogue of states and municipalities is loaded as reference data with precomputed slugs; only active localities are served and every other state or municipality answers 404. Zones hang from the locality and are seeded from SEPOMEX for each active municipality; the admin can hide or rename a zone and the prototype's list is used to cross-check Tizayuca. Categories and trades are global. Businesses, revisions, reports and the audit log reference the locality. There is one admin panel with a locality filter, hidden while there is one locality. Slugs are unique per locality.
+The locality is a first-class record from the first migration: INEGI code as identity, slug, name, state, IANA time zone, admin WhatsApp, active flag (the admin WhatsApp became the locality's contact WhatsApp, and its admins come from role assignments: ADR 0021). The full catalogue of states and municipalities is loaded as reference data with precomputed slugs; only active localities are served and every other state or municipality answers 404. Zones hang from the locality and are seeded from SEPOMEX for each active municipality; the admin can hide or rename a zone and the prototype's list is used to cross-check Tizayuca. Categories and trades are global. Businesses, revisions, reports and the audit log reference the locality. There is one admin panel with a locality filter, hidden while there is one locality. Slugs are unique per locality.
 
 ## Consequences
 

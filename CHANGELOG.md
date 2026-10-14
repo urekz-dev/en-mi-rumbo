@@ -10,11 +10,14 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - Devlog template.
 - ADR 0019: backend structure and local development.
 - ADR 0020: secrets in GitHub Environments, replacing ADR 0009.
+- ADR 0021: panel users, roles and permissions in the database.
 - The admin panel at `/admin`, protected by Cloudflare Access: the Worker verifies the Access token of every admin request and answers 403 without one. Locally it opens with a fixed identity.
 - Three deployed environments, `dev`, `stage` and `prod`, on `workers.dev`, with their deploy workflows: `dev` by hand from any branch (its database is reset from `stage`, and the page footer names the branch and commit), `stage` on every push to `main`, and `prod` from a tag `vX.Y.Z`, which also creates the GitHub Release. Each deploy checks its build first and runs a smoke test after.
 - Every deployed environment, production included, asks search engines not to index it (`X-Robots-Tag: noindex` and a closed `robots.txt`) until the cut-over.
 - `/health` answers `ok` when the site reaches its database.
 - Production is checked every 30 minutes, and backed up every night to a private bucket that keeps each backup for 30 days. The README describes how to restore one.
+- The data model: states and municipalities from INEGI, localities, zones, categories, trades, businesses, pending edits, reports and the admin audit log. A WhatsApp number has one card per locality, and each card has a short random identifier.
+- Panel users, roles and permissions in the database: super admins manage everything, locality admins only their localities, and new roles are created as data. ADR 0021.
 
 ### Changed
 

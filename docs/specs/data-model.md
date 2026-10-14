@@ -68,6 +68,8 @@ The business MUST also be able to store a **re-acceptance**: the date (`reconsen
 
 ### Requirement: One card per WhatsApp number
 
+Superseded in v2 by One card per WhatsApp number within a locality (v2) — source: ADR 0006.
+
 The database MUST prevent, through a uniqueness constraint, two businesses from having the same WhatsApp number (PRD §6.1: "una sola ficha por número").
 
 #### Scenario: duplicate WhatsApp
@@ -582,18 +584,18 @@ The fictitious business seed MUST leave at least one published business **with a
 
 ### Requirement: The locality is a first-class record keyed by the INEGI municipality code (v2)
 
-Added in v2 — source: ADR 0006, PRD §8.
+Added in v2 — source: ADR 0006, PRD §8, ADR 0021.
 
-The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). The record MUST also hold its slug, its name, its state, its IANA time zone, the admin WhatsApp of that locality and an active flag. The slug of a locality MUST be unique. No text, catalogue or route of the system MAY assume that a single locality exists.
+The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset) and an active flag. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. No text, catalogue or route of the system MAY assume that a single locality exists.
 
 #### Scenario: Tizayuca as a locality
 
 - **WHEN** the catalogue seed runs for the municipality of Tizayuca
-- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), an IANA time zone, an admin WhatsApp and the active flag on
+- **THEN** a locality exists with code `13069`, slug `tizayuca`, name "Tizayuca", state Hidalgo (slug `hidalgo`), an IANA time zone, a contact WhatsApp and the active flag on
 
 #### Scenario: a locality without its required data
 
-- **WHEN** a locality is saved without a code, a slug, a name, a state, a time zone or an admin WhatsApp
+- **WHEN** a locality is saved without a time zone, with a contact WhatsApp that is not ten digits, active without a contact WhatsApp, or with a code that is not a municipality of the INEGI catalogue
 - **THEN** the database rejects the write
 
 #### Scenario: one record per municipality
@@ -605,7 +607,7 @@ The system MUST persist each locality as its own record from the first migration
 
 Added in v2 — source: ADR 0006.
 
-The full INEGI catalogue of states and municipalities MUST be loaded as reference data from the first migration, each entry with its precomputed slug. A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: seed its zones, set its admin WhatsApp and turn its flag on, with no code change.
+The full INEGI catalogue of states and municipalities MUST be loaded as reference data from the first migration, each entry with its precomputed slug. A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: seed its zones, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
 
 #### Scenario: the catalogue is complete and sluggable
 
@@ -619,7 +621,7 @@ The full INEGI catalogue of states and municipalities MUST be loaded as referenc
 
 #### Scenario: activating a locality is data only
 
-- **WHEN** the zones of a municipality are seeded, its admin WhatsApp is set and its active flag is turned on
+- **WHEN** the zones of a municipality are seeded, its contact WhatsApp is set, its admins are assigned and its active flag is turned on
 - **THEN** the municipality is served without any change in the code
 
 ### Requirement: Zones belong to a locality and are seeded from the SEPOMEX postal catalogue (v2)
@@ -678,7 +680,7 @@ Every business, pending edit, report and audit log entry MUST reference the loca
 
 Added in v2 — source: PRD §4, ADR 0010.
 
-The system MUST keep an audit log with one entry for each destructive or irreversible admin action: reject, unpublish, permanent deletion, purge, and edits to contact data. Nothing else MUST be logged. Each entry MUST hold who did it (the email of the Access identity, or the scheduled job for a purge), when, the locality, which card (its identifier) and the previous state of the card. An entry MUST NOT depend on the card existing: deleting the card MUST NOT delete its entries. The entries of a permanent deletion or a purge MUST NOT contain personal data of the deleted business (name, WhatsApp, address, reasons).
+The system MUST keep an audit log with one entry for each destructive or irreversible admin action: reject, unpublish, permanent deletion, purge, and edits to contact data. Nothing else MUST be logged. Each entry MUST hold who did it (the email of the Access identity, or `scheduled-job` for the scheduled job), when, the locality, which card (its identifier), the action (`reject`, `unpublish`, `delete`, `purge` or `edit_contact`) and the previous state of the card. The previous state is the status of the card before the action (`in_review`, `published` or `rejected`); an entry MUST NOT copy any field of the card, so the log holds no personal data of the business (LFPDPPP principles of proportionality and quality). An entry MUST NOT depend on the card existing: deleting the card MUST NOT delete its entries. The entries of a permanent deletion or a purge MUST NOT contain personal data of the deleted business (name, WhatsApp, address, reasons).
 
 #### Scenario: rejecting is logged
 
@@ -707,7 +709,7 @@ The system MUST keep an audit log with one entry for each destructive or irrever
 
 #### Scenario: nothing else is logged
 
-- **WHEN** the admin approves a registration, marks a report as attended or regenerates a management link
+- **WHEN** the admin approves a registration, applies a pending edit sent by the owner, marks a report as attended or regenerates a management link
 - **THEN** no audit log entry is saved
 
 ### Requirement: Applied, discarded and superseded pending edits, and never-verified registrations, are purged after 30 days (v2)
@@ -756,3 +758,96 @@ Every WhatsApp number and every landline of the seeds, of the tests and of the e
 
 - **WHEN** the numbers written by the seeds and used by the test fixtures are reviewed
 - **THEN** all start with `771999`
+
+### Requirement: One card per WhatsApp number within a locality (v2)
+
+Added in v2 — source: ADR 0006, PRD §6.1.
+
+The database MUST prevent, through a uniqueness constraint, two businesses of the same locality from having the same WhatsApp number. The same number MAY have one card in each of several localities: a business that serves two cities has one card per city, each with its own review, zone and management link. Wherever another requirement speaks of "the card of a number", it means the card of that number in that locality.
+
+#### Scenario: duplicate WhatsApp in a locality
+
+- **WHEN** an attempt is made to create a second business with a WhatsApp that already has a card in the same locality
+- **THEN** the database rejects the operation for violating the uniqueness constraint
+
+#### Scenario: the same number in two localities
+
+- **WHEN** a business is created in locality B with a WhatsApp that already has a card in locality A
+- **THEN** both cards exist, each in its locality
+
+#### Scenario: ten digits
+
+- **WHEN** a WhatsApp that is not exactly ten digits reaches the database
+- **THEN** the database rejects the write
+
+### Requirement: The card is identified by a short random id (v2)
+
+Added in v2 — source: ADR 0007.
+
+Each business MUST be identified by ten characters chosen at random by the server from `23456789abcdefghjkmnpqrstuvwxyz`: lowercase letters and digits without the ones people confuse (`0`, `1`, `i`, `l`, `o`). It is the stable part of the card's URL (`/{estado}/{municipio}/negocio/<slug>-<id>`), so it MUST NOT contain a hyphen, MUST NOT derive from the name or from the order of registration, and MUST NOT reveal how many businesses exist. The database MUST reject an identifier of any other shape, and a repeated one; the server then generates another.
+
+#### Scenario: new identifiers
+
+- **WHEN** businesses are created
+- **THEN** each has ten characters of that alphabet, and no two share one
+
+#### Scenario: an identifier of another shape
+
+- **WHEN** an identifier with capitals, a hyphen, a confusable character or another length reaches the database
+- **THEN** the database rejects the write
+
+### Requirement: A pending edit replaced by a newer one is kept as superseded (v2)
+
+Added in v2 — source: `business-registration` "Sending changes when others are already waiting replaces the previous ones", and the 30-day purge of this file.
+
+The status of a pending edit MUST be one of `pending`, `applied`, `discarded` or `superseded`. When the owner sends new changes while an edit is waiting, the waiting one MUST become `superseded`, with its resolution date, in the same transaction that saves the new one. Every status other than `pending` MUST carry its resolution date, and only a `discarded` edit MAY carry a discard reason. A superseded edit no longer counts as waiting: it does not block the new one and is purged 30 days after its resolution.
+
+#### Scenario: new changes supersede the waiting ones
+
+- **WHEN** the owner sends changes while an edit of theirs is `pending`
+- **THEN** that edit becomes `superseded` with its resolution date, and the new one is the only `pending` edit of the business
+
+#### Scenario: a resolution needs its date
+
+- **WHEN** an edit is saved as `applied`, `discarded` or `superseded` without a resolution date
+- **THEN** the database rejects the write
+
+### Requirement: Panel users, roles and permissions live in the database (v2)
+
+Added in v2 — source: ADR 0021, ADR 0010.
+
+The people who use the admin panel MUST be `users`, identified by the email that Cloudflare Access verifies, stored lowercase and unique, with a name and an active flag. What they may do MUST come from roles stored in the database: a role bundles permissions from the catalogue and has a scope, `global` or `locality`, and a role assignment gives a role to a user, everywhere for a global role and in one locality for a locality role. The database MUST reject an assignment whose locality does not match its role's scope, the same role twice in the same place, the deletion of a role in use and a change of scope of a role in use.
+
+The permission catalogue MUST be the same in the database and in the code that checks it; an automatic check MUST fail when they differ. The migrations MUST create the catalogue and two base roles: `super_admin` (global, holding every permission, including those added later) and `locality_admin` (per locality: review, edit, unpublish and delete cards, resolve pending edits, attend reports, generate links, manage zones and read the audit log). `super_admin` is a system role: it MUST NOT be updated, deleted or given permissions one by one. Other roles are data that super admins create and edit.
+
+A user MAY do an action in a locality only when an active assignment that applies there grants its permission; an action that is not about one locality (users, roles, localities) needs a global assignment. An inactive user, or one without assignments, MAY do nothing. The first super admin of each environment is inserted by hand in the database; nothing about people lives in the repository or in its configuration.
+
+#### Scenario: the catalogue matches the code
+
+- **WHEN** the permissions of the database are compared with the ones the code checks
+- **THEN** they are the same keys with the same descriptions
+
+#### Scenario: a super admin
+
+- **WHEN** the permissions of a user with `super_admin` are resolved in any locality, or for an action that is not about one
+- **THEN** the user holds every permission of the catalogue
+
+#### Scenario: a locality admin
+
+- **WHEN** a user with `locality_admin` in locality A asks to delete a card of A, a card of B, or to manage users
+- **THEN** only the first is allowed
+
+#### Scenario: a role created as data
+
+- **WHEN** a super admin creates a locality role with only `businesses.review` and assigns it to a user in locality A
+- **THEN** that user may review registrations in A and do nothing else
+
+#### Scenario: the system role is fixed
+
+- **WHEN** an attempt is made to rename, delete or give a permission row to `super_admin`
+- **THEN** the database rejects it
+
+#### Scenario: no assignment, no access
+
+- **WHEN** the user is inactive, or has no assignment
+- **THEN** no permission is granted anywhere

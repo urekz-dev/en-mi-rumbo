@@ -8,6 +8,20 @@
       "when": 1791864549113,
       "tag": "0000_extensions",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792003768685,
+      "tag": "0001_data_model",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792003768942,
+      "tag": "0002_access_seed",
+      "breakpoints": true
     }
   ]
 }

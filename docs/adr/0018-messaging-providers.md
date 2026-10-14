@@ -10,7 +10,7 @@ The admin needs a daily email with pending items and retention warnings. SMS ver
 
 ## Decision
 
-Resend sends the daily email from the `enmirumbo.com` domain (SPF and DKIM records in Cloudflare DNS) to the admin mailboxes configured per locality; non-production environments send only to team mailboxes. Twilio Verify handles the SMS code when the flag is on, with per-IP and per-number quotas because each SMS costs money; with the flag off no Twilio credential is required and the registration flow is identical to the prototype's.
+Resend sends the daily email from the `enmirumbo.com` domain (SPF and DKIM records in Cloudflare DNS) to the admin mailboxes configured per locality (amended by ADR 0021: the panel users who may review registrations in that locality); non-production environments send only to team mailboxes. Twilio Verify handles the SMS code when the flag is on, with per-IP and per-number quotas because each SMS costs money; with the flag off no Twilio credential is required and the registration flow is identical to the prototype's.
 
 ## Consequences
 

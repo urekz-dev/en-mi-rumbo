@@ -21,13 +21,19 @@ export async function withDb<T>(
   run: (db: Db) => Promise<T>,
 ): Promise<T> {
   const client = new Client({ connectionString: env[binding].connectionString });
+  let closing = false;
   // An idle client emits "error" when the server drops it; without a listener
-  // that would crash the request.
-  client.on("error", (error) => console.error("db: client error", error));
+  // that would crash the request. Once we close the client, closing the socket
+  // ends pg-cloudflare's read loop with "This socket has been closed", which
+  // arrives here too: that is our own close, not something to log.
+  client.on("error", (error) => {
+    if (!closing) console.error("db: client error", error);
+  });
   try {
     await client.connect();
     return await run(drizzle({ client, schema }));
   } finally {
+    closing = true;
     // end() never rejects the request: a failed close is only logged.
     ctx.waitUntil(client.end().catch((error: unknown) => console.error("db: close failed", error)));
   }

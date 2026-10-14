@@ -1304,3 +1304,24 @@ When an approval fails a validation, the form MUST show the trades exactly as th
 
 - **WHEN** the admin ticks two trades and the approval fails for another validation
 - **THEN** those two stay ticked
+
+### Requirement: Inside the panel, a user can do only what their roles allow (v2)
+
+Added in v2 — source: ADR 0021.
+
+Cloudflare Access proves the email; the roles decide what it may do. After the Access token is verified, the Worker MUST look up the panel user of that email. A user that does not exist, is inactive or has no active role assignment MUST get the same 403 as a request without a valid token. Every screen and every action MUST check its permission (see "Panel users, roles and permissions live in the database (v2)" in `data-model`) in the locality of the card, edit, report or zone it touches, and managing users, roles and localities MUST need a global assignment. The panel MUST list only the localities, cards and actions the user may use. Super admins create users, roles and assignments from the panel; the first super admin of each environment is inserted by hand in the database.
+
+#### Scenario: on the Access policy but without a role
+
+- **WHEN** a person whose email is on the Access policy, but who has no active role assignment, opens `/admin`
+- **THEN** they get the 403 page and see no data
+
+#### Scenario: another locality's card
+
+- **WHEN** a locality admin of locality A opens or acts on a card of locality B
+- **THEN** the panel refuses it as if the card did not exist, and the queue of A never lists it
+
+#### Scenario: a super admin
+
+- **WHEN** a super admin opens the panel
+- **THEN** they see every active locality and may manage users and roles
