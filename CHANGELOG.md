@@ -25,7 +25,11 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The 8 categories and the 49 trades of the directory, in every environment, each with the slug of its public URLs.
 - No URL of a locality can be read in two ways: the tests fail when a category, a trade, a zone or a trade and zone pair would take the URL of another, or of one of the site's own pages.
 - Fictitious businesses for development, `dev` and `stage`: twelve made-up cards in Tizayuca, published in several categories and zones, one in review and one rejected, which also turn Tizayuca on there with a made-up contact WhatsApp while it has none. They never reach production.
+- The pages of a locality live under its state and municipality, such as `/hidalgo/tizayuca`. An unknown state or municipality, one under another state, or a locality that is not active answers 404. While one locality is active, `/` and its short name (`/tizayuca`) redirect to it; with none, `/` keeps the placeholder.
+- Canonical and share-preview URLs are absolute and carry the full path of the locality, from the public URL of each environment.
+- The tests fail when a link or a form of the site leads to a page that does not exist, when a link of a locality's page leaves out its state and municipality, or when a link that opens a new tab lacks `rel="noopener noreferrer"`.
 
 ### Changed
 
 - The brand is written enmirumbo, lowercase and in one word.
+- The smoke test after each deploy follows the redirect of the home page, which leads to the locality while only one is active.

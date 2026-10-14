@@ -567,7 +567,7 @@ Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, w
 - `stage` (`deploy-stage.yml`): on every push to `main`, or by hand on `main`. It applies the migrations, runs the fictitious seed and deploys.
 - `prod` (`deploy-prod.yml`): on a tag `vX.Y.Z` (three numbers without leading zeros and nothing after them), or by hand on such a tag. It applies the migrations without seeding, deploys, and then creates the GitHub Release of the tag with generated notes; only that job may write to the repository.
 
-After each deploy a smoke test MUST request the site URL and fail unless the home answers 200 with `X-Robots-Tag: noindex` and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
+After each deploy a smoke test MUST request the site URL and fail unless the home answers 200, following its redirects only over https, with `X-Robots-Tag: noindex` on the page the redirects end at, and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. The home redirects while one locality is active (`public-directory`, "While there is one active locality, the root and the alias redirect to it (v2)"), as on `dev` and `stage` once the fictitious seed turns Tizayuca on. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
 
 #### Scenario: a placeholder Hyperdrive id
 
@@ -596,8 +596,13 @@ After each deploy a smoke test MUST request the site URL and fail unless the hom
 
 #### Scenario: the smoke test
 
-- **WHEN** after a deploy the home does not answer 200, does not carry `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
+- **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
 - **THEN** the workflow fails
+
+#### Scenario: the home redirects to the only active locality
+
+- **WHEN** after a deploy `/` answers a 301 to `/hidalgo/tizayuca`, which answers 200 with `X-Robots-Tag: noindex`, and `/robots.txt` closes the site
+- **THEN** the smoke test passes
 
 ### Requirement: The dev footer names the branch and commit deployed (v2)
 

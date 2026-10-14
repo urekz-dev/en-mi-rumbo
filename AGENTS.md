@@ -13,7 +13,7 @@ Hyperlocal business directory: Astro in server mode on Cloudflare Workers, built
 - `vp run check:all`: `vp check`, Prettier on `.astro` files, `astro check`, and `wrangler types --check`. Run it before opening a pull request.
 - `vp test`: tests inside workerd with `@cloudflare/vitest-plugin`.
 - `vp run db:up`, `db:down`, `db:generate`, `db:migrate`, `db:seed`, `db:check`: the local PostgreSQL 18 (Docker), Drizzle migrations, the seed and the migration guard. `vp test` needs the database up.
-- `vp run e2e`: build, then run Playwright against `astro preview`. Run `vp exec playwright install chromium` once first.
+- `vp run e2e`: build, then run Playwright against `astro preview`. Its global setup migrates and seeds `DATABASE_URL` (default: the development database), which turns Tizayuca on. Run `vp exec playwright install chromium` once first.
 - `vp run dev`, `vp run build`, `vp run preview`: Astro's dev server, build and preview. Never use `vp dev`, `vp build` or `vp preview`: they run plain Vite, which ignores Astro.
 - `vp run fmt:astro`: format `.astro` files with Prettier.
 - `vp run types`: regenerate `worker-configuration.d.ts` after a change to `wrangler.jsonc`, and commit it.
@@ -25,7 +25,7 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 ## Layout
 
 - `src/worker.ts`: the Worker entry. `fetch` goes to Astro and, outside local, adds `X-Robots-Tag: noindex` (`src/lib/robots.ts`); `scheduled` runs the hourly jobs in `src/scheduled.ts`.
-- `src/middleware.ts`: Astro middleware. It sends every request for `/admin` and below, and every admin action, through the Cloudflare Access check in `src/lib/access/`.
+- `src/middleware.ts`: Astro middleware. It sends every request for `/admin` and below, and every admin action, through the Cloudflare Access check in `src/lib/access/`; then it resolves the active locality of every page under `/{estado}/{municipio}/` (`src/lib/locality.ts`), or answers 404.
 - `src/pages/`: Astro routes.
 - `src/core/`: business rules and data access. It never imports `astro` or `astro:*` (an Oxlint rule enforces it). `src/core/db/` holds the Drizzle client (`withDb`), the schema and the seed.
 - `drizzle/`: generated migrations and Drizzle Kit's journal. `scripts/`: Node scripts for the database tasks.
@@ -40,6 +40,7 @@ When Astro detects a coding agent, `astro dev` and `astro preview` start in the 
 - The brand is enmirumbo, one word, always lowercase. Never write "enmirumbo Tizayuca". Texts that name a locality read it from the locality record; never hard-code a locality name.
 - The public site works without JavaScript. Only the registration and edit forms need it. No React or other client framework; mutations use Astro Actions with `accept: 'form'`.
 - Mobile first: design for a 390 px wide phone.
+- Every public page of a locality lives under `src/pages/[state]/[municipality]/` and reads its locality with `requireLocality(Astro.locals)`; the middleware has already answered 404 for an unknown or inactive one (ADR 0007). Build internal links with `localityPath` (`src/core/locality/paths.ts`), never as literal paths, and absolute URLs with `absoluteUrl` (`src/lib/site-url.ts`), which reads `SITE_URL`.
 - Business rules and data access live in `src/core/`, which never imports Astro. Pages and Actions validate input, authorize the request and call the core (ADR 0019).
 - Read bindings with `import { env } from "cloudflare:workers"`. Astro sessions stay off.
 - `wrangler.jsonc`: the top level is the local Worker; `dev`, `stage` and `prod` each declare their own bindings, vars and triggers, because Wrangler does not inherit bindings or vars. A new binding or variable goes in the top level and in the three environments (`test/scripts/wrangler-config.test.ts` checks it); then run `vp run types`. Build for an environment with `CLOUDFLARE_ENV=<env> vp run build`. Never run `wrangler deploy` by hand: the deploy workflows are the only way to deploy.

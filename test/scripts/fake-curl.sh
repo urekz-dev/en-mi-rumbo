@@ -6,7 +6,9 @@
 # FAKE_CURL_ROUTES: a JSON object from "<METHOD> <url>" to a list of answers
 #   {"status": 200, "headers": {"name": "value"}, "body": "text" | {json}}.
 #   Each call takes the first answer of its list; the last one repeats. A
-#   status of 0 fails like a connection error.
+#   status of 0 fails like a connection error. An answer may also carry
+#   "redirects": [{"status": 301, "headers": {...}}], the responses that came
+#   before it: with --location, --dump-header writes them first, as curl does.
 # FAKE_CURL_LOG: each call is appended as one JSON line
 #   {"argv": [...], "method", "url", "data", "headerFiles": [...]}, where
 #   headerFiles holds the contents of every `--header @file`.
@@ -20,6 +22,7 @@ dump=""
 output=""
 write_out=""
 fail_with_body=false
+location=false
 header_files=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -34,6 +37,7 @@ while [ "$#" -gt 0 ]; do
   --write-out) write_out="$2" && shift 2 ;;
   --max-time | --retry | --retry-delay | --proto | --proto-redir | --max-redirs) shift 2 ;;
   --fail-with-body) fail_with_body=true && shift ;;
+  --location) location=true && shift ;;
   --*) shift ;;
   *) url="$1" && shift ;;
   esac
@@ -62,6 +66,9 @@ fi
 body="$(jq -r 'if (.body | type) == "string" then .body else (.body | tojson) end' <<<"${answer}")"
 if [ -n "${dump}" ]; then
   {
+    if [ "${location}" = true ]; then
+      jq -r '.redirects // [] | .[] | "HTTP/2 \(.status)", (.headers // {} | to_entries[] | "\(.key): \(.value)"), ""' <<<"${answer}"
+    fi
     echo "HTTP/2 ${status}"
     jq -r '.headers // {} | to_entries[] | "\(.key): \(.value)"' <<<"${answer}"
     echo

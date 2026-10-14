@@ -1,0 +1,25 @@
+---
+// The short alias for printed material (ADR 0007; docs/specs/public-directory.md,
+// "While there is one active locality, the root and the alias redirect to
+// it (v2)"): while exactly one locality is active, `/{its municipality slug}`
+// (`/tizayuca`) answers a 301 to its home. Any other single segment that no
+// page of the site takes answers 404, so a page of a locality is never served
+// without its prefix. Static routes (`/admin`, `/health`, `/robots.txt`)
+// always win over this one.
+import { env, waitUntil } from "cloudflare:workers";
+import { withDb } from "../core/db/client.ts";
+import { localityPath } from "../core/locality/paths.ts";
+import { aliasDestination } from "../core/locality/root.ts";
+import { activeLocalities, isSlug } from "../core/locality/served.ts";
+import { notFound, permanentRedirect } from "../lib/locality.ts";
+
+const segment = Astro.params.alias ?? "";
+// A segment that cannot be a slug is a 404 without asking the database.
+const locality = isSlug(segment)
+  ? aliasDestination(
+      await withDb(env, "HYPERDRIVE", { waitUntil }, (db) => activeLocalities(db)),
+      segment,
+    )
+  : null;
+return locality ? permanentRedirect(localityPath(locality)) : notFound();
+---

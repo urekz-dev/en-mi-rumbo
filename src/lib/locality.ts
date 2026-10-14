@@ -1,0 +1,74 @@
+// The locality of a public route (ADR 0007). Every page of a locality lives
+// under src/pages/[state]/[municipality]/, so its URL is
+// `/{estado}/{municipio}/...`. src/middleware.ts runs gateLocalityRequest on
+// every request: for those routes it resolves the active locality before the
+// page runs, stores it in `locals.locality` and answers 404, with the site's
+// 404 page, when the state or the municipality is unknown, does not match, or
+// has no active locality. Other routes (`/`, the alias, `/admin`, `/health`,
+// `/robots.txt`, Astro's own) pass through untouched.
+import type { ServedLocality } from "../core/locality/served.ts";
+
+/** The route pattern of a locality's home, the prefix of all its pages. */
+export const LOCALITY_ROUTE = "/[state]/[municipality]";
+
+/** Whether Astro routed the request to a page of a locality. */
+export function isLocalityRoute(routePattern: string): boolean {
+  return routePattern === LOCALITY_ROUTE || routePattern.startsWith(`${LOCALITY_ROUTE}/`);
+}
+
+/**
+ * An empty 404: Astro answers it with the site's 404 page
+ * (src/pages/404.astro), the same as an address that matches no route.
+ */
+export function notFound(): Response {
+  return new Response(null, { status: 404 });
+}
+
+/** Finds the active locality at `/{stateSlug}/{municipalitySlug}`, or null. */
+export type FindLocality = (
+  stateSlug: string,
+  municipalitySlug: string,
+) => Promise<ServedLocality | null>;
+
+export interface LocalityGateContext {
+  routePattern: string;
+  params: Record<string, string | undefined>;
+  locals: { locality?: ServedLocality };
+}
+
+export async function gateLocalityRequest(
+  context: LocalityGateContext,
+  next: () => Promise<Response>,
+  find: FindLocality,
+): Promise<Response> {
+  if (!isLocalityRoute(context.routePattern)) return next();
+  const { state, municipality } = context.params;
+  const locality = state && municipality ? await find(state, municipality) : null;
+  if (!locality) return notFound();
+  context.locals.locality = locality;
+  return next();
+}
+
+/**
+ * The locality of the current page. Only pages under
+ * src/pages/[state]/[municipality]/ may call it: the middleware has always
+ * resolved it for them, so a missing one is a programming error.
+ */
+export function requireLocality(locals: { locality?: ServedLocality }): ServedLocality {
+  if (!locals.locality) {
+    throw new Error("requireLocality: this page is not under /[state]/[municipality]/");
+  }
+  return locals.locality;
+}
+
+/**
+ * A 301 to a path of this site. Browsers keep a 301 with no cache headers
+ * forever, and where `/` and the alias lead depends on how many localities
+ * are active (ADR 0007), so they keep this one for an hour at most.
+ */
+export function permanentRedirect(path: string): Response {
+  return new Response(null, {
+    status: 301,
+    headers: { Location: path, "Cache-Control": "max-age=3600" },
+  });
+}

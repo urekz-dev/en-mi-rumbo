@@ -1,39 +1,26 @@
 ---
-// Placeholder page that proves the stack end to end. The real home page
-// arrives with its story. On dev, the footer names the branch and commit
-// deployed (src/lib/deploy-info.ts).
-import { env } from "cloudflare:workers";
-import { readDeployInfo } from "../lib/deploy-info.ts";
-import "../styles/global.css";
+// The site root (ADR 0007; docs/specs/public-directory.md, "While there is one
+// active locality, the root and the alias redirect to it (v2)"). It reads the
+// active localities through the cached HYPERDRIVE, like every public page:
+// - exactly one: a 301 to its home, such as /hidalgo/tizayuca;
+// - two or more: the list of localities, which EMR-29 builds here; until
+//   then, the placeholder;
+// - none (production before launch): the notice that the directory is coming,
+//   with 200 ("With no active locality the root says the directory is coming
+//   (v2)"), as the deploy smoke test and the availability check expect.
+import { env, waitUntil } from "cloudflare:workers";
+import ComingSoon from "../components/ComingSoon.astro";
+import { withDb } from "../core/db/client.ts";
+import { localityPath } from "../core/locality/paths.ts";
+import { rootDestination } from "../core/locality/root.ts";
+import { activeLocalities } from "../core/locality/served.ts";
+import { permanentRedirect } from "../lib/locality.ts";
 
-const deploy = readDeployInfo(env);
+const active = await withDb(env, "HYPERDRIVE", { waitUntil }, (db) => activeLocalities(db));
+const destination = rootDestination(active);
+if (destination.kind === "locality") {
+  return permanentRedirect(localityPath(destination.locality));
+}
 ---
 
-<!doctype html>
-<html lang="es-MX">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>enmirumbo</title>
-  </head>
-  <body class="bg-white text-gray-900 antialiased">
-    <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-6 py-12 md:max-w-xl">
-      <h1 class="text-3xl font-bold">enmirumbo</h1>
-      <p class="text-lg">Estamos armando el directorio de negocios de tu colonia.</p>
-      <p class="text-gray-600">
-        Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
-      </p>
-    </main>
-    {deploy && (
-      <footer
-        class="mx-auto max-w-md px-6 pb-8 text-sm text-gray-600 md:max-w-xl"
-        data-testid="deploy-info"
-      >
-        <p class="break-all">
-          Versión de prueba: rama <code>{deploy.branch}</code>, commit{" "}
-          <code title={deploy.commit}>{deploy.shortCommit}</code>
-        </p>
-      </footer>
-    )}
-  </body>
-</html>
+<ComingSoon />

@@ -1184,6 +1184,8 @@ Added in v2 — source: ADR 0007, PRD §3 (Flow F), PRD §9.
 
 While exactly one locality is active, `/` MUST answer a 301 redirect to that locality (`/hidalgo/tizayuca` for Tizayuca), and the short alias `/tizayuca` MUST answer the same 301 so that printed material keeps working. No locality chooser is shown in the interface.
 
+The destination and the alias MUST come from the locality record, never from the code: the alias is the municipality slug of the active locality, and any other path of a single segment that is not a page of the site answers 404. Because where the root leads changes when a second locality is activated, the redirect MUST tell browsers to keep it for an hour at most (`Cache-Control: max-age=3600`); a 301 without it stays in a browser for good.
+
 #### Scenario: the root
 
 - **WHEN** someone opens `/` and only Tizayuca is active
@@ -1198,6 +1200,16 @@ While exactly one locality is active, `/` MUST answer a 301 redirect to that loc
 
 - **WHEN** the home of Tizayuca is reviewed while it is the only active locality
 - **THEN** it offers no control to change locality
+
+#### Scenario: read from the record
+
+- **WHEN** the only active locality is a fixture locality with another state and municipality
+- **THEN** `/` and its municipality slug redirect to its own `/{estado}/{municipio}`, and `/tizayuca` answers 404
+
+#### Scenario: browsers ask again
+
+- **WHEN** the redirect of `/` or of the alias is read
+- **THEN** it carries `Cache-Control: max-age=3600`
 
 ### Requirement: With two or more active localities the root lists them and never redirects by location (v2)
 
@@ -1214,6 +1226,17 @@ When two or more localities are active, `/` MUST show the list of localities, ea
 
 - **WHEN** a request that Cloudflare locates in the United States opens `/`
 - **THEN** it gets the same list with a 200, not a redirect
+
+### Requirement: With no active locality the root says the directory is coming (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14.
+
+While no locality is active, as in production before the launch, `/` MUST answer 200 with the notice that the directory is being built ("Estamos armando el directorio de negocios de tu colonia."), and no alias redirects. It MUST NOT answer an error: the deploy smoke test and the availability check request it. Once the list of localities exists, this case is reviewed again.
+
+#### Scenario: production before the launch
+
+- **WHEN** someone opens `/` and no locality is active
+- **THEN** the answer is 200 with the notice that the directory is being built, and `/tizayuca` answers 404
 
 ### Requirement: Geolocation is only a suggestion of the nearest locality (v2)
 
