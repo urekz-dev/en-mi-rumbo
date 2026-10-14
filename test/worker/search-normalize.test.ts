@@ -1,12 +1,11 @@
-// The pure half of the search (src/core/search/normalize.ts): what is stored
-// and what is searched, decided before anything touches the database. The
-// matching against the database is in search.test.ts.
+// The pure half of the search (src/core/search/normalize.ts): how what a
+// resident types is normalized and cut into terms, before anything touches the
+// database. The stored columns and the matching are in search.test.ts.
 import { describe, expect, it } from "vite-plus/test";
 import {
   MAX_QUERY_LENGTH,
   MAX_TERMS,
   normalizeText,
-  searchColumns,
   searchTerms,
 } from "../../src/core/search/normalize.ts";
 import { escapeLike } from "../../src/core/search/query.ts";
@@ -15,29 +14,18 @@ import { escapeLike } from "../../src/core/search/query.ts";
 const LOCALITY = "Pueblo Uno";
 const terms = (query: string) => searchTerms(query, LOCALITY);
 
-describe('The business stores a normalized version of its name and of "¿Qué ofreces?" for the search', () => {
-  it("creation with accents and capitals", () => {
-    expect(searchColumns("Plomería Güicho", "Destape de drenajes y BOMBAS de agua")).toEqual({
-      nameNormalized: "plomeria guicho",
-      whatYouOfferNormalized: "destape de drenajes y bombas de agua",
-    });
-  });
-
-  it('business without "¿Qué ofreces?"', () => {
-    for (const whatYouOffer of [null, undefined, "", "   ", "¡¿?!"]) {
-      expect(searchColumns("Fonda Doña Cuquita", whatYouOffer)).toEqual({
-        nameNormalized: "fonda dona cuquita",
-        whatYouOfferNormalized: "",
-      });
-    }
+describe("normalizeText", () => {
+  it("lowercase, without accents or punctuation", () => {
+    expect(normalizeText("Plomería Güicho")).toBe("plomeria guicho");
+    expect(normalizeText("Destape de drenajes y BOMBAS de agua")).toBe(
+      "destape de drenajes y bombas de agua",
+    );
+    for (const empty of ["", "   ", "¡¿?!"]) expect(normalizeText(empty)).toBe("");
   });
 
   it("the same text always gives the same value, composed or decomposed", () => {
     expect(normalizeText("Plomería".normalize("NFC"))).toBe(
       normalizeText("Plomería".normalize("NFD")),
-    );
-    expect(searchColumns("Piñatería Fiesta", "Piñatas")).toEqual(
-      searchColumns("Piñatería Fiesta", "Piñatas"),
     );
   });
 });

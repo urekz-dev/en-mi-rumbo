@@ -4,10 +4,11 @@
 // hostile terms bounded, without error" and "Results page with the same cards
 // as the listing").
 //
-// Binding: the public search page must run this on HYPERDRIVE_FRESH. The spec
-// requires an unpublished card to leave the search results on the next
-// request, and HYPERDRIVE caches query results for 60 seconds without
-// invalidating them on writes, so it would keep showing the card.
+// Binding: the public search page runs this on HYPERDRIVE, the cached binding
+// of public reads. Its results may be up to 60 seconds old, so a card the
+// admin unpublishes can stay in them for up to a minute; the spec allows it
+// ("Public pages may show a change up to a minute late (v2)") and the panel
+// says so after each change.
 import { and, asc, eq, exists, like, or, type SQL, sql, type SQLWrapper } from "drizzle-orm";
 import type { Db } from "../db/client.ts";
 import { businesses, businessTrades, categories, trades, zones } from "../db/schema/index.ts";
@@ -46,14 +47,11 @@ export function escapeLike(text: string): string {
 }
 
 /**
- * SQL counterpart of `normalizeText` for the trade names, which are not stored
- * normalized: `unaccent` strips the accents, the diaeresis and the tilde of
- * "ñ" as NFD does. For Spanish text the result is the same; it differs only
- * on letters that `unaccent` transliterates and NFD drops (œ, ß, æ), which the
- * trade catalogue does not use.
+ * The trade names are not stored normalized, so the query normalizes them with
+ * `search_normalize`, the same SQL function the generated search columns use.
  */
 export function normalizedSql(text: SQLWrapper): SQL<string> {
-  return sql<string>`btrim(regexp_replace(lower(unaccent(${text})), '[^a-z0-9]+', ' ', 'g'))`;
+  return sql<string>`search_normalize(${text})`;
 }
 
 /**

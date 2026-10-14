@@ -1,5 +1,5 @@
-// The search against the database (src/core/search): the normalized columns,
-// their backfill, and the query of docs/specs/public-directory.md. Fixture
+// The search against the database (src/core/search): the normalized columns
+// the database generates, and the query of docs/specs/public-directory.md. Fixture
 // state 95. The pure half (normalization and terms) is in
 // search-normalize.test.ts; the search page and its quota come with their
 // own stories.
@@ -12,8 +12,7 @@ import {
   pendingEdits,
   trades,
 } from "../../src/core/db/schema/index.ts";
-import { backfillSearchColumns } from "../../src/core/search/backfill.ts";
-import { normalizeText, searchColumns } from "../../src/core/search/normalize.ts";
+import { normalizeText } from "../../src/core/search/normalize.ts";
 import {
   normalizedSql,
   type SearchLocality,
@@ -28,6 +27,7 @@ import {
   type Fixture,
   insertBusiness,
   type NewBusiness,
+  pgErrorCode,
   query,
 } from "./fixtures.ts";
 
@@ -87,11 +87,7 @@ const assignTrade = (businessId: string, tradeId: number) =>
 const getBusiness = async (id: string) =>
   (await db((tx) => tx.select().from(businesses).where(eq(businesses.id, id))))[0]!;
 
-/** A business saved before the search columns existed: both still at their default. */
-const publishStale = (overrides: Partial<NewBusiness>) =>
-  publish({ nameNormalized: "", whatYouOfferNormalized: "", ...overrides });
-
-describe('The business stores a normalized version of its name and of "¿Qué ofreces?" for the search', () => {
+describe('The database derives the normalized name and "¿Qué ofreces?" of a business for the search (v2)', () => {
   it("creation with accents and capitals", async () => {
     const id = await insertBusiness(f, {
       name: "Plomería Güicho",
@@ -112,55 +108,43 @@ describe('The business stores a normalized version of its name and of "¿Qué of
     expect(await found("compadres portones")).toEqual([]);
   });
 
-  it("cards that already existed become findable", async () => {
-    const glass = await publishStale({
-      name: "Vidriería El Cristal",
-      whatYouOffer: "Cancelería de aluminio",
-    });
-    const upholstery = await publishStale({ name: "Tapicería Doña Rosa", whatYouOffer: null });
-    expect(await found("vidrieria")).toEqual([]);
-    expect(await found("tapiceria")).toEqual([]);
+  it("a change of the name or of what it offers is searchable at once", async () => {
+    const id = await publish({ name: "Vidriería El Cristal", whatYouOffer: "Cancelería" });
+    await db((tx) =>
+      tx
+        .update(businesses)
+        .set({ name: "Tapicería Doña Rosa", whatYouOffer: null })
+        .where(eq(businesses.id, id)),
+    );
 
-    const result = await db(backfillSearchColumns);
-
-    expect(result.updated).toBeGreaterThanOrEqual(2);
-    expect(result.checked).toBeGreaterThanOrEqual(result.updated);
-    expect(await found("vidrieria")).toEqual([glass]);
-    expect(await found("canceleria")).toEqual([glass]);
-    expect(await found("tapiceria")).toEqual([upholstery]);
-    expect(await getBusiness(upholstery)).toMatchObject({
+    expect(await getBusiness(id)).toMatchObject({
       nameNormalized: "tapiceria dona rosa",
       whatYouOfferNormalized: "",
     });
+    expect(await found("tapiceria")).toEqual([id]);
+    expect(await found("vidrieria")).toEqual([]);
   });
 
-  it("the backfill can be repeated", async () => {
-    const id = await publishStale({
-      name: "Mecánica Express Ñuñez",
-      whatYouOffer: "Afinación y frenos",
-      landline: "7719998888",
-      openingHours: "Lunes a viernes",
-      homeDelivery: true,
-    });
-    const before = await getBusiness(id);
-
-    await db(backfillSearchColumns);
-    const once = await getBusiness(id);
-    await db(backfillSearchColumns);
-    const twice = await getBusiness(id);
-
-    expect(once).toEqual({
-      ...before,
-      nameNormalized: "mecanica express nunez",
-      whatYouOfferNormalized: "afinacion y frenos",
-    });
-    expect(twice).toEqual(once);
+  it("no write can set them", async () => {
+    const id = await insertBusiness(f, { name: "Cerrajería Rápida" });
+    // Drizzle leaves generated columns out of its writes; the database refuses
+    // them too, whoever writes.
+    for (const column of ["name_normalized", "what_you_offer_normalized"]) {
+      const write = () =>
+        db((tx) =>
+          tx.execute(
+            sql`UPDATE businesses SET ${sql.identifier(column)} = 'otra cosa' WHERE id = ${id}`,
+          ),
+        );
+      expect(await pgErrorCode(write)).toBe("428C9");
+    }
+    expect((await getBusiness(id)).nameNormalized).toBe("cerrajeria rapida");
   });
 
   it("values consistent with their source", async () => {
-    // Every write path, the fixtures included, fills the columns with
-    // `searchColumns`, so this covers the whole test database: a row listed
-    // here was written by a path that skipped it.
+    // The database writes the columns with `search_normalize`, and the query
+    // normalizes what a resident types with `normalizeText`: every row of the
+    // test database must agree with both.
     const rows = await db((tx) =>
       tx
         .select({
@@ -173,13 +157,11 @@ describe('The business stores a normalized version of its name and of "¿Qué of
         .from(businesses),
     );
     expect(rows.length).toBeGreaterThan(0);
-    const outOfSync = rows.filter((row) => {
-      const expected = searchColumns(row.name, row.whatYouOffer);
-      return (
-        row.nameNormalized !== expected.nameNormalized ||
-        row.whatYouOfferNormalized !== expected.whatYouOfferNormalized
-      );
-    });
+    const outOfSync = rows.filter(
+      (row) =>
+        row.nameNormalized !== normalizeText(row.name) ||
+        row.whatYouOfferNormalized !== normalizeText(row.whatYouOffer ?? ""),
+    );
     expect(outOfSync).toEqual([]);
   });
 
@@ -282,7 +264,7 @@ describe("Public URLs carry the state and the municipality (v2)", () => {
 });
 
 describe("Only what is published is shown", () => {
-  it("the unpublished card leaves the directory on the next request", async () => {
+  it("the query never returns a card once it is unpublished", async () => {
     const id = await publish({ name: "Lavandería Burbujas", whatYouOffer: "lavado por kilo" });
     expect(await found("lavanderia")).toEqual([id]);
 

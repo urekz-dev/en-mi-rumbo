@@ -29,6 +29,20 @@
       "when": 1792006244884,
       "tag": "0003_inegi_catalogue",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792008019056,
+      "tag": "0004_search_normalize",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792008047729,
+      "tag": "0005_search_columns",
+      "breakpoints": true
     }
   ]
 }

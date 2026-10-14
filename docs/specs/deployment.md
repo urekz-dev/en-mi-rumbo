@@ -695,9 +695,14 @@ A scheduled workflow (`backup.yml`) MUST run every night at 03:23 Mexico City ti
 
 Added in v2 — source: ADR 0008, ADR 0019.
 
-In "Commands that write to the database recognize the real environment", the environment is the variable `ENVIRONMENT` (`dev`, `stage` or `prod`), not `NODE_ENV` or `VERCEL_ENV`, and the explicit permission to write to a remote database is that variable naming the deployed environment the database belongs to. "Local database" keeps the effective-host criterion. The fictitious seed never writes with `ENVIRONMENT=prod`. The search backfill (`vp run db:backfill:search`) MAY run with `ENVIRONMENT=prod`, because it only recomputes the normalized search columns from the fields they come from, which is what makes the cards that already existed findable.
+In "Commands that write to the database recognize the real environment", the environment is the variable `ENVIRONMENT` (`dev`, `stage` or `prod`), not `NODE_ENV` or `VERCEL_ENV`, and the explicit permission to write to a remote database is that variable naming the deployed environment the database belongs to. "Local database" keeps the effective-host criterion. The fictitious seed never writes with `ENVIRONMENT=prod`. There is no search backfill: the database derives the search columns (`data-model`, "The database derives the normalized name and "¿Qué ofreces?" of a business for the search (v2)").
 
-#### Scenario: search backfill pointing to a remote database
+#### Scenario: the seed pointing to a remote database
 
-- **WHEN** the search backfill is run with the address of a remote database and without `ENVIRONMENT`
+- **WHEN** the fictitious seed is run with the address of a remote database and without `ENVIRONMENT`
 - **THEN** it changes nothing, ends with an error and says that the address is not a local database and which variable accepts the risk
+
+#### Scenario: the seed in production
+
+- **WHEN** the fictitious seed is run with `ENVIRONMENT=prod`
+- **THEN** it writes nothing and says that seeds never run against production

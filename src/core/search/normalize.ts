@@ -2,9 +2,13 @@
 // stores a normalized version of its name and of "¿Qué ofreces?" for the
 // search"; docs/specs/public-directory.md, "Case- and accent-insensitive
 // matching, and partial by word stem" and "Empty query and hostile terms
-// bounded, without error"). What a business stores and what a resident types
-// go through the same `normalizeText`, which is what makes "Plomería" stored
-// and "PLOMERIA" typed compare equal. Everything here is pure: no database.
+// bounded, without error"). What a resident types goes through
+// `normalizeText`; what a business stores, through its SQL counterpart
+// `search_normalize` (drizzle/0004_search_normalize.sql), which the database
+// applies to the generated search columns. Both must give the same text,
+// which is what makes "Plomería" stored and "PLOMERIA" typed compare equal;
+// test/worker/search.test.ts compares them. Everything here is pure: no
+// database.
 
 /** Characters of the normalized query that are looked at; the rest is ignored. */
 export const MAX_QUERY_LENGTH = 60;
@@ -101,28 +105,4 @@ function capLength(normalized: string): string {
   const head = normalized.slice(0, MAX_QUERY_LENGTH + 1);
   const lastSpace = head.lastIndexOf(" ");
   return lastSpace > 0 ? head.slice(0, lastSpace) : head.slice(0, MAX_QUERY_LENGTH);
-}
-
-/** The two search columns of a business, ready to write. */
-export interface SearchColumns {
-  nameNormalized: string;
-  whatYouOfferNormalized: string;
-}
-
-/**
- * The search columns of a business with this name and "¿Qué ofreces?". This is
- * the single place that computes them: every write that sets a business's name
- * or "¿Qué ofreces?" (registration, edit, the admin's edit, the seeds, the
- * backfill) spreads this into the same insert or update, and never takes the
- * columns from what a client sent. Without "¿Qué ofreces?" the value is the
- * empty string, never null.
- */
-export function searchColumns(
-  name: string,
-  whatYouOffer: string | null | undefined,
-): SearchColumns {
-  return {
-    nameNormalized: normalizeText(name),
-    whatYouOfferNormalized: normalizeText(whatYouOffer ?? ""),
-  };
 }

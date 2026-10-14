@@ -1372,3 +1372,19 @@ The value of the honeypot field of the report form MUST be trimmed before it is 
 
 - **WHEN** a report arrives with the honeypot containing text
 - **THEN** nothing is saved and the resident sees the same confirmation as a legitimate report
+
+### Requirement: Public pages may show a change up to a minute late (v2)
+
+Added in v2 — source: ADR 0005, decision of 2026-10-14.
+
+The public pages read through the cached Hyperdrive binding, whose results may be up to 60 seconds old and are not invalidated by writes. So a card the admin publishes, unpublishes, edits or permanently deletes, and a zone the admin hides or renames, MAY keep its previous state on the public pages (listings, counts, the zone filter, the home page, the trade pages, the search results, the card itself and `sitemap.xml`) for up to 60 seconds. After that, every rule of "Only what is published is shown" applies in full; where it says "on the next request" and "without waiting for any cache to expire", this requirement wins and the limit is 60 seconds. The admin panel says so after each of those actions (`admin-review`, "The panel says that a change takes up to a minute to reach the site (v2)").
+
+#### Scenario: an unpublished card
+
+- **WHEN** the admin unpublishes a card and the public pages are opened right away and again a minute later
+- **THEN** right away the card may still appear, and a minute later it appears nowhere and its URL answers the usual 404
+
+#### Scenario: a permanently deleted card
+
+- **WHEN** the admin permanently deletes a card
+- **THEN** within a minute no public page shows its data, and its URL answers the usual 404
