@@ -56,7 +56,13 @@ function run(name: string, args: string[], env: Record<string, string> = {}): Ru
 // ---------------------------------------------------------------------------
 // The fake network.
 
-type Answer = { status: number; headers?: Record<string, string>; body?: unknown };
+type Answer = {
+  status: number;
+  headers?: Record<string, string>;
+  body?: unknown;
+  /** The responses before this one, which curl follows with --location. */
+  redirects?: { status: number; headers?: Record<string, string> }[];
+};
 
 interface FakeCall {
   argv: string[];
@@ -470,6 +476,35 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
     });
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
+  });
+
+  it("follows the redirect of the root to the home of the only active locality, within https", () => {
+    const redirect = {
+      status: 301,
+      headers: { location: "/hidalgo/tizayuca", "x-robots-tag": "noindex" },
+    };
+    const network = fakeNetwork({
+      [`GET ${ORIGIN}/`]: [{ ...HOME_OK, redirects: [redirect] }],
+      [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
+    });
+    const result = run("smoke-test.sh", [ORIGIN], { ...network.env, SMOKE_ATTEMPTS: "1" });
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    const [home, robots] = network.calls();
+    expect(home?.argv).toEqual(
+      expect.arrayContaining(["--location", "--max-redirs", "5", "--proto-redir", "=https"]),
+    );
+    expect(robots?.argv).not.toContain("--location");
+  });
+
+  it("the noindex header counts only on the page the redirects end at", () => {
+    const redirect = { status: 301, headers: { "x-robots-tag": "noindex" } };
+    const result = smoke({
+      [`GET ${ORIGIN}/`]: [{ ...HOME_OK, headers: {}, redirects: [redirect] }],
+      [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("no X-Robots-Tag: noindex");
   });
 
   it("retries while the new version is not answering yet", () => {

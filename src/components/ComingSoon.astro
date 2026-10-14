@@ -1,0 +1,53 @@
+---
+// Placeholder page that proves the stack end to end, until the global layout
+// and the real home pages arrive with their stories. With a locality it names
+// it, from its record, and declares the canonical and Open Graph URL of its
+// home. On dev, the footer names the branch and commit deployed
+// (src/lib/deploy-info.ts).
+import { env } from "cloudflare:workers";
+import type { ServedLocality } from "../core/locality/served.ts";
+import { readDeployInfo } from "../lib/deploy-info.ts";
+import "../styles/global.css";
+
+interface Props {
+  locality?: ServedLocality;
+  /** The absolute URL of the page, or null when the environment has no base. */
+  canonical?: string | null;
+}
+
+const { locality, canonical } = Astro.props;
+const deploy = readDeployInfo(env);
+---
+
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>enmirumbo</title>
+    {canonical && <link rel="canonical" href={canonical} />}
+    {canonical && <meta property="og:url" content={canonical} />}
+  </head>
+  <body class="bg-white text-gray-900 antialiased">
+    <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-6 py-12 md:max-w-xl">
+      <h1 class="text-3xl font-bold">enmirumbo</h1>
+      <p class="text-lg">
+        Estamos armando el directorio de negocios de {locality ? locality.name : "tu colonia"}.
+      </p>
+      <p class="text-gray-600">
+        Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
+      </p>
+    </main>
+    {deploy && (
+      <footer
+        class="mx-auto max-w-md px-6 pb-8 text-sm text-gray-600 md:max-w-xl"
+        data-testid="deploy-info"
+      >
+        <p class="break-all">
+          Versión de prueba: rama <code>{deploy.branch}</code>, commit{" "}
+          <code title={deploy.commit}>{deploy.shortCommit}</code>
+        </p>
+      </footer>
+    )}
+  </body>
+</html>

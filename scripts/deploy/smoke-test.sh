@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Smoke test after a deploy: the home page answers 200 and asks not to be
-# indexed, and /robots.txt closes the site (ADR 0008). A new Worker or version
-# can take a few seconds to answer everywhere, so each check is retried.
+# Smoke test after a deploy: the home page answers 200, following its
+# redirects within https (with one active locality, / answers a 301 to it), and
+# asks not to be indexed, and /robots.txt closes the site (ADR 0008). A new
+# Worker or version can take a few seconds to answer everywhere, so each check
+# is retried.
 #
 # Usage: scripts/deploy/smoke-test.sh <https origin>
 #   for example scripts/deploy/smoke-test.sh https://enmirumbo.urekz.workers.dev
@@ -26,24 +28,32 @@ command -v curl >/dev/null || fail "curl is not on PATH"
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
-# fetch <url>: writes the headers and the body to ${work}; prints the status.
+# fetch <url> [curl options...]: writes the headers and the body to ${work};
+# prints the status of the last response.
 fetch() {
-  local status
+  local url="$1" status
+  shift
   rm -f "${work}/headers" "${work}/body"
-  status="$(curl --silent --show-error --max-time 15 --proto '=https' \
+  status="$(curl --silent --show-error --max-time 15 --proto '=https' "$@" \
     --dump-header "${work}/headers" --output "${work}/body" \
-    --write-out '%{http_code}' "$1")" || true
+    --write-out '%{http_code}' "${url}")" || true
   touch "${work}/headers" "${work}/body"
   echo "${status:-000}"
+}
+
+# The headers of the last response: after redirects, the header dump holds
+# every response of the chain, each starting with its status line.
+final_headers() {
+  awk '/^HTTP\//{block = ""} {block = block $0 "\n"} END {printf "%s", block}' "${work}/headers"
 }
 
 # check_home and check_robots print why they failed, if they did.
 check_home() {
   local status
-  status="$(fetch "${origin}/")"
+  status="$(fetch "${origin}/" --location --max-redirs 5 --proto-redir '=https')"
   if [ "${status}" != "200" ]; then
     echo "GET / answered ${status}, expected 200"
-  elif ! grep -iqE '^x-robots-tag:.*noindex' "${work}/headers"; then
+  elif ! final_headers | grep -iqE '^x-robots-tag:.*noindex'; then
     echo "GET / has no X-Robots-Tag: noindex header"
   fi
 }

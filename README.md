@@ -40,7 +40,7 @@ The dev server, the build and the preview run Astro in workerd, the Workers runt
 | `vp check`         | Formats, lints and type checks.                                                      |
 | `vp run check:all` | Runs `vp check`, Prettier on `.astro` files, `astro check` and a Worker types check. |
 | `vp test`          | Runs the tests inside workerd.                                                       |
-| `vp run e2e`       | Builds, then runs the Playwright tests against the preview.                          |
+| `vp run e2e`       | Builds, migrates and seeds the database, then runs the Playwright tests.             |
 | `vp run fmt:astro` | Formats `.astro` files with Prettier.                                                |
 | `vp run types`     | Regenerates `worker-configuration.d.ts` after a change to `wrangler.jsonc`.          |
 
@@ -59,6 +59,18 @@ To run the scheduled handler while `vp run dev` is running:
 ```sh
 curl "http://localhost:4321/cdn-cgi/local/scheduled?cron=0+*+*+*+*"
 ```
+
+### Public URLs
+
+Every public page of a locality lives under `/{estado}/{municipio}/`, in `src/pages/[state]/[municipality]/` ([ADR 0007](docs/adr/0007-single-host-urls-with-state-and-municipality.md)). Before the page runs, the middleware (`src/lib/locality.ts`) resolves the active locality through the cached `HYPERDRIVE`, one small query that Hyperdrive answers from its cache, and hands it to the page as `Astro.locals.locality` (`requireLocality`). An unknown state or municipality, one under another state, or a locality that is not active answers 404 with the site's 404 page. Activating a locality is a data change; no name is written in the code.
+
+| Active localities | `/`                                                  | `/{municipio}` (`/tizayuca`)          |
+| ----------------- | ---------------------------------------------------- | ------------------------------------- |
+| None              | The placeholder, 200                                 | 404                                   |
+| One               | 301 to its home, such as `/hidalgo/tizayuca`         | 301 to its home, for printed material |
+| Two or more       | The placeholder until the list of localities arrives | 404                                   |
+
+The redirects tell browsers to keep them for an hour at most, because where `/` leads changes with the number of active localities. Internal links are built with `localityPath` (`src/core/locality/paths.ts`) and absolute URLs, such as canonicals and share previews, with `absoluteUrl` (`src/lib/site-url.ts`) from `SITE_URL`; outside `local`, without an https `SITE_URL` the pages leave them out. `test/scripts/internal-links.test.ts` fails on a link written in the code that names no page, and `test/e2e/internal-links.spec.ts` follows every link and form of the rendered site. The end-to-end tests migrate and seed `DATABASE_URL`, or the development database when it is unset, so Tizayuca is their only active locality.
 
 ## Database
 
@@ -141,7 +153,7 @@ Three deployed environments ([ADR 0008](docs/adr/0008-environments-and-deploymen
 
 Every deployed environment answers with `X-Robots-Tag: noindex` and a closed `robots.txt` until the cut-over, production included. Version and Preview URLs are off, so `/admin` is reachable only through Access.
 
-Each workflow checks the ref, builds for its environment, checks the generated configuration (`scripts/deploy/check-build.sh`), applies the migrations, seeds (not on `prod`), deploys with the project's Wrangler and runs a smoke test (`scripts/deploy/smoke-test.sh`). The dev workflow first resets the Neon `dev` branch from `stage` (`scripts/deploy/reset-neon-dev.sh`), so anything stored in dev is lost on each deploy. Each step receives only the secrets it needs from the GitHub Environment of the same name (see [Secrets](#secrets)). To deploy a branch to dev: Actions, "Deploy dev", "Run workflow", pick the branch. To release: push a tag `vX.Y.Z` from `main`.
+Each workflow checks the ref, builds for its environment, checks the generated configuration (`scripts/deploy/check-build.sh`), applies the migrations, seeds (not on `prod`), deploys with the project's Wrangler and runs a smoke test (`scripts/deploy/smoke-test.sh`): the home answers 200, following its redirects within https, with `X-Robots-Tag: noindex`, and `robots.txt` is closed. The dev workflow first resets the Neon `dev` branch from `stage` (`scripts/deploy/reset-neon-dev.sh`), so anything stored in dev is lost on each deploy. Each step receives only the secrets it needs from the GitHub Environment of the same name (see [Secrets](#secrets)). To deploy a branch to dev: Actions, "Deploy dev", "Run workflow", pick the branch. To release: push a tag `vX.Y.Z` from `main`.
 
 The build fixes the environment: `CLOUDFLARE_ENV=<env> vp run build` writes `dist/server/wrangler.json` for that environment only, and `wrangler deploy` refuses to deploy it to another one. Never run `wrangler deploy` by hand.
 

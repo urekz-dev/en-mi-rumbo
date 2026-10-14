@@ -6,5 +6,7 @@ declare namespace App {
   interface Locals {
     /** Set by the middleware once a panel request passes the Access check (ADR 0010). */
     admin?: import("./lib/access/verify.ts").AdminIdentity;
+    /** Set by the middleware on every route under /{estado}/{municipio}/ (ADR 0007). */
+    locality?: import("./core/locality/served.ts").ServedLocality;
   }
 }

@@ -515,6 +515,27 @@ Canonical URLs, Open Graph URLs and the entries of `sitemap.xml` MUST be absolut
 - **WHEN** the sitemap is read with two active localities
 - **THEN** every entry includes its own state and municipality, and the pages of both localities are present
 
+### Requirement: The base of absolute URLs is `SITE_URL`, and only the local environment falls back to the local address (v2)
+
+Added in v2 — source: ADR 0007, ADR 0008.
+
+In "Server Component with a document in es-MX and base metadata", and in `deployment`, "In production no required configuration goes missing silently", the public URL of the site is the variable `SITE_URL` of each environment (`deployment`, "Three deployed environments, each with its own Worker, bindings and variables (v2)"), and production is every environment whose `ENVIRONMENT` is not `local`: as in "Deployed environments stay out of search engines until the cut-over (v2)", a missing or unknown `ENVIRONMENT` counts as deployed. There, a `SITE_URL` that is missing, is not `https`, carries a path, a query or credentials, or names this machine gives no base: pages omit their canonical and their Open Graph URL, never fail because of it, and the Worker logs it once per isolate, never per request. Locally, a `SITE_URL` that is missing or cannot be read gives `http://localhost:4321`. A trailing slash in `SITE_URL` does not double the slash of the paths.
+
+#### Scenario: each environment with its own base
+
+- **WHEN** the canonical of the home of Tizayuca is read on `stage`
+- **THEN** it is `https://stage-enmirumbo.urekz.workers.dev/hidalgo/tizayuca`
+
+#### Scenario: a deployed environment without a usable `SITE_URL`
+
+- **WHEN** `ENVIRONMENT` is `prod`, `dev`, `stage`, missing or unknown and `SITE_URL` is missing, uses `http`, carries a path or names `localhost`
+- **THEN** no absolute URL is built, the log has a single line that names the environment however many pages are requested, and the pages answer as usual
+
+#### Scenario: local without `SITE_URL`
+
+- **WHEN** `ENVIRONMENT` is `local` and `SITE_URL` is missing
+- **THEN** the absolute URLs start with `http://localhost:4321`
+
 ### Requirement: `robots.txt` also excludes the report routes and the thank-you pages (v2)
 
 Added in v2 — source: PRD §8 (minor debt), prototype debt (docs/backlog.md, O1 of T-011).
