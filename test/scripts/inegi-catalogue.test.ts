@@ -9,9 +9,9 @@ import {
   buildCatalogue,
   entriesFromCsv,
   MUNICIPALITY_SLUGS,
-  slugify,
   STATE_SLUGS,
 } from "../../scripts/catalogues/inegi-catalogue.ts";
+import { slugify } from "../../scripts/catalogues/slug.ts";
 
 const migration = readFileSync(
   new URL("../../drizzle/0003_inegi_catalogue.sql", import.meta.url),

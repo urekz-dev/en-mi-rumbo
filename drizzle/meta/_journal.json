@@ -43,6 +43,13 @@
       "when": 1792008047729,
       "tag": "0005_search_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792009706404,
+      "tag": "0006_tizayuca_zones",
+      "breakpoints": true
     }
   ]
 }

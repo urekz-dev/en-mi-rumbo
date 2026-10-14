@@ -79,6 +79,8 @@ The database MUST prevent, through a uniqueness constraint, two businesses from 
 
 ### Requirement: Catalogues of categories, zones and trades with stable slug
 
+Superseded in v2 by Catalogues of categories, zones and trades with stable slug (v2) — source: ADR 0006.
+
 The system MUST have three persisted catalogues: the 8 categories of PRD §6.1, the zones of Appendix A and the trades of Appendix B. Each entry MUST have a unique name and slug; the slug MUST be suitable for SEO URLs: lowercase, no accents, with hyphens (e.g. `plomeria`, `haciendas-de-tizayuca`, to compose `/plomeria-haciendas-de-tizayuca`).
 
 #### Scenario: catalogues populated by the seed
@@ -614,7 +616,7 @@ The full INEGI catalogue of states and municipalities MUST be loaded as referenc
 
 A slug is the official name in lowercase ASCII words joined by hyphens, without accents (`ñ` becomes `n`) and without punctuation. Five states use their common short name instead: Coahuila de Zaragoza is `coahuila`, Michoacán de Ocampo is `michoacan`, Veracruz de Ignacio de la Llave is `veracruz`, México is `estado-de-mexico` and Ciudad de México is `ciudad-de-mexico`. The slug of a state MUST be unique, and the slug of a municipality unique within its state. When two would collide, the generation MUST stop and name them, and MUST NOT add a suffix on its own: a person chooses their slugs. The catalogue has two such pairs in Oaxaca, San Juan Mixtepec and San Pedro Mixtepec, which INEGI tells apart by the district of their seat; their slugs carry it (`san-juan-mixtepec-distrito-08`, `san-juan-mixtepec-distrito-26`, `san-pedro-mixtepec-distrito-22`, `san-pedro-mixtepec-distrito-26`).
 
-A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: create its locality if it does not exist, seed its zones, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
+A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not served MUST answer 404 on every public route. Activating a new locality MUST be data work only: create its locality if it does not exist, load its zones from SEPOMEX, set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
 
 #### Scenario: the catalogue is complete and sluggable
 
@@ -643,24 +645,66 @@ A municipality is served only when it has a locality whose active flag is on. A 
 
 #### Scenario: activating a locality is data only
 
-- **WHEN** the zones of a municipality are seeded, its contact WhatsApp is set, its admins are assigned and its active flag is turned on
+- **WHEN** the zones of a municipality are loaded, its contact WhatsApp is set, its admins are assigned and its active flag is turned on
 - **THEN** the municipality is served without any change in the code
 
-### Requirement: Zones belong to a locality and are seeded from the SEPOMEX postal catalogue (v2)
+### Requirement: Catalogues of categories, zones and trades with stable slug (v2)
 
 Added in v2 — source: ADR 0006.
 
-Each zone MUST belong to exactly one locality, and its type (colonia, fraccionamiento, pueblo, unidad habitacional or another SEPOMEX settlement type) MUST be stored with it. The zones of each active municipality MUST be seeded from the SEPOMEX postal catalogue. The seed MUST clean the duplicates and odd spellings of that catalogue. The admin MUST be able to hide or rename a zone. The prototype's hand-maintained list of colonias MUST be used only to cross-check the zones of Tizayuca, never as the source. The zone "Otra" with free text keeps working as described in the requirement "The zone allows "Otra" with free text pending normalization".
+The system MUST have three persisted catalogues: the 8 categories of PRD §6.1 and the trades of Appendix B, which are global, and the zones of each locality, which come from the SEPOMEX postal catalogue (see "Zones belong to a locality and are loaded from the SEPOMEX postal catalogue (v2)"). Each category and each trade MUST have a unique name and slug. Each zone MUST have a slug unique within its locality; two zones of a locality MAY share a name when SEPOMEX lists it with two settlement types, and their slugs tell them apart. A slug MUST be suitable for SEO URLs: lowercase ASCII words joined by hyphens, without accents or punctuation (e.g. `plomeria`, `haciendas-de-tizayuca`, to compose `/plomeria-haciendas-de-tizayuca`). A slug MUST NOT change once published, even when the admin renames its entry.
+
+#### Scenario: catalogues populated
+
+- **WHEN** the catalogues are loaded on a freshly migrated database
+- **THEN** there are 8 categories and 49 trades, and Tizayuca has one zone per SEPOMEX settlement, each entry with its slug
+
+#### Scenario: URL-suitable slug
+
+- **WHEN** the slug of the trade "Plomería" and that of the zone "Haciendas de Tizayuca" are queried
+- **THEN** they are `plomeria` and `haciendas-de-tizayuca` (no capitals, accents or spaces)
+
+### Requirement: Zones belong to a locality and are loaded from the SEPOMEX postal catalogue (v2)
+
+Added in v2 — source: ADR 0006.
+
+Each zone MUST belong to exactly one locality, and its settlement type (colonia, fraccionamiento, pueblo, barrio, unidad habitacional or another SEPOMEX settlement type) MUST be stored with it, as SEPOMEX writes it. The zones of each served municipality MUST come from SEPOMEX's Catálogo Nacional de Códigos Postales, which Correos de México publishes: one zone per settlement of the municipality. They are reference data and ship as a data migration, so that they reach every environment, production included, without seeds. The migration MUST be written by a script kept in the repository from SEPOMEX's file, and MUST name the source, its download page and the date of the catalogue's last update; the migration is the only copy of the data in the repository, and an automatic check MUST verify what it leaves in the database. Postal codes are not stored. Every zone starts visible, and the admin MUST be able to hide or rename a zone.
+
+The script MUST clean the names: it trims and collapses their spaces and keeps each name as SEPOMEX writes it, with its accents and capitals. Text garbled by its encoding (UTF-8 read as ISO-8859-1, "PurÃ­sima") is fixed and reported; a letter lost to the encoding stops the generation. Settlements of the municipality whose names differ only in case, accents or spacing MUST become a single zone with the best-written spelling (the most accents, then mixed case, then the most frequent), and the script reports the merge. A name that SEPOMEX lists with two settlement types is a real ambiguity: the generation MUST stop and name both until a person chooses the slug of each, and both zones keep the name. Slugs follow the rule of the INEGI catalogue (see "The catalogue of states and municipalities is reference data and only active localities are served (v2)") and MUST be unique within the locality; when two would collide, the generation MUST stop and name them, and MUST NOT add a suffix on its own. Tizayuca has four such names, and the slugs chosen for them carry the type: "El Carmen" (`colonia-el-carmen`, `fraccionamiento-el-carmen`), "El Chopo" (`pueblo-el-chopo`, `rancho-el-chopo`), "El Manantial" (`fraccionamiento-el-manantial`, `rancho-el-manantial`) and "Tizayuca" (`unidad-habitacional-tizayuca`, `zona-industrial-tizayuca`).
+
+The prototype's hand-maintained list of colonias MUST be used only to cross-check the zones of Tizayuca, never as the source. The option "Otra" is not a zone: a business that chooses it keeps its free text and no zone, as described in "The zone allows "Otra" with free text pending normalization".
 
 #### Scenario: zones carry their locality and type
 
-- **WHEN** the zones of Tizayuca are seeded
-- **THEN** every zone is linked to the locality of Tizayuca and has a settlement type
+- **WHEN** the migrations are applied to an empty database
+- **THEN** Tizayuca has one zone per SEPOMEX settlement, each linked to the locality of Tizayuca, with its settlement type and visible
+
+#### Scenario: the migration credits SEPOMEX
+
+- **WHEN** the data migration is read
+- **THEN** it names SEPOMEX's catalogue and its download page, carries the line "Fuente: Servicio Postal Mexicano (Correos de México), …" with the date of the catalogue's last update, and holds no postal code
+
+#### Scenario: names as SEPOMEX writes them
+
+- **WHEN** a settlement's name has stray spaces, or was garbled by its encoding
+- **THEN** its zone has the name with single spaces and SEPOMEX's accents and capitals, or the name fixed and the fix reported
+- **AND** a name that lost a letter to the encoding stops the generation
 
 #### Scenario: no duplicates after the cleanup
 
-- **WHEN** the seed finds two SEPOMEX rows of the same municipality whose names differ only in case, accents or spacing
-- **THEN** the locality ends up with a single zone for them
+- **WHEN** the generation finds two SEPOMEX settlements of the same municipality and type whose names differ only in case, accents or spacing
+- **THEN** the locality ends up with a single zone for them, with the best-written spelling, and the merge is reported
+
+#### Scenario: a name with two settlement types stops the generation
+
+- **WHEN** two settlements of the same municipality share a name but not their type, and no person has chosen their slugs
+- **THEN** the generation stops and names both
+- **AND** once a person chooses their slugs, both zones keep the name and take the chosen slugs
+
+#### Scenario: a slug collision stops the generation
+
+- **WHEN** two zones of the same locality would get the same slug
+- **THEN** the generation stops and names both, and adds no suffix
 
 #### Scenario: cross-check against the prototype's list
 

@@ -79,6 +79,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 | `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.                |
 | `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.        |
 | `vp run db:inegi`    | Writes the INEGI catalogue migration from INEGI's files. See [INEGI catalogue](#inegi-catalogue).  |
+| `vp run db:zones`    | Writes the zones migration of a locality from SEPOMEX's file. See [SEPOMEX zones](#sepomex-zones). |
 
 - `DATABASE_URL` is a direct connection string used by Drizzle Kit, the seed and the test setup. A database that is not on this machine must use `sslmode=verify-full`; anything else is refused.
 - The Worker reaches the database through two Hyperdrive bindings, both pointing at the local database in `wrangler.jsonc` (`localConnectionString`). Each deployed environment has its own pair (see [Deployment](#deployment)). `HYPERDRIVE` is cached and only for public reads; `HYPERDRIVE_FRESH` is for everything else. `withDb` in `src/core/db/client.ts` opens a client per request and closes it with `ctx.waitUntil`.
@@ -87,7 +88,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
 - The search (`src/core/search/`) matches the normalized name and "¿Qué ofreces?" of each business (`name_normalized` and `what_you_offer_normalized`, with trigram indexes) and the names of its trades. The database generates those two columns with the SQL function `search_normalize`, so no code writes them; `normalizeText` (`src/core/search/normalize.ts`) normalizes what a resident types the same way. The public search, like every public page, reads through the cached `HYPERDRIVE`: a change made in the panel can take up to a minute to show.
 - The data model lives in `src/core/db/schema/` ([data-model spec](docs/specs/data-model.md)): the INEGI states and municipalities, the localities the directory serves, their zones, the global categories and trades, businesses and their trades, pending edits, reports and the admin audit log. Every relation to a business deletes with it, so a permanent deletion leaves nothing behind; the tests fail when one does not, and when the schema changes without its migration.
-- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, and Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)).
+- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)), and its zones from SEPOMEX.
 
 ### INEGI catalogue
 
@@ -100,6 +101,19 @@ The codes and names are INEGI's, unchanged. The slugs are ours, and INEGI does n
 - The migration holds the data; INEGI's files are not kept in the repository. The tests check what it leaves in the database: the 32 states, the 2,478 municipalities, Tizayuca and the slugs.
 - It was written by `vp run db:inegi <states.csv> <municipalities.csv> <YYYY-MM> <migration.sql>`, from the UTF-8 CSV of each zip (`AGEEML_*_utf*.csv`, SHA-256 `b9eaa950…` and `2f2d08c8…` for the 2026-06 catalogue) and the fecha de corte shown on the catalogue page. The slug rules and the slugs chosen by hand are in `scripts/catalogues/inegi-catalogue.ts`. When two municipalities of a state would share a slug, the script stops and names them until someone chooses their slugs in `MUNICIPALITY_SLUGS`.
 - The migration is applied and never changes: a newer INEGI catalogue ships in a new data migration, written from the new files with the same rules.
+
+### SEPOMEX zones
+
+The zones of Tizayuca are its 105 settlements (fraccionamientos, colonias, barrios, pueblos, ranchos, unidades habitacionales, a ranchería and a zona industrial) in SEPOMEX's [Catálogo Nacional de Códigos Postales](https://www.correosdemexico.gob.mx/SSLServicios/ConsultaCP/CodigoPostal_Exportar.aspx), which Correos de México publishes for download by state or for the whole country. `drizzle/0006_tizayuca_zones.sql` was written from the file of Hidalgo in TXT format (`Hidalgo.txt`, SHA-256 `f0f804a6c554755de076bac3803d0d5f25a86f7b585241d6f554f57a75b08609`), whose last update the page gives as 2026-10-13, downloaded on 2026-10-14. The migration cites the source:
+
+> Fuente: Servicio Postal Mexicano (Correos de México), Catálogo Nacional de Códigos Postales, última actualización 2026-10-13.
+
+The names and settlement types are SEPOMEX's; the slugs are ours, and SEPOMEX does not endorse this product. Postal codes are not stored. Every zone starts visible; the admin hides or renames zones in the panel, and a renamed zone keeps its slug.
+
+- The migration holds the data; SEPOMEX's file is not kept in the repository. The tests check what it leaves in the database (`test/worker/zones.test.ts`), including the cross-check against the prototype's 21 colonias: 15 are in SEPOMEX with the same name, 5 with another (El Pedregal, Olmos, Tepojaco, Geo Villas, and "Tizayuca" for the Zona Industrial), and Real Toledo is missing.
+- It was written by `vp run db:zones <sepomex.txt> <municipality code> <YYYY-MM-DD> <migration.sql>`, here `vp run db:zones Hidalgo.txt 13069 2026-10-13 drizzle/0006_tizayuca_zones.sql`. The download page is a form: choose the state (or all of them) and "TXT", then the download button. The file is in ISO-8859-1 with its fields separated by `|`; the script also reads it converted to UTF-8, and prints what it merged, fixed and took from `ZONE_SLUGS`.
+- The script trims and collapses spaces and keeps every name as SEPOMEX writes it, except text garbled by its encoding, which it fixes and reports. Settlements whose names differ only in case, accents or spacing become one zone. A name that SEPOMEX lists with two settlement types, or two zones with the same slug, stop the script and are named until someone chooses their slugs in `ZONE_SLUGS` (`scripts/catalogues/sepomex-zones.ts`). Tizayuca has four such names, El Carmen, El Chopo, El Manantial and Tizayuca, and their slugs carry the type (`colonia-el-carmen`, `fraccionamiento-el-carmen`, …).
+- The migration is applied and never changes: zones that SEPOMEX adds later, or the zones of another locality, ship in a new data migration.
 
 ## Deployment
 

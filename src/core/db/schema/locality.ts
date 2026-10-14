@@ -1,6 +1,6 @@
 // Where a business is (ADR 0006): the INEGI catalogue of states and
 // municipalities as reference data, the localities the directory serves, and
-// the zones of each locality, seeded from the SEPOMEX postal catalogue.
+// the zones of each locality, loaded from the SEPOMEX postal catalogue.
 import { sql } from "drizzle-orm";
 import { boolean, char, check, integer, pgTable, text, unique } from "drizzle-orm/pg-core";
 import { matches, PHONE_PATTERN, SLUG_PATTERN } from "./checks.ts";

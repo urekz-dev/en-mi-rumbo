@@ -229,7 +229,7 @@ describe("One card per WhatsApp number within a locality (v2)", () => {
   );
 });
 
-describe("Catalogues of categories, zones and trades with stable slug", () => {
+describe("Catalogues of categories, zones and trades with stable slug (v2)", () => {
   it.for(["Plomeria", "plomería", "plomeria-", "plomeria haciendas", "-plomeria"])(
     "a slug that is not lowercase ASCII words with hyphens is rejected (%s)",
     async (slug) => {
