@@ -1,22 +1,18 @@
 // docs/specs/data-model.md, requirement "The catalogue of states and
 // municipalities is reference data and only active localities are served
-// (v2)": the data migration is exactly what scripts/catalogues/inegi.ts
-// generates from the committed extract, and its slugs follow the rules.
+// (v2)": how scripts/catalogues/inegi.ts reads INEGI's files and chooses the
+// slugs, and that the data migration credits INEGI. What the migration leaves
+// in the database is tested in test/worker/locality.test.ts.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vite-plus/test";
 import {
   buildCatalogue,
-  catalogueSql,
-  type Extract,
-  extractEntries,
-  extractJson,
+  entriesFromCsv,
   MUNICIPALITY_SLUGS,
   slugify,
   STATE_SLUGS,
 } from "../../scripts/catalogues/inegi-catalogue.ts";
 
-const EXTRACT = new URL("../../scripts/catalogues/inegi.json", import.meta.url);
-const extract = JSON.parse(readFileSync(EXTRACT, "utf8")) as Extract;
 const migration = readFileSync(
   new URL("../../drizzle/0003_inegi_catalogue.sql", import.meta.url),
   "utf8",
@@ -33,33 +29,20 @@ function failure(run: () => unknown): string {
 }
 
 describe("The catalogue of states and municipalities is reference data and only active localities are served (v2)", () => {
-  it("the migration matches its extract", () => {
-    expect(catalogueSql(extract)).toBe(migration);
-  });
-
-  it("the extract is written as the extract step writes it", () => {
-    expect(extractJson(extract)).toBe(readFileSync(EXTRACT, "utf8"));
-  });
-
-  it("the extract names its source and the credit INEGI asks for", () => {
-    expect(extract.source.files.map((file) => file.url)).toEqual([
-      "https://www.inegi.org.mx/contenidos/app/ageeml/catun_entidad.zip",
-      "https://www.inegi.org.mx/contenidos/app/ageeml/catun_municipio.zip",
-    ]);
-    expect(extract.source.attribution).toMatch(
-      /^Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, fecha de corte [0-9]{4}-[0-9]{2}\.$/,
+  it("the migration credits INEGI", () => {
+    expect(migration).toMatch(
+      /^-- Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, fecha de corte [0-9]{4}-[0-9]{2}\.$/m,
     );
-    expect(migration).toContain(`-- ${extract.source.attribution}\n`);
   });
 
-  it("the extract keeps INEGI's codes and names as they are", () => {
+  it("INEGI's codes and names are kept as they are", () => {
     const statesCsv = 'CVEGEO,CVE_ENT,NOM_ENT,NOM_ABR\r\n"13","13","Hidalgo","Hgo."\r\n';
     const municipalitiesCsv =
       "CVEGEO,CVE_ENT,NOM_ENT,CVE_MUN,NOM_MUN\r\n" +
       '"20549","20","Oaxaca","549","Heroica Villa Tezoatlán de Segura y Luna, Cuna de la Independencia de Oaxaca"\r\n' +
       '"13069","13","Hidalgo","069","Tizayuca"\r\n';
 
-    expect(extractEntries(statesCsv, municipalitiesCsv)).toEqual({
+    expect(entriesFromCsv(statesCsv, municipalitiesCsv)).toEqual({
       states: [{ code: "13", name: "Hidalgo" }],
       municipalities: [
         { code: "13069", name: "Tizayuca" },
@@ -69,61 +52,6 @@ describe("The catalogue of states and municipalities is reference data and only 
         },
       ],
     });
-  });
-
-  it("the catalogue is complete and sluggable", () => {
-    const { states, municipalities } = buildCatalogue(extract);
-
-    expect(states).toHaveLength(32);
-    expect(municipalities).toHaveLength(2478);
-    expect(new Set(municipalities.map((m) => m.stateCode)).size).toBe(32);
-    expect(municipalities.find((m) => m.code === "13069")).toEqual({
-      code: "13069",
-      stateCode: "13",
-      name: "Tizayuca",
-      slug: "tizayuca",
-    });
-  });
-
-  it("state slugs: the official name, or the common short name of five states", () => {
-    const { states } = buildCatalogue(extract);
-
-    expect(Object.fromEntries(states.map((state) => [state.code, state.slug]))).toEqual({
-      "01": "aguascalientes",
-      "02": "baja-california",
-      "03": "baja-california-sur",
-      "04": "campeche",
-      "05": "coahuila",
-      "06": "colima",
-      "07": "chiapas",
-      "08": "chihuahua",
-      "09": "ciudad-de-mexico",
-      "10": "durango",
-      "11": "guanajuato",
-      "12": "guerrero",
-      "13": "hidalgo",
-      "14": "jalisco",
-      "15": "estado-de-mexico",
-      "16": "michoacan",
-      "17": "morelos",
-      "18": "nayarit",
-      "19": "nuevo-leon",
-      "20": "oaxaca",
-      "21": "puebla",
-      "22": "queretaro",
-      "23": "quintana-roo",
-      "24": "san-luis-potosi",
-      "25": "sinaloa",
-      "26": "sonora",
-      "27": "tabasco",
-      "28": "tamaulipas",
-      "29": "tlaxcala",
-      "30": "veracruz",
-      "31": "yucatan",
-      "32": "zacatecas",
-    });
-    // The official names stay as INEGI writes them.
-    expect(states.find((state) => state.code === "15")?.name).toBe("México");
   });
 
   it.for([
@@ -176,9 +104,14 @@ describe("The catalogue of states and municipalities is reference data and only 
   });
 
   it("the repeated names of Oaxaca take the slugs chosen by hand", () => {
-    const message = failure(() =>
-      buildCatalogue(extract, { states: STATE_SLUGS, municipalities: {} }),
-    );
+    const oaxaca = {
+      states: [{ code: "20", name: "Oaxaca" }],
+      municipalities: Object.entries(MUNICIPALITY_SLUGS).map(([code, { name }]) => ({
+        code,
+        name,
+      })),
+    };
+    const message = failure(() => buildCatalogue(oaxaca, { states: {}, municipalities: {} }));
     expect(message).toContain(
       '"san-juan-mixtepec" for 20208 San Juan Mixtepec, 20209 San Juan Mixtepec',
     );
@@ -186,11 +119,15 @@ describe("The catalogue of states and municipalities is reference data and only 
       '"san-pedro-mixtepec" for 20318 San Pedro Mixtepec, 20319 San Pedro Mixtepec',
     );
 
-    const { municipalities } = buildCatalogue(extract);
-    const slugs = Object.fromEntries(municipalities.map((m) => [m.code, m.slug]));
-    for (const [code, { slug }] of Object.entries(MUNICIPALITY_SLUGS)) {
-      expect(slugs[code]).toBe(slug);
-    }
+    const { municipalities } = buildCatalogue(oaxaca, {
+      states: {},
+      municipalities: MUNICIPALITY_SLUGS,
+    });
+    expect(Object.fromEntries(municipalities.map((m) => [m.code, m.slug]))).toEqual(
+      Object.fromEntries(
+        Object.entries(MUNICIPALITY_SLUGS).map(([code, { slug }]) => [code, slug]),
+      ),
+    );
   });
 
   it("a slug chosen for a name INEGI no longer uses stops the generation", () => {

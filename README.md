@@ -78,7 +78,7 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 | `vp run db:migrate`  | Applies the migrations to `DATABASE_URL` (default: the local development database).                |
 | `vp run db:seed`     | Runs the idempotent seed (`src/core/db/seed/`). Never runs when `ENVIRONMENT=prod`.                |
 | `vp run db:check`    | Migration guard: fails on destructive SQL without a marker. `vp run check:all` runs it too.        |
-| `vp run db:inegi`    | Writes the INEGI catalogue migration from its extract. See [INEGI catalogue](#inegi-catalogue).    |
+| `vp run db:inegi`    | Writes the INEGI catalogue migration from INEGI's files. See [INEGI catalogue](#inegi-catalogue).  |
 
 - `DATABASE_URL` is a direct connection string used by Drizzle Kit, the seed and the test setup. A database that is not on this machine must use `sslmode=verify-full`; anything else is refused.
 - The Worker reaches the database through two Hyperdrive bindings, both pointing at the local database in `wrangler.jsonc` (`localConnectionString`). Each deployed environment has its own pair (see [Deployment](#deployment)). `HYPERDRIVE` is cached and only for public reads; `HYPERDRIVE_FRESH` is for everything else. `withDb` in `src/core/db/client.ts` opens a client per request and closes it with `ctx.waitUntil`.
@@ -90,16 +90,15 @@ vp run db:seed      # insert the fictitious seed data (safe to run again)
 
 ### INEGI catalogue
 
-The 32 states and 2,478 municipalities come from INEGI's [Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades](https://www.inegi.org.mx/app/ageeml/): its complete catalogues of states ([`catun_entidad.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_entidad.zip)) and municipalities ([`catun_municipio.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_municipio.zip)), fecha de corte 2026-06, downloaded on 2026-10-14. INEGI's [terms of free use](https://www.inegi.org.mx/inegi/terminos.html) ask for this credit, which the extract and the migration carry:
+The 32 states and 2,478 municipalities come from INEGI's [Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades](https://www.inegi.org.mx/app/ageeml/): its complete catalogues of states ([`catun_entidad.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_entidad.zip)) and municipalities ([`catun_municipio.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_municipio.zip)), fecha de corte 2026-06, downloaded on 2026-10-14. INEGI's [terms of free use](https://www.inegi.org.mx/inegi/terminos.html) ask for this credit, which the migration carries:
 
 > Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, fecha de corte 2026-06.
 
 The codes and names are INEGI's, unchanged. The slugs are ours, and INEGI does not endorse this product.
 
-- `scripts/catalogues/inegi.json` is the extract: the codes and official names, with the source, the files it was read from and their SHA-256.
-- `vp run db:inegi` writes `drizzle/0003_inegi_catalogue.sql` from the extract, with the slug of every state and municipality. The slug rules and the slugs chosen by hand are in `scripts/catalogues/inegi-catalogue.ts`. When two municipalities of a state would share a slug, the script stops and names them until someone chooses their slugs in `MUNICIPALITY_SLUGS`. A test fails when the migration and the extract differ.
-- To check the extract against INEGI, download both zips, unzip them, and run `vp run db:inegi extract <states.csv> <municipalities.csv> <YYYY-MM>` with the UTF-8 CSV of each zip (`AGEEML_*_utf*.csv`) and the fecha de corte shown on the catalogue page. While INEGI has not changed the catalogue, `git diff` shows only the details of the source.
-- The migration is applied and never changes: a newer INEGI catalogue ships in a new data migration with its own extract.
+- The migration holds the data; INEGI's files are not kept in the repository. The tests check what it leaves in the database: the 32 states, the 2,478 municipalities, Tizayuca and the slugs.
+- It was written by `vp run db:inegi <states.csv> <municipalities.csv> <YYYY-MM> <migration.sql>`, from the UTF-8 CSV of each zip (`AGEEML_*_utf*.csv`, SHA-256 `b9eaa950…` and `2f2d08c8…` for the 2026-06 catalogue) and the fecha de corte shown on the catalogue page. The slug rules and the slugs chosen by hand are in `scripts/catalogues/inegi-catalogue.ts`. When two municipalities of a state would share a slug, the script stops and names them until someone chooses their slugs in `MUNICIPALITY_SLUGS`.
+- The migration is applied and never changes: a newer INEGI catalogue ships in a new data migration, written from the new files with the same rules.
 
 ## Deployment
 

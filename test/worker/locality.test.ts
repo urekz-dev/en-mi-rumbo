@@ -90,6 +90,64 @@ describe("The catalogue of states and municipalities is reference data and only 
     expect(tizayuca).toEqual({ code: "13069", name: "Tizayuca" });
   });
 
+  it("state slugs: the official name, or the common short name of five states", async () => {
+    const real = await db((tx) =>
+      tx.select().from(states).where(lte(states.code, "32")).orderBy(states.code),
+    );
+    expect(Object.fromEntries(real.map((state) => [state.code, state.slug]))).toEqual({
+      "01": "aguascalientes",
+      "02": "baja-california",
+      "03": "baja-california-sur",
+      "04": "campeche",
+      "05": "coahuila",
+      "06": "colima",
+      "07": "chiapas",
+      "08": "chihuahua",
+      "09": "ciudad-de-mexico",
+      "10": "durango",
+      "11": "guanajuato",
+      "12": "guerrero",
+      "13": "hidalgo",
+      "14": "jalisco",
+      "15": "estado-de-mexico",
+      "16": "michoacan",
+      "17": "morelos",
+      "18": "nayarit",
+      "19": "nuevo-leon",
+      "20": "oaxaca",
+      "21": "puebla",
+      "22": "queretaro",
+      "23": "quintana-roo",
+      "24": "san-luis-potosi",
+      "25": "sinaloa",
+      "26": "sonora",
+      "27": "tabasco",
+      "28": "tamaulipas",
+      "29": "tlaxcala",
+      "30": "veracruz",
+      "31": "yucatan",
+      "32": "zacatecas",
+    });
+    // The official names stay as INEGI writes them.
+    expect(real.find((state) => state.code === "15")?.name).toBe("México");
+  });
+
+  it("the repeated names of Oaxaca carry their district", async () => {
+    const rows = await db((tx) =>
+      tx
+        .select({ code: municipalities.code, slug: municipalities.slug })
+        .from(municipalities)
+        .where(eq(municipalities.stateCode, "20")),
+    );
+    const slugs = Object.fromEntries(rows.map((row) => [row.code, row.slug]));
+    expect(slugs).toMatchObject({
+      "20208": "san-juan-mixtepec-distrito-08",
+      "20209": "san-juan-mixtepec-distrito-26",
+      "20318": "san-pedro-mixtepec-distrito-22",
+      "20319": "san-pedro-mixtepec-distrito-26",
+    });
+  });
+
   it("an active locality is served with its data", async () => {
     expect(await served(STATE_SLUG, "pueblo-uno")).toEqual({
       code: f.localityA,

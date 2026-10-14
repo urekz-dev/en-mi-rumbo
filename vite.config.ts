@@ -91,15 +91,8 @@ export default defineConfig({
     ],
   },
   fmt: {
-    // Prettier formats .astro files (prettier.config.mjs). Drizzle Kit owns drizzle/,
-    // and `vp run db:inegi extract` writes the INEGI extract, one entry per line.
-    ignorePatterns: [
-      ...generated,
-      "**/*.astro",
-      "pnpm-lock.yaml",
-      "drizzle/**",
-      "scripts/catalogues/inegi.json",
-    ],
+    // Prettier formats .astro files (prettier.config.mjs). Drizzle Kit owns drizzle/.
+    ignorePatterns: [...generated, "**/*.astro", "pnpm-lock.yaml", "drizzle/**"],
   },
   staged: {
     "!(*.astro)": "vp check --fix --no-error-on-unmatched-pattern",
@@ -132,7 +125,7 @@ export default defineConfig({
       "db:seed": { command: "node scripts/db-seed.ts", cache: false },
       // Fails on destructive statements without a `-- destructive-ok: <reason>` marker.
       "db:check": { command: "node scripts/check-migrations.ts", cache: false },
-      // Writes the INEGI catalogue migration from its extract; see README, Database.
+      // Writes the INEGI catalogue migration from INEGI's files; see README, INEGI catalogue.
       "db:inegi": { command: "node scripts/catalogues/inegi.ts", cache: false },
       // End-to-end tests against `astro preview` (workerd); builds first.
       e2e: { command: "playwright test", dependsOn: ["build"], cache: false },
