@@ -497,6 +497,8 @@ The database MUST prevent a business from having two `pending` edits at the same
 
 ### Requirement: The business stores a normalized version of its name and of "¿Qué ofreces?" for the search
 
+Superseded in v2 by The database derives the normalized name and "¿Qué ofreces?" of a business for the search (v2) — source: ADR 0005, decision of 2026-10-14.
+
 The system MUST persist, next to each business, a normalized version of its name and of its "¿Qué ofreces?" —lowercase, no accents or punctuation marks— intended only so that the search can find regardless of accents and capitals (PRD §6.2), because the database does not compare that way on its own. Those values MUST always be a reflection of the fields they come from: they are written every time a business is saved, with the same normalization function the search uses, and no flow MUST be able to leave them out of sync. A business without "¿Qué ofreces?" MUST end up with its normalized version empty, not null. These values are internal to the search: they MUST NOT be shown in any public view or appear in the directory queries.
 
 #### Scenario: creation with accents and capitals
@@ -871,3 +873,34 @@ A user MAY do an action in a locality only when an active assignment that applie
 
 - **WHEN** the user is inactive, or has no assignment
 - **THEN** no permission is granted anywhere
+
+### Requirement: The database derives the normalized name and "¿Qué ofreces?" of a business for the search (v2)
+
+Added in v2 — source: ADR 0005, decision of 2026-10-14.
+
+The business MUST keep, next to its name and its "¿Qué ofreces?", a version of each that is lowercase, without accents and without punctuation, so that the search finds regardless of accents and capitals and can use an index. The database MUST compute both as generated columns, with one SQL function of the search normalization (`search_normalize`), on every write of the business: no write path computes them, none can set them, and they can never disagree with the fields they come from. A business without "¿Qué ofreces?" MUST end up with an empty value, not null. The normalization of what a resident types (in the application) MUST give the same text as the database function; an automatic check MUST compare them. These values are internal to the search: they MUST NOT be shown in any public view. Rows that existed when the columns were added get their values at that moment, so no backfill exists.
+
+#### Scenario: creation with accents and capitals
+
+- **WHEN** a business named "Plomería Güicho" that offers "Destape de drenajes y BOMBAS de agua" is saved
+- **THEN** its normalized versions are "plomeria guicho" and "destape de drenajes y bombas de agua", next to the original texts as the business wrote them
+
+#### Scenario: business without "¿Qué ofreces?"
+
+- **WHEN** a business that did not fill in "¿Qué ofreces?" is saved
+- **THEN** its normalized version of that field is empty and no search query fails because of it
+
+#### Scenario: a change is searchable at once
+
+- **WHEN** the name or the "¿Qué ofreces?" of a business changes
+- **THEN** its normalized versions change in the same write, and the search finds it by the new text and not by the old one
+
+#### Scenario: no write can set them
+
+- **WHEN** any write tries to set a normalized version directly
+- **THEN** the database refuses it
+
+#### Scenario: values consistent with their source
+
+- **WHEN** all saved businesses are reviewed
+- **THEN** the normalized version of each is exactly the normalization of its current name and its current "¿Qué ofreces?", the same one the search applies to what a resident types

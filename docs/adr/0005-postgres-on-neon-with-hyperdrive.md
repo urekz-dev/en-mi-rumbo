@@ -18,4 +18,4 @@ Drizzle Kit generates versioned SQL migrations that CI applies with `drizzle-kit
 
 ## Consequences
 
-Branches isolate environments without separate projects, and compute hours are shared, so non-production branches must scale to zero. The cold start after idle is accepted; if it hurts at launch, production moves to PlanetScale PS-5 (5 USD per month) without changing code. Choosing the right binding is a rule reviewers check: a public page that reads after a write in the same request uses `HYPERDRIVE_FRESH`. Backups are handled in ADR 0016.
+Public pages read through the cached binding, so a change in the panel can take up to a minute to reach them; the specs allow it and the panel says so (amended on 2026-10-14). Branches isolate environments without separate projects, and compute hours are shared, so non-production branches must scale to zero. The cold start after idle is accepted; if it hurts at launch, production moves to PlanetScale PS-5 (5 USD per month) without changing code. Choosing the right binding is a rule reviewers check: a public page that reads after a write in the same request uses `HYPERDRIVE_FRESH`. Backups are handled in ADR 0016.

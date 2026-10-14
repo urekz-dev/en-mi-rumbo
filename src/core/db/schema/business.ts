@@ -2,7 +2,7 @@
 // Every relation that points to a business deletes with it: a permanent
 // deletion (ARCO) must leave nothing behind, and test/worker/data-model.test.ts
 // fails when a foreign key to `businesses` is not ON DELETE CASCADE.
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -84,10 +84,18 @@ export const businesses = pgTable(
     facebookUrl: text("facebook_url"),
     photoKey: text("photo_key").unique(),
 
-    // Search only (docs/specs/data-model.md): written on every save with the
-    // normalization the search uses, never shown.
-    nameNormalized: text("name_normalized").notNull().default(""),
-    whatYouOfferNormalized: text("what_you_offer_normalized").notNull().default(""),
+    // Search only (docs/specs/data-model.md): the database derives them with
+    // `search_normalize` (drizzle/0004_search_normalize.sql) on every write,
+    // so no write path can leave them out of sync, and none may set them.
+    // Never shown.
+    nameNormalized: text("name_normalized")
+      .notNull()
+      .generatedAlwaysAs((): SQL => sql`search_normalize(${businesses.name})`),
+    whatYouOfferNormalized: text("what_you_offer_normalized")
+      .notNull()
+      .generatedAlwaysAs(
+        (): SQL => sql`search_normalize(coalesce(${businesses.whatYouOffer}, ''))`,
+      ),
 
     // Lifecycle. Whether a card is shown depends on its status only;
     // `publishedAt` is the last publication and survives an unpublishing.
@@ -143,6 +151,13 @@ export const businesses = pgTable(
     index("businesses_locality_status_idx").on(t.localityCode, t.status),
     index("businesses_category_idx").on(t.categoryId),
     index("businesses_zone_idx").on(t.zoneId),
+    // Trigram indexes (pg_trgm) for the search's `LIKE '%stem%'` on the
+    // normalized columns (src/core/search/query.ts).
+    index("businesses_name_normalized_trgm_idx").using("gin", t.nameNormalized.op("gin_trgm_ops")),
+    index("businesses_what_you_offer_normalized_trgm_idx").using(
+      "gin",
+      t.whatYouOfferNormalized.op("gin_trgm_ops"),
+    ),
   ],
 );
 

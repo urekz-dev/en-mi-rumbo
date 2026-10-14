@@ -123,6 +123,7 @@ export default defineConfig({
       "db:generate": { command: "drizzle-kit generate", cache: false },
       "db:migrate": { command: "drizzle-kit migrate", cache: false },
       "db:seed": { command: "node scripts/db-seed.ts", cache: false },
+      // Recomputes the normalized search columns of every business (idempotent).
       // Fails on destructive statements without a `-- destructive-ok: <reason>` marker.
       "db:check": { command: "node scripts/check-migrations.ts", cache: false },
       // Writes the INEGI catalogue migration from INEGI's files; see README, INEGI catalogue.

@@ -1325,3 +1325,19 @@ Cloudflare Access proves the email; the roles decide what it may do. After the A
 
 - **WHEN** a super admin opens the panel
 - **THEN** they see every active locality and may manage users and roles
+
+### Requirement: The panel says that a change takes up to a minute to reach the site (v2)
+
+Added in v2 — source: ADR 0005, decision of 2026-10-14.
+
+The public pages may show a change up to a minute late (`public-directory`, "Public pages may show a change up to a minute late (v2)"). After every action that changes what the public pages show —approve, unpublish, permanently delete, apply a pending edit, edit a card, hide or rename a zone— the confirmation the panel shows MUST include the literal text "Listo. El cambio puede tardar hasta un minuto en verse en el sitio." Actions that change nothing public (reject a registration in review, discard a pending edit, generate a link, attend a report) MUST NOT show it.
+
+#### Scenario: unpublishing
+
+- **WHEN** the admin unpublishes a card
+- **THEN** the confirmation says "Listo. El cambio puede tardar hasta un minuto en verse en el sitio."
+
+#### Scenario: an action that changes nothing public
+
+- **WHEN** the admin generates a new management link
+- **THEN** that text does not appear
