@@ -1,6 +1,6 @@
 # Spec: deployment
 
-What the system guarantees so that putting the site into production means setting variables and pressing a button: a single database dialect, what the CI tests, the build, configuration that cannot go missing silently, where photos live, the commands that write to the database, the scheduled tasks that run on their own, the headers on every response and the single deployment document.
+What the system guarantees so that putting the site into production means setting variables and pressing a button: a single database dialect, what the CI tests, the build, configuration that cannot go missing silently, where photos live, the commands that write to the database, the scheduled tasks that run on their own, the headers on every response, the single deployment document, and how production is watched and backed up.
 
 ## Requirements
 
@@ -617,3 +617,76 @@ On `dev`, the page footer MUST say "Versión de prueba: rama <branch>, commit <f
 
 - **WHEN** `DEPLOY_BRANCH` is empty, or `DEPLOY_COMMIT` is empty or not hexadecimal
 - **THEN** there is no deploy footer
+
+### Requirement: Every environment answers a health route (v2)
+
+Added in v2 — source: ADR 0016.
+
+`GET /health` MUST answer 200 with the body `ok` when the Worker reaches the database, running `SELECT 1` through `HYPERDRIVE_FRESH`, and 503 with the body `unavailable` when it does not. The body MUST NOT say why it failed; the reason goes to the Worker log. Both answers are plain text with `Cache-Control: no-store`, and the route reads only through `HYPERDRIVE_FRESH`, because a cached answer would hide a database that is down.
+
+#### Scenario: the database answers
+
+- **WHEN** `/health` is requested and the database answers
+- **THEN** it answers 200 `ok` with `Cache-Control: no-store`
+
+#### Scenario: the database does not answer
+
+- **WHEN** `/health` is requested and `HYPERDRIVE_FRESH` cannot reach the database
+- **THEN** it answers 503 `unavailable` and the body names no host, error or connection string
+
+#### Scenario: only the fresh binding counts
+
+- **WHEN** the cached binding cannot reach the database but `HYPERDRIVE_FRESH` can
+- **THEN** `/health` answers 200
+
+### Requirement: Production is checked every 30 minutes (v2)
+
+Added in v2 — source: ADR 0016.
+
+A scheduled workflow (`monitor.yml`) MUST run at minutes 7 and 37 of every hour, and by hand, against the `SITE_URL` of `prod`. It MUST fail unless the home answers 200, following its redirects only over https, and `/health` answers 200 `ok`. Each check is tried up to three times, 20 seconds apart, before it counts as failed, and a failed run names every check that failed. GitHub emails a failed run to the person who last changed the schedule.
+
+#### Scenario: production answers
+
+- **WHEN** the home answers 200 and `/health` answers 200 `ok`
+- **THEN** the run passes
+
+#### Scenario: a dropped request
+
+- **WHEN** the home fails once and answers 200 on a later try
+- **THEN** the run passes
+
+#### Scenario: production is down
+
+- **WHEN** the home or `/health` keeps failing, or `/health` answers 200 without `ok`
+- **THEN** the run fails naming each check that failed
+
+#### Scenario: the address
+
+- **WHEN** the `SITE_URL` of `prod` in `wrangler.jsonc` changes
+- **THEN** a test fails until the workflow checks the new address
+
+### Requirement: Production is backed up every night to a private bucket (v2)
+
+Added in v2 — source: ADR 0016.
+
+A scheduled workflow (`backup.yml`) MUST run every night at 03:23 Mexico City time, and by hand, from `main` only, through the `backup` GitHub Environment. It MUST dump production with `pg_dump` 18 or later in the custom format, as the read-only role `enmirumbo_backup` over the direct (not pooled) host with `sslmode=verify-full`, check that the dump reads back with `pg_restore --list` and holds table data, and upload it through R2's S3 API to the private bucket `enmirumbo-backups` as `prod/enmirumbo-<UTC date and time>.dump`, with its Content-MD5 and its SHA-256 as metadata. The run MUST fail if R2 does not then hold the same number of bytes. The password MUST NOT appear on any command line or in the log, and on GitHub Actions the database host is masked in the log. The bucket has no public hostname, a lifecycle rule that deletes each dump after 30 days, and a bucket lock that keeps it at least that long. A restore into the `dev` branch is tested once and written in the README.
+
+#### Scenario: a nightly backup
+
+- **WHEN** the backup runs
+- **THEN** one new object under `prod/` holds the dump, the run summary names it with its size and SHA-256, and the dump's password appeared nowhere
+
+#### Scenario: an unsafe or wrong connection
+
+- **WHEN** `DATABASE_URL` does not use `sslmode=verify-full`, uses the pooled host or has no password, or `pg_dump` is older than 18
+- **THEN** the run fails before anything is dumped
+
+#### Scenario: a dump that is not usable
+
+- **WHEN** `pg_dump` fails, or the dump does not read back or holds no table data
+- **THEN** nothing is uploaded and the run fails
+
+#### Scenario: an upload that is not complete
+
+- **WHEN** R2 refuses the upload or holds a different size afterwards
+- **THEN** the run fails

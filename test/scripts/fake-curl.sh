@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# A stand-in for curl in the tests of scripts/deploy/ (deploy-scripts.test.ts):
-# it answers from a routes file instead of the network.
+# A stand-in for curl in the tests of scripts/deploy/ and scripts/monitor/
+# (deploy-scripts.test.ts, operations-scripts.test.ts): it answers from a routes
+# file instead of the network.
 #
 # FAKE_CURL_ROUTES: a JSON object from "<METHOD> <url>" to a list of answers
 #   {"status": 200, "headers": {"name": "value"}, "body": "text" | {json}}.
@@ -31,7 +32,7 @@ while [ "$#" -gt 0 ]; do
   --dump-header) dump="$2" && shift 2 ;;
   --output) output="$2" && shift 2 ;;
   --write-out) write_out="$2" && shift 2 ;;
-  --max-time | --retry | --retry-delay | --proto) shift 2 ;;
+  --max-time | --retry | --retry-delay | --proto | --proto-redir | --max-redirs) shift 2 ;;
   --fail-with-body) fail_with_body=true && shift ;;
   --*) shift ;;
   *) url="$1" && shift ;;
