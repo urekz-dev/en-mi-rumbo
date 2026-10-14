@@ -4,7 +4,7 @@
 // every state and municipality and Tizayuca's locality. The CSV files are not
 // kept: the migration holds the data, and test/worker/locality.test.ts checks
 // what it leaves in the database.
-import { SLUG_PATTERN } from "../../src/core/db/schema/checks.ts";
+import { slugify } from "./slug.ts";
 
 export interface Entry {
   code: string;
@@ -53,27 +53,6 @@ export const MUNICIPALITY_SLUGS: SlugOverrides = {
 export const LOCALITIES: readonly { code: string; timeZone: string }[] = [
   { code: "13069", timeZone: "America/Mexico_City" },
 ];
-
-const SLUG = new RegExp(SLUG_PATTERN);
-
-/**
- * The slug of an official name: lowercase ASCII words joined by hyphens, with
- * the accents removed (ñ becomes n) and the punctuation dropped. Throws on a
- * letter it cannot write in ASCII instead of losing it.
- */
-export function slugify(name: string): string {
-  const slug = name
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/\p{Pd}/gu, " ")
-    .replace(/[\p{P}\p{S}]/gu, "")
-    .trim()
-    .split(/\s+/)
-    .join("-");
-  if (!SLUG.test(slug)) throw new Error(`no slug for "${name}" (got "${slug}")`);
-  return slug;
-}
 
 const byCode = (a: Entry, b: Entry) => a.code.localeCompare(b.code);
 

@@ -128,6 +128,8 @@ export default defineConfig({
       "db:check": { command: "node scripts/check-migrations.ts", cache: false },
       // Writes the INEGI catalogue migration from INEGI's files; see README, INEGI catalogue.
       "db:inegi": { command: "node scripts/catalogues/inegi.ts", cache: false },
+      // Writes a locality's zones migration from SEPOMEX's file; see README, SEPOMEX zones.
+      "db:zones": { command: "node scripts/catalogues/sepomex.ts", cache: false },
       // End-to-end tests against `astro preview` (workerd); builds first.
       e2e: { command: "playwright test", dependsOn: ["build"], cache: false },
     },

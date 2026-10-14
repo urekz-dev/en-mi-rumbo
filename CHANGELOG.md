@@ -20,6 +20,7 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The data model: states and municipalities from INEGI, localities, zones, categories, trades, businesses, pending edits, reports and the admin audit log. A WhatsApp number has one card per locality, and each card has a short random identifier.
 - Panel users, roles and permissions in the database: super admins manage everything, locality admins only their localities, and new roles are created as data. ADR 0021.
 - The INEGI catalogue of the 32 states and 2,478 municipalities, with the slugs of the public URLs, in every environment, and the locality of Tizayuca, inactive until a super admin sets its contact WhatsApp and activates it.
+- The zones of Tizayuca, in every environment: its 105 colonias, fraccionamientos, barrios, pueblos and other settlements from SEPOMEX's postal catalogue, each with its type and the slug of its public URLs.
 - The search, without its page yet: the published cards of a locality are found by their name, by what they offer and by the trades the admin assigned, ignoring capitals, accents and punctuation and matching the stem of each word ("plomero" finds "plomería"). Filler words and the name of the locality do not narrow the results, and an empty or hostile query searches nothing. The database keeps the normalized search text of every business itself.
 
 ### Changed
