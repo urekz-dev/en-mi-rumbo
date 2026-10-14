@@ -6,6 +6,8 @@ What the system guarantees so that putting the site into production means settin
 
 ### Requirement: A single database dialect in all environments
 
+Superseded in v2 by A single database dialect in all environments (v2) — source: ADR 0005, ADR 0019.
+
 The system MUST use the same database engine —PostgreSQL, the one ADR-004 recommends for production— in development, in testing, in continuous integration and in production. There MUST be a single Prisma schema and a single migration tree; the project MUST NOT maintain parallel migrations per dialect. The local database MUST be able to start with a single documented command, with no accounts or paid services, and the same migration tree that is applied locally MUST be the one applied in production.
 
 #### Scenario: local database from a fresh clone
@@ -706,3 +708,24 @@ In "Commands that write to the database recognize the real environment", the env
 
 - **WHEN** the fictitious seed is run with `ENVIRONMENT=prod`
 - **THEN** it writes nothing and says that seeds never run against production
+
+### Requirement: A single database dialect in all environments (v2)
+
+Added in v2 — source: ADR 0005, ADR 0019.
+
+The system MUST use PostgreSQL 18 in development, in testing, in continuous integration and in production. There MUST be a single Drizzle schema (`src/core/db/schema/`) and a single migration tree (`drizzle/`); the project MUST NOT maintain parallel migrations per dialect. The local database MUST start with a single documented command (`vp run db:up`), with no accounts or paid services, and the migration tree applied locally MUST be the one applied in every deployed environment. The migrations bring the reference data (`data-model`, "Reproducible migrations that carry the reference data (v2)"), so nothing seeds a catalogue: in "The CI tests the migrations and the suite against an ephemeral Postgres" and "A single document says how to deploy", seeding the catalogues means applying the migrations.
+
+#### Scenario: local database from a fresh clone
+
+- **WHEN** someone clones the repository, installs the dependencies, starts the local database with `vp run db:up` and applies the migrations with `vp run db:migrate`
+- **THEN** they get a PostgreSQL 18 database with all the model's tables and the reference data, among it the 8 categories, the 49 trades and the 105 zones of Tizayuca, without running any seed
+
+#### Scenario: the same tree in production
+
+- **WHEN** the migrations are applied to the empty production database
+- **THEN** exactly the same migration tree as locally is applied, with no separately written SQL, and the resulting schema and reference data are the same
+
+#### Scenario: there are not two dialects to maintain
+
+- **WHEN** the project is reviewed
+- **THEN** there is a single Drizzle schema, a single migrations directory and its declared dialect is PostgreSQL; no file in the project declares a different dialect

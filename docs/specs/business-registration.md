@@ -764,6 +764,8 @@ Added in v2 — source: ADR 0006, PRD §3 (Flow A).
 
 The registration page of a locality MUST offer as zones the visible zones of that locality, plus the option "Otra" as before. A business MUST be created in the locality of the page where it registered.
 
+This replaces the zones of the scenario "closed catalogue lists" of "Required and optional form fields": the list is not the prototype's 21 zones but the visible zones of the locality (Tizayuca has 105, from SEPOMEX), plus "Otra". How the field lets the owner find their zone among them is designed with the registration form (epic E).
+
 #### Scenario: options
 
 - **WHEN** an owner opens the registration page of Tizayuca

@@ -100,6 +100,8 @@ The system MUST have three persisted catalogues: the 8 categories of PRD §6.1, 
 
 ### Requirement: The slugs of the three catalogues do not produce ambiguous URLs at the root
 
+Superseded in v2 by The slugs of the catalogues do not produce ambiguous URLs at the root of a locality (v2) — source: ADR 0006, ADR 0007.
+
 The public pages for category (`/servicios-del-hogar`), trade (`/plomeria`) and trade+zone (`/plomeria-haciendas-de-tizayuca`) share the site root, so the slugs of the three catalogues MUST guarantee that **every root URL reads in only one way**. The project MUST have an automatic check on the seeded catalogues that fails —before anything is published— if any of these conditions is broken:
 
 - no trade slug or zone slug matches a category slug;
@@ -351,6 +353,8 @@ The deletion MUST be idempotent: requesting the deletion of an identifier that n
 
 ### Requirement: Reproducible initial migration and seed
 
+Superseded in v2 by Reproducible migrations that carry the reference data (v2) — source: ADR 0005, ADR 0006, ADR 0019.
+
 The project MUST be able to bring up the database from scratch with the Prisma migrations and populate the catalogues with `npm run db:seed`. The seed MUST be idempotent. The database MUST be of the same engine in development, tests and production (PostgreSQL, ADR-004), with a single migration tree: the one applied on the laptop is the one applied at the provider. Bringing up the local database MUST require a single documented command, with no accounts or paid services.
 
 #### Scenario: database from scratch
@@ -530,6 +534,8 @@ The system MUST persist, next to each business, a normalized version of its name
 
 ### Requirement: Seed of fictitious businesses for development, separate from the catalogue seed
 
+Superseded in v2 by Seed of fictitious businesses for development (v2) — source: ADR 0006, ADR 0008, decision of 2026-10-14.
+
 The project MUST be able to populate the development database with fake businesses to see the directory working, through a command of its own and distinct from the catalogue seed. The catalogue seed MUST NOT create businesses: its counts remain only those of categories, zones and trades. The demo seed MUST be idempotent (running it twice does not duplicate cards) and MUST create a set that covers the cases the directory needs to test: published businesses in several categories (including "Clubes y escuelas deportivas") and several zones, some with home delivery and some without, some with all the optional fields and some with only the required ones, one published with zone "Otra" not normalized, one in `in_review` and one `rejected`. It MUST also cover the cases the search needs to test while the admin panel does not seed data: at least one published business **with trades assigned**, and among them one whose trade appears neither in its name nor in its "¿Qué ofreces?" (the only way to show that the search by trade really works), plus at least one published business whose keywords carry accents. The businesses it seeds MUST end up with their normalized search versions written, like any other write path. The data MUST be made up and recognizable as such: fictitious names, WhatsApp numbers from the series reserved for tests (`771999xxxx`) and no address of a real business (public repo + LFPDPPP, PRD §8). The command MUST warn in its output that what it seeded is fake data and MUST NOT run against a production environment.
 
 #### Scenario: seeding demo businesses
@@ -708,7 +714,7 @@ The prototype's hand-maintained list of colonias MUST be used only to cross-chec
 
 #### Scenario: cross-check against the prototype's list
 
-- **WHEN** the zones seeded for Tizayuca are compared with the prototype's list of colonias
+- **WHEN** the zones loaded for Tizayuca are compared with the prototype's list of colonias
 - **THEN** every colonia of the prototype that is missing from the seeded zones, or spelled differently, is reported, and none is dropped silently
 
 #### Scenario: hide and rename
@@ -720,7 +726,7 @@ The prototype's hand-maintained list of colonias MUST be used only to cross-chec
 
 Added in v2 — source: ADR 0006.
 
-Every business, pending edit, report and audit log entry MUST reference the locality it belongs to. A business MUST NOT be saved without a locality, and its zone MUST belong to the same locality. The slug of a zone MUST be unique within its locality, not across the whole system, and the ambiguity check described in "The slugs of the three catalogues do not produce ambiguous URLs at the root" MUST be applied within each locality. Categories and trades are global: their slugs stay unique across the system.
+Every business, pending edit, report and audit log entry MUST reference the locality it belongs to. A business MUST NOT be saved without a locality, and its zone MUST belong to the same locality. The slug of a zone MUST be unique within its locality, not across the whole system, and the ambiguity check described in "The slugs of the catalogues do not produce ambiguous URLs at the root of a locality (v2)" MUST be applied within each locality. Categories and trades are global: their slugs stay unique across the system.
 
 #### Scenario: a business without a locality
 
@@ -948,3 +954,119 @@ The business MUST keep, next to its name and its "¿Qué ofreces?", a version of
 
 - **WHEN** all saved businesses are reviewed
 - **THEN** the normalized version of each is exactly the normalization of its current name and its current "¿Qué ofreces?", the same one the search applies to what a resident types
+
+### Requirement: The slugs of the catalogues do not produce ambiguous URLs at the root of a locality (v2)
+
+Added in v2 — source: ADR 0006, ADR 0007.
+
+The pages of a locality live under `/{estado}/{municipio}/` (see "Public URLs carry the state and the municipality (v2)" in `public-directory`). There, one path segment is a category (`servicios-del-hogar`), a trade (`plomeria`) or a trade and a zone of that locality joined by a hyphen (`plomeria-haciendas-de-tizayuca`), next to the site's own pages, so every such segment MUST read in only one way. For each locality, with the global categories and trades and all the zones of that locality (hidden ones included, because a slug never changes), the project MUST have an automatic check that fails —before anything is published— when:
+
+- a trade slug or a zone slug matches a category slug;
+- a slug of the three catalogues, or a composed slug `«trade»-«zone»`, matches a reserved segment;
+- a composed slug matches a category slug or a trade slug;
+- two different trade and zone pairs produce the same composed slug.
+
+A zone on its own is not a page, so a zone slug that matches a trade slug or a composed slug still reads in one way. The reserved segments are declared once, in the code the check and the routes share: the first segment of the other pages of a locality (`buscar`, `negocio`, `reportar`, `registro`, `editar`), the legal pages (`aviso-de-privacidad`, `terminos`) and the routes at the root of the site (`admin`, `health`). A new page of a locality adds its first segment there. The check names every conflicting segment with all its readings. It runs against the catalogues the migrations leave, so a migration that adds a category, a trade or the zones of a locality fails the tests when it makes a URL ambiguous. Reserving a name is free; migrating an already published URL is not.
+
+#### Scenario: today's catalogues are unambiguous
+
+- **WHEN** the check runs on the migrated database
+- **THEN** it passes for every locality that has zones; for Tizayuca, with 8 categories, 49 trades and 105 zones
+
+#### Scenario: a trade or a zone named like a category
+
+- **WHEN** a trade, or a zone, whose slug matches that of a category is added to the catalogue
+- **THEN** the check fails and names the slug, read as the category and as the trade or zone
+
+#### Scenario: a slug that would shadow an own route
+
+- **WHEN** a category, a trade or a zone whose slug is a reserved segment (for example `buscar`) is added to the catalogue
+- **THEN** the check fails and points to the conflicting slug
+
+#### Scenario: a composed slug that is already taken
+
+- **WHEN** a trade and a zone compose the slug of a category, of a trade or of a reserved segment
+- **THEN** the check fails and names the segment with both readings
+
+#### Scenario: a composed slug with two readings
+
+- **WHEN** the catalogue reaches a state in which the same composed slug can be read as two different trade and zone pairs
+- **THEN** the check fails and names the two possible readings
+
+#### Scenario: a zone named like a trade
+
+- **WHEN** a zone whose slug matches that of a trade is added to a locality
+- **THEN** the check passes: the segment can only be read as the trade
+
+### Requirement: Reproducible migrations that carry the reference data (v2)
+
+Added in v2 — source: ADR 0005, ADR 0006, ADR 0019.
+
+The project MUST be able to bring up the database from scratch by applying the migrations in `drizzle/`, and the migrations alone MUST leave it with all the tables and all the reference data every environment needs, production included: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities with the locality of Tizayuca, the zones of Tizayuca from SEPOMEX, and the 8 categories and the 49 trades with their slugs. Reference data MUST ship as data migrations, never as a seed, and a migration that is applied never changes: new or changed reference data ships in a new migration. The database MUST be of the same engine in development, tests and production (PostgreSQL), with a single migration tree. Bringing up the local database MUST take one documented command, with no accounts or paid services. Wherever another requirement says to seed or populate the catalogues, applying the migrations does it; the only seed is the fictitious one of "Seed of fictitious businesses for development (v2)".
+
+#### Scenario: database from scratch
+
+- **WHEN** the migrations are applied to an empty database
+- **THEN** it has all the tables and the reference data: the 8 categories and the 49 trades with their slugs, the 32 states and 2,478 municipalities, the locality of Tizayuca and its 105 zones
+
+#### Scenario: the development database is the same as the production one
+
+- **WHEN** someone brings up the local database with the documented command and applies the migrations
+- **THEN** they get the same engine, the same schema and the same reference data as production, and the tests they run locally exercise the real dialect
+
+### Requirement: Seed of fictitious businesses for development (v2)
+
+Added in v2 — source: ADR 0006, ADR 0008, decision of 2026-10-14.
+
+`vp run db:seed` MUST fill the database with fake businesses, to see the directory working in development and in the deployed environments `dev` and `stage`; it never runs in `prod` (see "The commands that write in bulk read the environment from `ENVIRONMENT` (v2)" in `deployment`). It seeds nothing else: the reference data comes with the migrations ("Reproducible migrations that carry the reference data (v2)"), which create no business. The seed fills one locality, Tizayuca. It MUST be idempotent, because it runs on every deploy: it inserts only the fake businesses that are missing, recognized by their fixed identifier or by their WhatsApp in the locality, and it never changes a row that is already there.
+
+The set MUST cover what the directory needs to test: published businesses in several categories (including "Clubes y escuelas deportivas") and several zones, some with home delivery and some without, some with all the optional fields and some with only the required ones, one published with zone "Otra" not normalized, one in `in_review` and one `rejected`. It MUST also cover what the search needs while the admin panel does not exist: published businesses with trades assigned, among them one with a trade that the search cannot reach through the name or the "¿Qué ofreces?" of the business, and at least one published business whose keywords carry accents. Each business follows the v2 model: its locality, its consent record ("The consent record stores which notice version it was given against"), the timestamps of its status, and an identifier of the alphabet of "The card is identified by a short random id (v2)". The database derives their normalized search columns, as on any other write. The photos of "The demo seed leaves cards with a photo to see the directory as the resident will see it" arrive with the photo storage.
+
+The data MUST be made up and recognizable as such: names that say they are made up, WhatsApp numbers and landlines of the `771999xxxx` series, references that point to no real place, and no data of a real business or person (public repository and LFPDPPP). The command MUST warn in its output that what it seeded is fake data.
+
+A locality is served only with its contact WhatsApp. So that the seeded directory can be seen, the seed MUST give Tizayuca a fake contact WhatsApp of the `771999xxxx` series and turn it on, but only while Tizayuca has no contact WhatsApp: a number someone set, and the active flag next to it, MUST never be touched.
+
+#### Scenario: seeding fictitious businesses
+
+- **WHEN** the seed runs on a migrated database
+- **THEN** the fake businesses are created in Tizayuca, with at least one published in the sports category, published ones in several zones, at least one with home delivery and one without, one with all the optional fields, one with only the required ones, one with zone "Otra" not normalized, one in `in_review` and one `rejected`
+
+#### Scenario: fixtures for the search by trade
+
+- **WHEN** the businesses the seed created are reviewed
+- **THEN** at least one published has catalogue trades assigned, and at least one of those trades shares no search stem with the name or the "¿Qué ofreces?" of its business
+
+#### Scenario: fixtures with accents
+
+- **WHEN** the businesses the seed created are reviewed
+- **THEN** at least one published has accents in its keywords, and its normalized versions are written without accents
+
+#### Scenario: the migrations create no business
+
+- **WHEN** the migrations are applied on an empty database
+- **THEN** the businesses table is empty
+
+#### Scenario: idempotent seed
+
+- **WHEN** the seed runs twice in a row
+- **THEN** the second run inserts nothing and changes nothing, and no business ends up with repeated trades
+
+#### Scenario: a business that is already there
+
+- **WHEN** Tizayuca already has a business with the WhatsApp of a fake one
+- **THEN** the seed leaves that business as it is, adds no trade to it, and does not insert the fake one
+
+#### Scenario: fictitious data and nothing real
+
+- **WHEN** the businesses the seed created are reviewed
+- **THEN** every WhatsApp and landline starts with `771999`, every name says it is made up, and the output of the command warns that the data is fake
+
+#### Scenario: activating Tizayuca
+
+- **WHEN** the seed runs while Tizayuca has no contact WhatsApp
+- **THEN** Tizayuca gets the fake contact WhatsApp and its active flag is on
+
+#### Scenario: a contact WhatsApp someone set
+
+- **WHEN** the seed runs while Tizayuca has a contact WhatsApp, active or not
+- **THEN** the number and the active flag stay as they were
