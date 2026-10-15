@@ -8,6 +8,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import type { PgDatabase } from "drizzle-orm/pg-core";
+import { NOTICE_VERSION } from "../../legal/version.ts";
 import type * as schema from "../schema/index.ts";
 import {
   businesses,
@@ -27,12 +28,13 @@ export const SEED_LOCALITY_CODE = "13069";
 export const SEED_CONTACT_WHATSAPP = "7719990100";
 
 /**
- * The notice version the fake consent records name, and the earlier one of
- * the card that accepted it on a resubmission. The privacy notice declares
- * its version in a single module, which arrives with the legal pages; the
- * seed reads it from there from then on.
+ * The notice version the fake consent records name: the current one, read
+ * from the single module that declares it (docs/specs/legal-pages.md, "The
+ * privacy notice has a stable version declared in a single place"). The card
+ * that accepted it on a resubmission first consented to a fictitious earlier
+ * version, which must stay below the current one.
  */
-export const SEED_NOTICE_VERSION = "2";
+export const SEED_NOTICE_VERSION = NOTICE_VERSION;
 export const SEED_EARLIER_NOTICE_VERSION = "1";
 
 /** A database or a transaction, with the schema of `withDb`. */

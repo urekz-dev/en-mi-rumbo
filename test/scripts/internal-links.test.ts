@@ -67,8 +67,11 @@ describe("Internal links to existing routes and protected external links", () =>
     ]);
   });
 
-  it("the legal routes pass once they exist, and a misspelled one still fails", () => {
-    const routes = new Set(["/", "/aviso-de-privacidad", "/terminos"]);
+  // Scenario: the legal routes exist and the verification recognizes them
+  it("the legal routes exist and pass, and a misspelled one still fails", () => {
+    const routes = staticRoutes();
+    expect(routes).toContain("/aviso-de-privacidad");
+    expect(routes).toContain("/terminos");
     const footer = [
       '<a href="/aviso-de-privacidad">Aviso de privacidad</a>',
       '<a href="/terminos">Términos y condiciones</a>',

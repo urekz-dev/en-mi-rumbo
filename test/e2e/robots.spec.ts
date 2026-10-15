@@ -3,7 +3,8 @@
 // "The dev footer names the branch and commit deployed (v2)". `astro preview`
 // runs the build through src/worker.ts with the local vars of wrangler.jsonc
 // (ENVIRONMENT=local); the deployed behaviour is covered by
-// test/worker/robots.test.ts and the smoke test of the deploy workflows.
+// test/worker/robots.test.ts, test/scripts/static-noindex.test.ts (the static
+// assets) and the smoke test of the deploy workflows.
 import { expect, test } from "@playwright/test";
 
 test("local: robots.txt allows the site except the panel", async ({ request }) => {
@@ -15,8 +16,10 @@ test("local: robots.txt allows the site except the panel", async ({ request }) =
   expect(await response.text()).toBe("User-agent: *\nDisallow: /admin\n");
 });
 
-test("local: no response asks not to be indexed, not even a 404", async ({ request }) => {
-  for (const path of ["/", "/no-existe"]) {
+test("local: no response asks not to be indexed, not even a 404 or a prerendered page", async ({
+  request,
+}) => {
+  for (const path of ["/", "/no-existe", "/aviso-de-privacidad", "/terminos"]) {
     const response = await request.get(path);
     expect(response.headers()["x-robots-tag"], path).toBeUndefined();
   }

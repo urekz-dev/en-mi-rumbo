@@ -1,0 +1,15 @@
+---
+// The terms and conditions (docs/specs/legal-pages.md, "Terms and conditions
+// page at `/terminos`"). Like the privacy notice, it belongs to no locality,
+// is prerendered and served as a static asset, and is indexable; the terms
+// carry no version.
+import LegalDocument from "../components/LegalDocument.astro";
+import { TERMS, TERMS_PAGE } from "../core/legal/terms.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+export const prerender = true;
+---
+
+<BaseLayout title={TERMS_PAGE.title} description={TERMS_PAGE.description}>
+  <LegalDocument document={TERMS} />
+</BaseLayout>

@@ -42,8 +42,10 @@ test.beforeEach(async ({ page }) => {
   if (pages.length === 0) pages = await crawl(page);
 });
 
-test("the crawl reaches the start pages", () => {
-  expect(pages).toEqual(expect.arrayContaining(["/admin", "/no-existe"]));
+test("the crawl reaches the start pages and, through the footer, the legal pages", () => {
+  expect(pages).toEqual(
+    expect.arrayContaining(["/admin", "/no-existe", "/aviso-de-privacidad", "/terminos"]),
+  );
 });
 
 test("every page is an es-MX document inside the layout, with its base metadata", async ({
@@ -69,6 +71,15 @@ test("every page is an es-MX document inside the layout, with its base metadata"
     await expect
       .soft(page.getByRole("banner").getByRole("link", { name: "enmirumbo", exact: true }), path)
       .toBeVisible();
+    // Scenario: footer with the legal links and no dead links (the crawl
+    // follows them, so each one answers)
+    const footer = page.getByRole("contentinfo");
+    await expect
+      .soft(footer.getByRole("link", { name: "Aviso de privacidad", exact: true }), path)
+      .toHaveAttribute("href", "/aviso-de-privacidad");
+    await expect
+      .soft(footer.getByRole("link", { name: "Términos y condiciones", exact: true }), path)
+      .toHaveAttribute("href", "/terminos");
     // Scenario: no client JS in the layout. Third-party scripts are not the
     // layout's (the analytics, docs/specs/base-layout.md).
     await expect.soft(page.locator('script:not([src^="https://"])'), path).toHaveCount(0);

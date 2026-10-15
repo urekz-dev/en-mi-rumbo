@@ -561,13 +561,15 @@ The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environmen
 
 Added in v2 — source: ADR 0008, ADR 0005, ADR 0016.
 
-Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, or a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id. An empty `ACCESS_AUD` is only a warning.
+Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id, or the `_headers` file of its static assets does not give every one of them `X-Robots-Tag: noindex` (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)"). An empty `ACCESS_AUD` is only a warning.
+
+The build prerenders the legal pages in a local workerd with the bindings of its environment. The Hyperdrive bindings of a deployed environment have no local connection string, so the build gives them an address where nothing answers: no prerendered page reads the database ("The production build does not need the database"), and one that tried would fail the build. The deployed Worker never sees that address.
 
 - `dev` (`deploy-dev.yml`): run by hand from any branch, never from a tag. It resets the Neon branch named `dev` to its parent `stage` and waits until Neon finishes, applies the branch's migrations, runs the fictitious seed, deploys, and writes the branch and the commit to the run summary and to the page footer. The reset MUST touch only the branch named `dev`, and MUST refuse, without writing, unless there is exactly one branch named `dev` and one named `stage`, `dev` is not the default branch, its parent is `stage` and it has no children.
 - `stage` (`deploy-stage.yml`): on every push to `main`, or by hand on `main`. It applies the migrations, runs the fictitious seed and deploys.
 - `prod` (`deploy-prod.yml`): on a tag `vX.Y.Z` (three numbers without leading zeros and nothing after them), or by hand on such a tag. It applies the migrations without seeding, deploys, and then creates the GitHub Release of the tag with generated notes; only that job may write to the repository.
 
-After each deploy a smoke test MUST request the site URL and fail unless the home answers 200, following its redirects only over https, with `X-Robots-Tag: noindex` on the page the redirects end at, and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. The home redirects while one locality is active (`public-directory`, "While there is one active locality, the root and the alias redirect to it (v2)"), as on `dev` and `stage` once the fictitious seed turns Tizayuca on. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
+After each deploy a smoke test MUST request the site URL and fail unless the home answers 200, following its redirects only over https, with `X-Robots-Tag: noindex` on the page the redirects end at, `/aviso-de-privacidad`, a prerendered page that Cloudflare serves without the Worker, answers 200 with `X-Robots-Tag: noindex`, and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. The home redirects while one locality is active (`public-directory`, "While there is one active locality, the root and the alias redirect to it (v2)"), as on `dev` and `stage` once the fictitious seed turns Tizayuca on. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
 
 #### Scenario: a placeholder Hyperdrive id
 
@@ -596,8 +598,18 @@ After each deploy a smoke test MUST request the site URL and fail unless the hom
 
 #### Scenario: the smoke test
 
-- **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
+- **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex`, `/aviso-de-privacidad` does not answer 200 with `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
 - **THEN** the workflow fails
+
+#### Scenario: a build whose static pages would be indexable
+
+- **WHEN** the `_headers` file of a build for `dev`, `stage` or `prod` is missing, or has no rule that gives every static asset `X-Robots-Tag: noindex`
+- **THEN** the workflow stops before the migrations and the deploy, naming the file
+
+#### Scenario: a prerendered page that reads the database
+
+- **WHEN** a page that reads the database is prerendered in the build of a deployed environment
+- **THEN** the build fails, because the database address it gets answers nothing
 
 #### Scenario: the home redirects to the only active locality
 
@@ -608,7 +620,7 @@ After each deploy a smoke test MUST request the site URL and fail unless the hom
 
 Added in v2 — source: ADR 0008.
 
-On `dev`, the page footer MUST say "Versión de prueba: rama <branch>, commit <first seven characters of the commit>", from the variables `DEPLOY_BRANCH` and `DEPLOY_COMMIT` that the dev workflow sets at deploy time. No other environment MUST show it, even with both variables set, and nothing MUST be shown when a value is missing or the commit is not a hexadecimal SHA.
+On `dev`, the page footer MUST say "Versión de prueba: rama <branch>, commit <first seven characters of the commit>", from the variables `DEPLOY_BRANCH` and `DEPLOY_COMMIT` that the dev workflow sets at deploy time. No other environment MUST show it, even with both variables set, and nothing MUST be shown when a value is missing or the commit is not a hexadecimal SHA. The prerendered pages (the legal pages) are built before the deploy sets those variables, so they carry no deploy footer.
 
 #### Scenario: dev
 

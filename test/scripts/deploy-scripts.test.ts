@@ -170,13 +170,35 @@ function build(environment: Environment, overrides: Record<string, unknown> = {}
       ACCESS_AUD: "a1".repeat(32),
       SITE_URL: `https://${WORKERS[environment]}.urekz.workers.dev`,
     },
+    assets: { binding: "ASSETS", directory: "../client" },
     ...overrides,
   };
 }
 
-function checkBuild(environment: string, config: unknown, env: Record<string, string> = {}) {
-  const file = join(work, "wrangler.json");
+// What the build of a deployed environment writes to dist/client/_headers: the
+// adapter's cache rule and the noindex rule of src/integrations/static-noindex.ts.
+const HEADERS_OK = [
+  "/_astro/*",
+  "  Cache-Control: public, max-age=31536000, immutable",
+  "",
+  "# Deployed environments stay out of search engines until the cut-over (ADR 0008).",
+  "/*",
+  "  X-Robots-Tag: noindex",
+  "",
+].join("\n");
+
+/** Writes the build as dist/ holds it (server/wrangler.json, client/_headers) and checks it. */
+function checkBuild(
+  environment: string,
+  config: unknown,
+  env: Record<string, string> = {},
+  headers: string | null = HEADERS_OK,
+) {
+  mkdirSync(join(work, "server"), { recursive: true });
+  mkdirSync(join(work, "client"), { recursive: true });
+  const file = join(work, "server", "wrangler.json");
   writeFileSync(file, JSON.stringify(config));
+  if (headers !== null) writeFileSync(join(work, "client", "_headers"), headers);
   return run("check-build.sh", [environment, file], env);
 }
 
@@ -283,6 +305,28 @@ describe("Each environment is built and deployed by its own workflow (v2): the b
     const result = checkBuild("prod", { ...config, vars: { ...config.vars, ACCESS_AUD: "" } });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("::warning::check-build (prod): ACCESS_AUD is empty");
+  });
+
+  // base-layout, "Deployed environments stay out of search engines until the
+  // cut-over (v2)": the static assets skip the Worker that adds the header.
+  it.for([
+    ["no _headers file", null],
+    ["only the adapter's cache rule", HEADERS_OK.split("\n\n")[0] ?? ""],
+    ["the rule for another path", "/aviso-de-privacidad\n  X-Robots-Tag: noindex\n"],
+    ["a rule that does not ask for noindex", "/*\n  X-Robots-Tag: nofollow\n"],
+  ] as const)("a build whose static assets would be indexable is refused: %s", ([, headers]) => {
+    const result = checkBuild("prod", build("prod"), {}, headers);
+    expect(result.status).toBe(1);
+    expect(errors(result)).toEqual([
+      expect.stringMatching(
+        /client\/_headers does not give every static asset X-Robots-Tag: noindex/,
+      ),
+    ]);
+  });
+
+  it("a build without a static assets directory is refused", () => {
+    const result = checkBuild("prod", build("prod", { assets: undefined }));
+    expect(errors(result)).toEqual([expect.stringContaining("no static assets directory")]);
   });
 
   it("no build: refused with how to build", () => {
@@ -462,9 +506,12 @@ const HOME_OK: Answer = {
   body: "<!doctype html>",
 };
 const ROBOTS_OK: Answer = { status: 200, body: "User-agent: *\nDisallow: /" };
+// The privacy notice, which Cloudflare serves without the Worker.
+const STATIC_OK: Answer = HOME_OK;
+const STATIC_PAGE = `GET ${ORIGIN}/aviso-de-privacidad`;
 
 function smoke(routes: Record<string, Answer[]>) {
-  const network = fakeNetwork(routes);
+  const network = fakeNetwork({ [STATIC_PAGE]: [STATIC_OK], ...routes });
   return run("smoke-test.sh", [ORIGIN], { ...network.env, SMOKE_ATTEMPTS: "3", SMOKE_DELAY: "0" });
 }
 
@@ -485,15 +532,18 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
     };
     const network = fakeNetwork({
       [`GET ${ORIGIN}/`]: [{ ...HOME_OK, redirects: [redirect] }],
+      [STATIC_PAGE]: [STATIC_OK],
       [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
     });
     const result = run("smoke-test.sh", [ORIGIN], { ...network.env, SMOKE_ATTEMPTS: "1" });
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-    const [home, robots] = network.calls();
+    const [home, legal, robots] = network.calls();
     expect(home?.argv).toEqual(
       expect.arrayContaining(["--location", "--max-redirs", "5", "--proto-redir", "=https"]),
     );
+    expect(legal?.url).toBe(`${ORIGIN}/aviso-de-privacidad`);
+    expect(legal?.argv).not.toContain("--location");
     expect(robots?.argv).not.toContain("--location");
   });
 
@@ -514,6 +564,24 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
     });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("retrying");
+  });
+
+  // base-layout, "Deployed environments stay out of search engines until the
+  // cut-over (v2)", scenario "a prerendered page of a deployed environment"
+  it.for([
+    [
+      { ...STATIC_OK, headers: { "content-type": "text/html" } },
+      "/aviso-de-privacidad has no X-Robots-Tag: noindex",
+    ],
+    [{ ...STATIC_OK, status: 404 }, "GET /aviso-de-privacidad answered 404"],
+  ] as const)("fails when the prerendered privacy notice fails: %#", ([legal, message]) => {
+    const result = smoke({
+      [`GET ${ORIGIN}/`]: [HOME_OK],
+      [STATIC_PAGE]: [legal],
+      [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
   });
 
   it.for([

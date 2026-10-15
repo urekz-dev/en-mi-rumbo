@@ -1,0 +1,82 @@
+---
+// A legal page (docs/specs/legal-pages.md): the single h1, the draft mark while
+// placeholders are left, the last-update line, the introduction and every
+// section as an h2 with its paragraphs, lists and links. It only renders the
+// data of src/core/legal/, which is what the notice's version identifies, so
+// it adds no text of its own. Only the notice passes `version`, which it
+// prepends to the last-update line; the terms are not versioned. A comfortable
+// reading width, no fixed widths, and every link with a 44px touch area. No
+// client JavaScript.
+import { isExternal, lastUpdatedLine, type LegalDocument } from "../core/legal/document.ts";
+import { PUBLISHED_DRAFT_MARK } from "../core/legal/placeholders.ts";
+import { versionPrefix } from "../core/legal/version.ts";
+
+interface Props {
+  document: LegalDocument;
+  /** The current notice version; only the privacy notice has one. */
+  version?: string;
+}
+
+const { document, version } = Astro.props;
+const updated = `${version === undefined ? "" : versionPrefix(version)}${lastUpdatedLine(document)}`;
+---
+
+<article class="mx-auto flex w-full max-w-2xl flex-col gap-6 py-4 break-words">
+  <div class="flex flex-col gap-3">
+    <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{document.title}</h1>
+    {PUBLISHED_DRAFT_MARK && (
+      <p
+        class="rounded-lg border-2 border-ink bg-surface p-3 text-sm font-semibold text-ink"
+        data-testid="draft-mark"
+      >
+        {PUBLISHED_DRAFT_MARK}
+      </p>
+    )}
+    <p class="text-sm text-ink-muted" data-testid="last-updated">
+      {updated}
+    </p>
+    <p class="text-ink-muted">{document.introduction}</p>
+  </div>
+  {document.sections.map((section) => (
+    <section class="flex flex-col gap-3">
+      <h2 class="text-xl font-bold tracking-tight text-ink">{section.heading}</h2>
+      {section.blocks.map((block) => {
+        if (block.kind === "paragraph") return <p class="text-ink-muted">{block.text}</p>;
+        if (block.kind === "list") {
+          return (
+            <ul class="flex list-disc flex-col gap-2 pl-5 text-ink-muted">
+              {block.items.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return isExternal(block.href) ? (
+          <a
+            href={block.href}
+            class="inline-flex min-h-11 w-fit items-center text-base font-semibold text-action-strong underline underline-offset-4"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {block.text}
+          </a>
+        ) : (
+          <a
+            href={block.href}
+            class="inline-flex min-h-11 w-fit items-center text-base font-semibold text-action-strong underline underline-offset-4"
+          >
+            {block.text}
+          </a>
+        );
+      })}
+    </section>
+  ))}
+  {document.closingLink && (
+    <a
+      href={document.closingLink.href}
+      class="inline-flex min-h-11 w-fit items-center text-base font-semibold text-action-strong underline underline-offset-4"
+    >
+      {document.closingLink.text}
+    </a>
+  )}
+</article>

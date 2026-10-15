@@ -166,6 +166,8 @@ The enumeration MUST match exactly what the public card serves today, so it also
 
 ### Requirement: Full text of the full privacy notice
 
+Superseded in v2 by Full text of the privacy notice (v2) — source: PRD §7, decision of the product owner, 2026-10-14.
+
 The content published at `/aviso-de-privacidad` MUST be literally the following (the headings marked with `##` are the page's `h2`; the bullets are lists). It is approved content, not free copy: changing it changes this spec.
 
 ```
@@ -335,6 +337,8 @@ The terms MUST publish the moderation rules of PRD §6.3, which would otherwise 
 - **THEN** the terms make clear that the directory may not publish it or may withdraw it, and that when the business requests it the takedown is immediate
 
 ### Requirement: Full text of the terms and conditions
+
+Superseded in v2 by Full text of the terms and conditions (v2) — source: decision of the product owner, 2026-10-14.
 
 The content published at `/terminos` MUST be literally the following (the headings marked with `##` are the page's `h2`). It is approved content, not free copy.
 
@@ -521,7 +525,7 @@ The two pages MUST be rendered as Server Components, without declaring `"use cli
 - **WHEN** the site is built and the two legal pages are reviewed
 - **THEN** neither uses the `"use client"` directive nor adds its own client JavaScript, and its content displays in full with JavaScript disabled
 
-The requirements below state what the texts of version 2 MUST say. They add to the content of the two verbatim blocks above; the Spanish wording of the added passages is written and reviewed legally in the pull request that publishes them, and the verbatim blocks are updated then.
+The requirements below state what the texts of version 2 MUST say. Their Spanish wording is in the verbatim blocks of "Full text of the privacy notice (v2)" and "Full text of the terms and conditions (v2)", which replace the two blocks above. The professional legal review before launch (PRD §11) may still change it; a change to the notice releases a new version.
 
 ### Requirement: The privacy notice names the processors (v2)
 
@@ -589,6 +593,8 @@ Added in v2 — source: PRD §7.
 
 Publishing the text of version 2 of the product MUST release a new notice version with its own cryptographic fingerprint declared in the single place of the code, and the check of "Changing the notice text without bumping the version breaks the verification" MUST keep failing when the text changes without raising the version. Whoever accepted an earlier version keeps that evidence.
 
+The rebuild numbers its notice versions on its own (decision of the product owner, 2026-10-14): its first notice is version `2`, the one the fictitious seed and the registration form name, even though the prototype also published a text it called version `2`. No consent record of the rebuilt database names a version of the prototype, and the prototype's database does not survive the cut-over, so the number points no evidence at two texts. From here on, a version published by the rebuild is never reused.
+
 #### Scenario: new version and fingerprint
 
 - **WHEN** the amended text is published
@@ -603,6 +609,18 @@ Publishing the text of version 2 of the product MUST release a new notice versio
 
 - **WHEN** a business that consented to an earlier version is read
 - **THEN** its record still names that earlier version
+
+The fingerprint is the SHA-256 of the versioned content as data (`versionedNoticeContent` in `src/core/legal/version.ts`): one entry per piece, in reading order, each tagged with its role —the simplified notice, the literal of the checkbox, the `h1`, the draft mark while it is published, the last-update line, the introduction, every `h2`, paragraph and list item, and every link with its destination—, with whitespace collapsed the way HTML collapses it. It is neither the source file nor the HTML: reformatting the code, or changing the markup or the styles of the page, does not change it, while changing a word, a punctuation mark, the order of the blocks or where a link leads does. A test MUST check that each legal page publishes exactly that content, so that nothing reaches the page outside the fingerprint. The table of fingerprints lives in `test/scripts/notice-version.test.ts`, next to the verification.
+
+#### Scenario: formatting does not release a version
+
+- **WHEN** the code of the notice is reformatted, or the markup or the styles of the page change, and what the page shows does not
+- **THEN** the fingerprint is the same and the verification passes
+
+#### Scenario: nothing is published outside the fingerprint
+
+- **WHEN** the page of the notice renders a text that is not in the versioned content, or leaves one out
+- **THEN** the verification fails
 
 ### Requirement: The list of operational pending items reflects v2 (v2)
 
@@ -619,3 +637,266 @@ In the list of operational pending items: the row on access and rectification MU
 
 - **WHEN** the list is read
 - **THEN** it still declares the row about the IP quotas pending the legal review
+
+While the panel's actions and the quotas do not exist yet, the list (`OPERATIONAL_PENDING_ITEMS` in `src/core/legal/placeholders.ts`, next to the placeholders) has three rows: (1) the four ARCO rights served from the panel, which are served by hand against the database until F3 (unpublish and delete) and F6 (edit any card and send a copy of its data) arrive, so the narrowing of "Visible placeholders and a draft mark while the responsible party's data is missing" (cancellation and opposition already in the panel) does not hold yet; (2) the sentence on the IP address, which the quotas must keep true when they arrive; and (3) the nightly backup of production (`deployment`, "Production is backed up every night to a private bucket (v2)"), which keeps a copy of the database for 30 days that nobody can delete earlier, so a deleted or purged card survives there that long, while the notice says a deletion is permanent and does not mention backups: the legal review decides whether the notice needs a line.
+
+#### Scenario: the backups are declared
+
+- **WHEN** the legal review walks the list
+- **THEN** it finds that the nightly backup keeps a copy of production for 30 days, so a deleted card survives there that long, with its ticket
+
+### Requirement: The legal pages are prerendered, belong to no locality and name none (v2)
+
+Added in v2 — source: ADR 0003, decision of the product owner, 2026-10-14 (`base-layout`, "Pages outside a locality name no locality (v2)").
+
+`/aviso-de-privacidad` and `/terminos` MUST live at the site root, outside every locality: every locality links to the same two pages. They MUST be prerendered when the site is built, without reading the database, and served as static assets at their address without a trailing slash (`/aviso-de-privacidad/` redirects to `/aviso-de-privacidad`). They MUST NOT name any locality: not in their text, their title, their description or their footer, which has no line for the neighbours.
+
+This amends the parts of this spec that put the locality in the legal texts: the descriptor of both introductions is "enmirumbo, el directorio de negocios locales" (scenarios "the notice names the site with the current brand" and "the terms name the site with the current brand"); the address of the responsible party is its placeholder alone, because it is the address of the responsible party and not of a locality; the sentence on "Cómo llegar" searches "junto con tu colonia, tu municipio y tu estado" (scenario "the address feeds the 'Cómo llegar' button"); "Qué es enmirumbo" says "Es un directorio de negocios y servicios locales, organizado por municipio."; and "Podemos retirar una ficha" speaks of "un negocio real del municipio donde está publicada". The texts are in "Full text of the privacy notice (v2)" and "Full text of the terms and conditions (v2)".
+
+The simplified notice of the registration form lives inside a locality and keeps naming it, read from the locality record ("enmirumbo, el directorio de negocios de {municipio}", `base-layout`, "Every text that names the locality reads it from the locality record (v2)"). The notice version covers its text with the mark `{municipio}`, so every locality accepts the same version.
+
+Prerendered pages are built before the deploy sets `DEPLOY_BRANCH` and `DEPLOY_COMMIT`, so on `dev` they carry no deploy footer. Until the cut-over, the deployed environments give them `X-Robots-Tag: noindex` through the `_headers` file of the build (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)"); they declare no `noindex` of their own, so they are indexable once the cut-over lifts it.
+
+#### Scenario: the pages are static
+
+- **WHEN** the site is built
+- **THEN** the build writes `aviso-de-privacidad.html` and `terminos.html` among its static assets without reading the database, and `/aviso-de-privacidad` and `/terminos` answer 200 with those files
+
+#### Scenario: no locality named
+
+- **WHEN** either legal page is read, with its title, its description and its footer
+- **THEN** no locality is named and the footer has no line for the neighbours, while it keeps the links "Aviso de privacidad" and "Términos y condiciones"
+
+#### Scenario: the simplified notice of a locality
+
+- **WHEN** the simplified notice is shown in the form of a locality
+- **THEN** it names the municipality of that locality, and the notice version and its fingerprint are the same in every locality
+
+### Requirement: Full text of the privacy notice (v2)
+
+Added in v2 — source: PRD §7, ADR 0012, ADR 0014, ADR 0018, decision of the product owner, 2026-10-14.
+
+The content published at `/aviso-de-privacidad` MUST be literally the following (the headings marked with `##` are the page's `h2`; the bullets are lists). It is approved content, not free copy: changing it changes this spec and releases a new notice version. It is the prototype's text with the amendments of the requirements marked (v2): the processors by name with the Turnstile addendum, the IP address, the two cookies, the new section "Cuánto tiempo guardamos tus datos", the rights served from the panel, and no locality named. As in "Full privacy notice page at `/aviso-de-privacidad`", the page prepends the version to the last-update line ("Versión 2 · Última actualización: …"). `src/core/legal/privacy-notice.ts` holds it, and a test fails when the module and this block differ.
+
+The deletion at 30 days of registrations never verified (in review and never published) replaces, in v2, the prototype's rule that a registration in review has no purge clock ("The full notice carries the six minimum elements of the LFPDPPP", condition (a), and its scenario "the 90-day period is the one for rejected registrations"); the 90 days remain those of rejected registrations.
+
+```
+Aviso de privacidad
+
+Ojo: este texto todavía es un borrador. Nos faltan los datos que ves entre corchetes y la revisión legal antes de que el directorio se lance.
+
+Última actualización: [FECHA DE PUBLICACIÓN]
+
+Este aviso explica, sin rodeos, qué datos nos das cuando registras tu negocio en enmirumbo, el directorio de negocios locales, para qué los usamos, qué queda público y cómo puedes pedirnos que los corrijamos o los borremos.
+
+## Quién es responsable de tus datos
+
+El responsable del directorio enmirumbo y de los datos personales que nos das es [NOMBRE O RAZÓN SOCIAL DEL RESPONSABLE — completar antes del lanzamiento], con domicilio en [DOMICILIO DEL RESPONSABLE — completar antes del lanzamiento].
+
+Para cualquier cosa relacionada con tus datos escríbenos al correo contacto@enmirumbo.com o por WhatsApp al [WHATSAPP DEL DIRECTORIO — completar antes del lanzamiento].
+
+## Qué datos recogemos
+
+Los que tú escribes en el formulario de registro:
+
+- Obligatorios: el nombre de tu negocio, la categoría, tu número de WhatsApp de 10 dígitos y tu colonia.
+- Opcionales: qué ofreces, si haces entregas o vas a domicilio, teléfono fijo, dirección o referencias, horario, el link de tu Facebook y, si la subes, una foto de tu negocio.
+
+No te pedimos CURP, RFC, credencial de elector ni datos bancarios. Si nos los mandas por WhatsApp, no los guardamos.
+
+Guardamos también la fecha y la hora en que aceptaste este aviso: es la constancia de que nos diste tu permiso para usar tus datos.
+
+## Para qué usamos tus datos
+
+- Para revisar que tu negocio existe y que el número que registraste es tuyo: te escribimos o te llamamos por WhatsApp antes de publicar.
+- Para publicar tu ficha en el directorio, que es a lo que vino todo esto: que los vecinos te encuentren y te contacten.
+- Para avisarte cuando publicamos tu ficha, para mandarte su link y para decirte, si fuera el caso, por qué no la publicamos.
+- Para contar cuántos negocios se registran y cuántos se publican, en números generales, y saber si el directorio está sirviendo.
+
+No usamos tus datos para publicidad de terceros ni para nada distinto de tener el directorio funcionando.
+
+## Qué queda público y qué no
+
+Cuando aprobamos tu registro, tu ficha se publica y cualquier persona con internet puede verla: el nombre de tu negocio, la categoría, tu colonia, lo que escribiste en "¿Qué ofreces?", tu horario, si haces entregas, el link de tu Facebook y —esto es lo más importante— tu WhatsApp y tu teléfono fijo, con botones para escribirte o marcarte directo. Trátalos como números de contacto de tu negocio: quien sea puede verlos y usarlos.
+
+Publicamos tu colonia, no tu domicilio exacto. Si tú escribes una dirección o referencias en el formulario, eso también se publica tal cual: piénsalo si atiendes desde tu casa.
+
+Esa dirección también alimenta el botón "Cómo llegar" de tu ficha: quien lo toca abre Google Maps en su teléfono, buscando lo que escribiste junto con tu colonia, tu municipio y tu estado.
+
+Si subes una foto de tu negocio, esa foto es pública igual que lo demás. La foto es opcional y debe mostrar tu local, tus productos o tu trabajo: que no salgan personas que se puedan reconocer, porque este aviso cubre tus datos y no la imagen de otras personas. Si una foto no cumple, no la publicamos y te decimos por qué al revisar tu registro. Antes de guardarla la comprimimos y le quitamos los datos ocultos que trae el archivo —como la ubicación GPS de dónde se tomó—: eso no se publica ni se conserva.
+
+Buscadores como Google pueden encontrar tu ficha y mostrarla en sus resultados. Para eso está hecho el directorio.
+
+Lo que nunca se publica: la fecha en que te registraste, las notas internas de la revisión y el motivo por el que, en su caso, no publicamos tu ficha. Eso solo lo ve quien administra el directorio.
+
+## Con quién compartimos tus datos
+
+Con nadie. No vendemos, no rentamos ni intercambiamos tus datos.
+
+Los únicos terceros que participan son los proveedores que hacen funcionar el sitio. Tratan los datos por cuenta nuestra y nada más para lo que hace cada uno:
+
+- Cloudflare: hospeda el sitio y las fotos de los negocios, protege la entrada al panel de quien administra el directorio y revisa, con su herramienta Turnstile, que quien envía un formulario sea una persona y no un programa.
+- Neon: guarda la base de datos del directorio.
+- Twilio: te manda por SMS un código para confirmar tu número, solo si tenemos encendida esa verificación.
+- Resend: manda los correos de aviso que recibe quien administra el directorio.
+- Umami: cuenta las visitas al sitio y algunos clics, sin cookies y sin datos que te identifiquen.
+
+La revisión de Turnstile sigue además las reglas de privacidad que Cloudflare publica para esa herramienta:
+
+Anexo de privacidad de Turnstile, de Cloudflare (en inglés)
+
+Solo entregaríamos datos a una autoridad que nos los pida por escrito y conforme a la ley.
+
+## Cuánto tiempo guardamos tus datos
+
+Guardamos los datos de tu ficha mientras esté publicada, y también si la despublicamos, hasta que nos pidas borrarla. En estos casos los borramos de forma definitiva sin que nos lo pidas:
+
+- Si rechazamos tu registro, sus datos se borran a los 90 días.
+- Si tu registro se queda en revisión y nunca llegamos a verificarlo y publicarlo, sus datos se borran a los 30 días de que lo enviaste.
+- Cuando nos mandas cambios para tu ficha, los guardamos mientras los revisamos. Una vez que los aplicamos o los descartamos, o que los reemplazas con otros más nuevos, se borran a los 30 días.
+
+## Cómo limitar el uso o la divulgación de tus datos
+
+- Dinos qué no quieres publicar: si prefieres que tu teléfono fijo, tu horario o tu dirección no aparezcan en la ficha, escríbenos y los quitamos.
+- Pide que despubliquemos tu ficha: en cuanto nos llega tu mensaje la bajamos del directorio, sin trámites ni explicaciones.
+- Pide que borremos todo: eliminamos tu registro de forma definitiva, no solo lo escondemos.
+
+Todo esto lo hace a mano quien administra el directorio, desde su panel, cuando tú lo pides: no hay un botón que lo haga solo. Escríbenos por WhatsApp o por correo y te confirmamos que quedó hecho en un máximo de 20 días hábiles.
+
+## Tus derechos ARCO
+
+Tienes derecho a acceder a tus datos, a rectificarlos si están mal, a cancelarlos (que los borremos) y a oponerte a que los usemos. Eso son los derechos ARCO.
+
+Los atiende quien administra el directorio desde su panel: según lo que pidas, te manda por WhatsApp una copia de tus datos, corrige tu ficha, la despublica o la borra de forma definitiva.
+
+Para ejercerlos escríbenos al correo contacto@enmirumbo.com o por WhatsApp al [WHATSAPP DEL DIRECTORIO — completar antes del lanzamiento] y dinos:
+
+- qué quieres: ver tus datos, corregirlos, borrarlos u oponerte a que los usemos;
+- el nombre de tu negocio y el número de WhatsApp con el que lo registraste;
+- si es una corrección, qué debe decir.
+
+Te contestamos en un máximo de 20 días hábiles y, si tu solicitud procede, la aplicamos en cuanto te respondemos. No cobramos nada por esto.
+
+Como el registro no usa cuentas ni contraseñas, antes de cambiar o borrar algo confirmamos que la solicitud viene del mismo número de WhatsApp con el que se registró el negocio. Es para que nadie más pueda tocar tu ficha.
+
+## Cookies y datos de navegación
+
+El directorio público no usa cookies de publicidad ni rastrea a los vecinos que lo visitan. El sitio usa solo dos cookies:
+
+- La del municipio que eliges en la página de inicio cuando el directorio está en más de un municipio: guarda solo el nombre de ese municipio tal como aparece en la dirección del sitio, para llevarte ahí la próxima vez, y nada más.
+- La de Cloudflare Access, que solo existe en el panel de administración: mantiene abierta la sesión de quien administra el directorio.
+
+Umami, la herramienta con la que contamos las visitas, no usa cookies.
+
+Cuando haces una búsqueda o envías un formulario del sitio, el servidor usa tu dirección IP para limitar cuántas veces se puede hacer eso en poco tiempo y así frenar el abuso automatizado. No la usa tal cual: la convierte en un código con una clave secreta, y ese código vive solo en su memoria y por menos de una hora. Ni tu IP ni ese código se escriben nunca en la base de datos, ni se ligan a tu ficha.
+
+## Cambios a este aviso
+
+Si cambiamos este aviso, publicamos la versión nueva en esta misma página y actualizamos la fecha de arriba. Si el cambio es importante —por ejemplo, si empezamos a usar tus datos para algo nuevo—, te avisamos por WhatsApp al número que registraste antes de aplicarlo. Darle una repasada a esta página de vez en cuando es la forma de estar al tanto.
+
+## Si crees que no respetamos tus derechos
+
+Puedes acudir a la Secretaría Anticorrupción y Buen Gobierno, que desde 2025 es la autoridad en materia de protección de datos personales en México.
+
+Términos y condiciones
+```
+
+The line "Anexo de privacidad de Turnstile, de Cloudflare (en inglés)" is the link to `https://www.cloudflare.com/turnstile-privacy-policy/`, which opens in a new tab with `rel="noopener noreferrer"`. The last line is the link to `/terminos`.
+
+#### Scenario: the published text is the approved one
+
+- **WHEN** what `/aviso-de-privacidad` shows is compared with this block
+- **THEN** they match paragraph by paragraph, apart from the version that the page prepends to the last-update line
+
+#### Scenario: the notice names the site without a locality
+
+- **WHEN** the owner reads the introduction and the section "Quién es responsable de tus datos"
+- **THEN** the site is "enmirumbo, el directorio de negocios locales", and the address of the responsible party is its placeholder alone
+
+### Requirement: Full text of the terms and conditions (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14.
+
+The content published at `/terminos` MUST be literally the following (the headings marked with `##` are the page's `h2`). It is approved content, not free copy: the prototype's text naming no locality. `src/core/legal/terms.ts` holds it, and a test fails when the module and this block differ.
+
+```
+Términos y condiciones
+
+Ojo: este texto todavía es un borrador. Nos faltan los datos que ves entre corchetes y la revisión legal antes de que el directorio se lance.
+
+Última actualización: [FECHA DE PUBLICACIÓN]
+
+Estas son las reglas de enmirumbo, el directorio de negocios locales, para los negocios que se registran y para los vecinos que los buscan. Al usar el sitio o registrar tu negocio, aceptas lo que dice aquí.
+
+## Qué es enmirumbo
+
+Es un directorio de negocios y servicios locales, organizado por municipio. Sirve para dos cosas: que un negocio publique su ficha gratis y que un vecino lo encuentre y le escriba por WhatsApp. Nada más.
+
+No cobramos por registrarse, no vendemos nada, no cobramos comisiones y no hay cuentas ni contraseñas.
+
+## Somos un intermediario informativo, no el negocio
+
+enmirumbo solo muestra información. No prestamos los servicios ni vendemos los productos que aparecen en las fichas.
+
+Cuando le escribes a un negocio por WhatsApp, sales de este sitio. Lo que pase después —el precio, el trabajo, la entrega, el pago, la garantía, los tiempos y cualquier problema— es un trato directo entre tú y ese negocio. enmirumbo no es parte de ese trato, no lo garantiza, no lo supervisa y no responde por él.
+
+Tampoco respondemos por daños, pérdidas o desacuerdos que salgan de un servicio o una compra contratados con alguien que encontraste aquí. Si algo sale mal, resuélvelo con el negocio; y avísanos, porque nos sirve para moderar el directorio.
+
+## Qué verificamos y qué no
+
+Antes de publicar una ficha le escribimos o le llamamos al número registrado para confirmar dos cosas: que el negocio existe y que el número es de quien lo registró. Eso, y nada más que eso, es lo que significa el sello "Negocio verificado".
+
+Lo que no verificamos: la calidad del trabajo, los precios, que el negocio tenga licencias, permisos o seguros, ni que lo que dice su ficha siga siendo cierto con el tiempo. Esa información la escribe cada negocio y es su responsabilidad que sea verdadera y esté al día.
+
+Si un negocio cierra o cambia sus datos y no nos avisa, su ficha puede quedar desactualizada. Avísanos y la corregimos o la bajamos.
+
+## Reglas para registrar un negocio
+
+Revisamos a mano cada registro antes de publicarlo. Rechazamos —o retiramos, si ya estaba publicada— cualquier ficha que caiga en esto:
+
+- Actividades ilegales, o que necesitan una licencia o un permiso que no se pueda demostrar: venta de medicamentos controlados, armas, préstamos informales y parecidos.
+- Contenido ofensivo, discriminatorio o sexual.
+- Fichas de negocios ajenos registradas por alguien sin autorización del negocio: solo lo registra su dueño o alguien con su permiso.
+- Fotos que no cumplan las reglas de publicación del directorio.
+- Datos falsos, un número de contacto que no es del negocio, o registrar la misma ficha varias veces.
+
+Rechazar no es para siempre: te avisamos por WhatsApp con el motivo y puedes corregir y volver a enviar tu registro. Los datos de los registros rechazados se borran a los 90 días.
+
+## Podemos retirar una ficha
+
+Nos reservamos el derecho de no publicar o de retirar cualquier ficha que rompa estas reglas o que ya no corresponda a un negocio real del municipio donde está publicada. Y si el propio negocio nos pide que la bajemos, la bajamos de inmediato.
+
+## Si ves algo raro
+
+Si encuentras una ficha falsa, un negocio que ya cerró o algo que rompe estas reglas, escríbenos al correo contacto@enmirumbo.com o por WhatsApp al [WHATSAPP DEL DIRECTORIO — completar antes del lanzamiento]. Lo revisamos y actuamos.
+
+## Uso de la información del directorio
+
+Los datos del directorio están para que los vecinos contacten a los negocios uno por uno. Copiarlos de forma masiva —a mano o con programas— para armar otra base de datos, revenderlos o mandar publicidad no está permitido.
+
+## Tus datos personales
+
+Qué datos guardamos, para qué los usamos y qué queda público está explicado en el aviso de privacidad.
+
+Aviso de privacidad
+
+## Cambios a estos términos
+
+Si cambiamos estas reglas, publicamos la versión nueva en esta misma página y actualizamos la fecha de arriba. Seguir usando el sitio después de un cambio significa que lo aceptas.
+
+## Ley aplicable
+
+Estos términos se rigen por las leyes mexicanas. [JURISDICCIÓN PARA CONTROVERSIAS — confirmar en la revisión legal].
+```
+
+The standalone line "Aviso de privacidad" is the link to `/aviso-de-privacidad`.
+
+#### Scenario: the published text is the approved one
+
+- **WHEN** what `/terminos` shows is compared with this block
+- **THEN** they match paragraph by paragraph
+
+#### Scenario: the terms name the site without a locality
+
+- **WHEN** the resident reads the opening of the terms and the section "Qué es enmirumbo"
+- **THEN** the site is "enmirumbo, el directorio de negocios locales", "un directorio de negocios y servicios locales, organizado por municipio", and no locality is named
