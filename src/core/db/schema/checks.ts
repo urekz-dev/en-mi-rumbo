@@ -25,3 +25,11 @@ export function matches(column: AnyPgColumn, pattern: string): SQL {
 export function together(a: AnyPgColumn, b: AnyPgColumn): SQL {
   return sql`(${a} IS NULL) = (${b} IS NULL)`;
 }
+
+/**
+ * A point on the Earth in two columns: both null, or both set, the latitude
+ * within ±90 and the longitude within ±180 decimal degrees.
+ */
+export function coordinates(latitude: AnyPgColumn, longitude: AnyPgColumn): SQL {
+  return sql`${together(latitude, longitude)} AND (${latitude} IS NULL OR (${latitude} BETWEEN -90 AND 90 AND ${longitude} BETWEEN -180 AND 180))`;
+}

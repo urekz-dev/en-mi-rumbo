@@ -18,6 +18,8 @@ const TIZAYUCA: ServedLocality = {
   state: { code: "13", name: "Hidalgo", slug: "hidalgo" },
   timeZone: "America/Mexico_City",
   contactWhatsapp: "7719990001",
+  othersActive: false,
+  seat: null,
 };
 
 const OTHER: ServedLocality = {
@@ -27,6 +29,8 @@ const OTHER: ServedLocality = {
   state: { code: "98", name: "Estado de prueba 98", slug: "estado-de-prueba-98" },
   timeZone: "America/Mexico_City",
   contactWhatsapp: "7719990002",
+  othersActive: false,
+  seat: null,
 };
 
 /** The links of the footer: the two legal pages, which every page shares. */
@@ -324,5 +328,33 @@ describe("The dev footer names the branch and commit deployed (v2)", () => {
     Object.assign(env, { ENVIRONMENT: "stage", DEPLOY_BRANCH: "main", DEPLOY_COMMIT: COMMIT });
 
     expect(await renderNotFound(TIZAYUCA)).not.toContain("Versión de prueba");
+  });
+});
+
+// docs/specs/public-directory.md, "The pages of a locality offer to change
+// municipality while two or more are active (v2)", and the scenario "no
+// chooser" of "While there is one active locality, the root redirects to it
+// (v2)". The middleware reads othersActive with the locality.
+describe("The pages of a locality offer to change municipality while two or more are active (v2)", () => {
+  it("with another locality active, the footer links to the list", async () => {
+    const footer = element(await renderNotFound({ ...TIZAYUCA, othersActive: true }), "footer");
+
+    expect(links(footer)).toEqual([
+      ["/?cambiar", "Cambiar de municipio"],
+      ["/aviso-de-privacidad", "Aviso de privacidad"],
+      ["/terminos", "Términos y condiciones"],
+    ]);
+  });
+
+  // Scenario: no chooser
+  it("as the only active locality, the footer offers no change", async () => {
+    const html = await renderNotFound(TIZAYUCA);
+
+    expect(html).not.toContain("Cambiar de municipio");
+    expect(html).not.toContain("?cambiar");
+  });
+
+  it("outside a locality there is no locality to change", async () => {
+    expect(await renderNotFound()).not.toContain("Cambiar de municipio");
   });
 });

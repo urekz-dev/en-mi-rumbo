@@ -21,3 +21,22 @@ export function localityPath(locality: LocalityRef, ...segments: string[]): stri
     .map((segment) => `/${encodeURIComponent(segment)}`)
     .join("");
 }
+
+/** The query of `/` that chooses a locality from the list: `?elegir={estado}/{municipio}`. */
+export const CHOOSE_PARAM = "elegir";
+
+/** The query of `/` that shows the list even to a visitor who already chose: `?cambiar`. */
+export const CHANGE_PARAM = "cambiar";
+
+/**
+ * Where an entry of the list of localities leads: the root, which stores
+ * the choice in the locality cookie and redirects to the home of `locality`
+ * (`/?elegir=hidalgo/tizayuca`).
+ */
+export function choicePath(locality: LocalityRef): string {
+  const value = [locality.state.slug, locality.slug].map(encodeURIComponent).join("/");
+  return `/?${CHOOSE_PARAM}=${value}`;
+}
+
+/** The list of localities for a visitor who wants to change: `/?cambiar`. */
+export const CHANGE_LOCALITY_PATH = `/?${CHANGE_PARAM}`;

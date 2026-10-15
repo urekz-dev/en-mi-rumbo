@@ -549,6 +549,8 @@ describe("The migration tree applies in full and its constraints survive", () =>
         "reports_status_check",
         "admin_audit_log_action_check",
         "admin_audit_log_previous_status_check",
+        "businesses_pin_check",
+        "localities_coordinates_check",
       ]),
     );
   });
@@ -690,6 +692,18 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
     expect(await pgErrorCode(() => insert({ code: f.localityB, contactWhatsapp: "123" }))).toBe(
       PG.check,
     );
+  });
+
+  it("the coordinates of its seat are optional, both or neither, within range", async () => {
+    const setCoordinates = (values: { latitude?: number | null; longitude?: number | null }) =>
+      pgErrorCode(() =>
+        db((tx) => tx.update(localities).set(values).where(eq(localities.code, f.localityB))),
+      );
+    expect(await setCoordinates({ latitude: 19.8 })).toBe(PG.check);
+    expect(await setCoordinates({ latitude: 91, longitude: 0 })).toBe(PG.check);
+    expect(await setCoordinates({ latitude: 0, longitude: -180.5 })).toBe(PG.check);
+    expect(await setCoordinates({ latitude: 19.8, longitude: -98.9 })).toBeUndefined();
+    expect(await setCoordinates({ latitude: null, longitude: null })).toBeUndefined();
   });
 
   it("a locality is served only with a contact WhatsApp", async () => {

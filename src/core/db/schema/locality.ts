@@ -2,8 +2,17 @@
 // municipalities as reference data, the localities the directory serves, and
 // the zones of each locality, loaded from the SEPOMEX postal catalogue.
 import { sql } from "drizzle-orm";
-import { boolean, char, check, integer, pgTable, text, unique } from "drizzle-orm/pg-core";
-import { matches, PHONE_PATTERN, SLUG_PATTERN } from "./checks.ts";
+import {
+  boolean,
+  char,
+  check,
+  doublePrecision,
+  integer,
+  pgTable,
+  text,
+  unique,
+} from "drizzle-orm/pg-core";
+import { coordinates, matches, PHONE_PATTERN, SLUG_PATTERN } from "./checks.ts";
 
 /** INEGI states, keyed by their two-digit code (Hidalgo is `13`). */
 export const states = pgTable(
@@ -50,7 +59,10 @@ export const municipalities = pgTable(
  * municipality answers 404. The contact WhatsApp is the public number of the
  * locality's admins ("Perdí mi enlace", ARCO requests): a real number that a
  * super admin sets in the database, never in the repository. Who administers
- * a locality is in `role_assignments` (./access.ts).
+ * a locality is in `role_assignments` (./access.ts). The coordinates are those
+ * of its municipal seat in INEGI's catalogue of localities, loaded by a data
+ * migration; the root highlights the active locality nearest to the visitor
+ * among those that have them (src/core/locality/nearest.ts).
  */
 export const localities = pgTable(
   "localities",
@@ -62,6 +74,8 @@ export const localities = pgTable(
     contactWhatsapp: text("contact_whatsapp"),
     dailyRegistrationThreshold: integer("daily_registration_threshold"),
     active: boolean("active").notNull().default(false),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
   },
   (t) => [
     check("localities_time_zone_check", sql`btrim(${t.timeZone}) <> ''`),
@@ -71,6 +85,7 @@ export const localities = pgTable(
       "localities_active_contact_check",
       sql`NOT ${t.active} OR ${t.contactWhatsapp} IS NOT NULL`,
     ),
+    check("localities_coordinates_check", coordinates(t.latitude, t.longitude)),
     check(
       "localities_daily_registration_threshold_check",
       sql`${t.dailyRegistrationThreshold} IS NULL OR ${t.dailyRegistrationThreshold} > 0`,

@@ -64,13 +64,22 @@ curl "http://localhost:4321/cdn-cgi/local/scheduled?cron=0+*+*+*+*"
 
 Every public page of a locality lives under `/{estado}/{municipio}/`, in `src/pages/[state]/[municipality]/` ([ADR 0007](docs/adr/0007-single-host-urls-with-state-and-municipality.md)). Before the page runs, the middleware (`src/lib/locality.ts`) resolves the active locality through the cached `HYPERDRIVE`, one small query that Hyperdrive answers from its cache, and hands it to the page as `Astro.locals.locality` (`requireLocality`). An unknown state or municipality, one under another state, or a locality that is not active answers 404 with the site's 404 page. Activating a locality is a data change; no name is written in the code.
 
-| Active localities | `/`                                                  | `/{municipio}` (`/tizayuca`)          |
-| ----------------- | ---------------------------------------------------- | ------------------------------------- |
-| None              | The placeholder, 200                                 | 404                                   |
-| One               | 301 to its home, such as `/hidalgo/tizayuca`         | 301 to its home, for printed material |
-| Two or more       | The placeholder until the list of localities arrives | 404                                   |
+Public URLs always carry the state and the municipality: there is no short alias, so `/tizayuca`, like any single segment that is not a page of the site, answers 404.
 
-The redirects tell browsers to keep them for an hour at most, because where `/` leads changes with the number of active localities. Internal links are built with `localityPath` (`src/core/locality/paths.ts`) and absolute URLs, such as canonicals and share previews, with `absoluteUrl` (`src/lib/site-url.ts`) from `SITE_URL`; outside `local`, without an https `SITE_URL` the pages leave them out. `test/scripts/internal-links.test.ts` fails on a link written in the code that names no page, and `test/e2e/internal-links.spec.ts` follows every link and form of the rendered site. The end-to-end tests migrate and seed `DATABASE_URL`, or the development database when it is unset, so Tizayuca is their only active locality.
+| Active localities | `/`                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| None              | The placeholder, 200                                                                         |
+| One               | 301 to its home, such as `/hidalgo/tizayuca`, kept by browsers for an hour at most           |
+| Two or more       | The list of localities, or a 302 to the one the visitor chose (`locality` cookie), see below |
+
+With two or more active localities (`src/core/locality/root.ts`, `src/components/LocalityList.astro`):
+
+- `/` lists them, each linking to `/?elegir={estado}/{municipio}`. That answer stores the choice in the `locality` cookie, which holds only the municipality slug (`Path=/`, a year, `HttpOnly`, `SameSite=Lax`, `Secure` over HTTPS), and redirects to the home. Later visits to `/` with the cookie redirect there too; a cookie that names no active locality is ignored.
+- Those redirects are a 302 with `Cache-Control: no-store`, and the list carries `no-store` too: what `/` answers depends on each visitor's cookie and location, so no browser or cache may keep it. The 301 of a single locality is the only redirect browsers keep.
+- The footer of every page of a locality links to `/?cambiar` ("Cambiar de municipio"), the list even for a visitor who chose. `othersActive`, read with the locality by the middleware, tells it whether another locality is active.
+- The root never redirects by the visitor's location. The list highlights, as "Te queda más cerca", the active locality whose municipal seat is nearest to the approximate location Cloudflare attaches to the request (`request.cf`, `src/core/locality/nearest.ts`); the location is used for that answer only. A locality without seat coordinates is listed but never highlighted.
+
+Internal links are built with `localityPath` (`src/core/locality/paths.ts`) and absolute URLs, such as canonicals and share previews, with `absoluteUrl` (`src/lib/site-url.ts`) from `SITE_URL`; outside `local`, without an https `SITE_URL` the pages leave them out. `test/scripts/internal-links.test.ts` fails on a link written in the code that names no page, and `test/e2e/internal-links.spec.ts` follows every link and form of the rendered site. The end-to-end tests migrate and seed `DATABASE_URL`, or the development database when it is unset, so Tizayuca is their only active locality. After them, the `phone, two localities` project of `playwright.config.ts` adds a fictitious second locality (`test/e2e/two-localities/`), tests the list, the cookie and the link to change municipality, crawls the site again and removes it. `astro preview` gives every request the approximate location of the machine; a request with Miniflare's `MF-CF-Blob` header (JSON of the `cf` object) is placed elsewhere.
 
 ### Legal pages
 
@@ -112,7 +121,7 @@ vp run db:seed      # insert the fictitious businesses (safe to run again)
 - The first migration enables the `pg_trgm` and `unaccent` extensions.
 - The search (`src/core/search/`) matches the normalized name and "¿Qué ofreces?" of each business (`name_normalized` and `what_you_offer_normalized`, with trigram indexes) and the names of its trades. The database generates those two columns with the SQL function `search_normalize`, so no code writes them; `normalizeText` (`src/core/search/normalize.ts`) normalizes what a resident types the same way. The public search, like every public page, reads through the cached `HYPERDRIVE`: a change made in the panel can take up to a minute to show.
 - The data model lives in `src/core/db/schema/` ([data-model spec](docs/specs/data-model.md)): the INEGI states and municipalities, the localities the directory serves, their zones, the global categories and trades, businesses and their trades, pending edits, reports and the admin audit log. Every relation to a business deletes with it, so a permanent deletion leaves nothing behind; the tests fail when one does not, and when the schema changes without its migration.
-- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)), its zones from SEPOMEX, and the [categories and trades](#categories-and-trades). `vp run db:migrate` alone leaves a database ready to use; the only seed is the [fictitious one](#fictitious-seed).
+- Reference data that every environment needs, production included, ships as data migrations, never as seeds: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities, Tizayuca's locality, inactive (see [Panel users and roles](#panel-users-and-roles)), the coordinates of its municipal seat, its zones from SEPOMEX, and the [categories and trades](#categories-and-trades). `vp run db:migrate` alone leaves a database ready to use; the only seed is the [fictitious one](#fictitious-seed).
 
 ### INEGI catalogue
 
@@ -125,6 +134,12 @@ The codes and names are INEGI's, unchanged. The slugs are ours, and INEGI does n
 - The migration holds the data; INEGI's files are not kept in the repository. The tests check what it leaves in the database: the 32 states, the 2,478 municipalities, Tizayuca and the slugs.
 - It was written by `vp run db:inegi <states.csv> <municipalities.csv> <YYYY-MM> <migration.sql>`, from the UTF-8 CSV of each zip (`AGEEML_*_utf*.csv`, SHA-256 `b9eaa950…` and `2f2d08c8…` for the 2026-06 catalogue) and the fecha de corte shown on the catalogue page. The slug rules and the slugs chosen by hand are in `scripts/catalogues/inegi-catalogue.ts`. When two municipalities of a state would share a slug, the script stops and names them until someone chooses their slugs in `MUNICIPALITY_SLUGS`.
 - The migration is applied and never changes: a newer INEGI catalogue ships in a new data migration, written from the new files with the same rules.
+
+The coordinates of Tizayuca's municipal seat, INEGI's locality `130690001` (Tizayuca), place the locality for the suggestion of the nearest one at the root. `drizzle/0009_tizayuca_coordinates.sql` sets them, written by hand from the record of INEGI's web service of the same catalogue, [`wscatgeo/v2/localidades/13/069/U`](https://gaia.inegi.org.mx/wscatgeo/v2/localidades/13/069/U), periodo 2015-06-01, consulted on 2026-10-14: latitude 19.8410889, longitude -98.9815842, INEGI's decimal degrees unchanged. The complete catalogue of localities ([`catun_localidad.zip`](https://www.inegi.org.mx/contenidos/app/ageeml/catun_localidad.zip), generated on 2025-01-14, SHA-256 `927609ed…`) gives the same point, 19°50´27.920 N, 098°58´53.703 W. The migration carries the credit:
+
+> Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, servicio web wscatgeo v2, localidad 130690001 (periodo 2015-06-01), consultado el 2026-10-14.
+
+The columns are optional (`localities.latitude` and `localities.longitude`, both or neither, within range); another locality's seat ships with that locality's reference data.
 
 ### SEPOMEX zones
 

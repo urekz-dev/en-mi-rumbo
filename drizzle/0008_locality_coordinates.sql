@@ -1,0 +1,3 @@
+ALTER TABLE "localities" ADD COLUMN "latitude" double precision;--> statement-breakpoint
+ALTER TABLE "localities" ADD COLUMN "longitude" double precision;--> statement-breakpoint
+ALTER TABLE "localities" ADD CONSTRAINT "localities_coordinates_check" CHECK (("localities"."latitude" IS NULL) = ("localities"."longitude" IS NULL) AND ("localities"."latitude" IS NULL OR ("localities"."latitude" BETWEEN -90 AND 90 AND "localities"."longitude" BETWEEN -180 AND 180)));

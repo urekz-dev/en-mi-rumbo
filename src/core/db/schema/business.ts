@@ -20,7 +20,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { BUSINESS_ID_PATTERN } from "../../business/id.ts";
-import { matches, oneOf, PHONE_PATTERN, together } from "./checks.ts";
+import { coordinates, matches, oneOf, PHONE_PATTERN, together } from "./checks.ts";
 import { categories, trades } from "./catalogue.ts";
 import { localities, zones } from "./locality.ts";
 
@@ -134,10 +134,7 @@ export const businesses = pgTable(
       "businesses_reconsent_check",
       together(t.reconsentedToNoticeAt, t.reconsentedToNoticeVersion),
     ),
-    check(
-      "businesses_pin_check",
-      sql`${together(t.latitude, t.longitude)} AND (${t.latitude} IS NULL OR (${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180))`,
-    ),
+    check("businesses_pin_check", coordinates(t.latitude, t.longitude)),
     check("businesses_photo_key_check", matches(t.photoKey, PHOTO_KEY_PATTERN)),
     check(
       "businesses_rejection_check",

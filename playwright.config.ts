@@ -16,6 +16,8 @@ for (const binding of ["HYPERDRIVE", "HYPERDRIVE_FRESH"]) {
   process.env[`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_${binding}`] = databaseUrl;
 }
 
+const PHONE = { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } };
+
 export default defineConfig({
   testDir: "./test/e2e",
   globalSetup: "./test/e2e/global-setup.ts",
@@ -25,9 +27,32 @@ export default defineConfig({
   },
   projects: [
     {
-      // The site is designed for a 390 px wide phone.
+      // The site is designed for a 390 px wide phone. The seed leaves one
+      // active locality, Tizayuca.
       name: "phone",
-      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } },
+      use: PHONE,
+      testIgnore: "two-localities/**",
+    },
+    // The same site with a second, fictitious active locality
+    // (test/e2e/two-localities/): the list of localities at the root, the
+    // locality cookie and the link to change municipality, and the crawls
+    // again, now through the list. It runs after "phone", whose tests expect
+    // Tizayuca alone, and its teardown removes the second locality.
+    {
+      name: "second locality",
+      testMatch: "two-localities/second-locality.setup.ts",
+      dependencies: ["phone"],
+      teardown: "no second locality",
+    },
+    {
+      name: "no second locality",
+      testMatch: "two-localities/second-locality.teardown.ts",
+    },
+    {
+      name: "phone, two localities",
+      use: PHONE,
+      dependencies: ["second locality"],
+      testMatch: ["two-localities/*.spec.ts", "surfaces.spec.ts", "internal-links.spec.ts"],
     },
   ],
   webServer: {

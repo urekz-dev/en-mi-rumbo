@@ -40,6 +40,8 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
           contactWhatsapp: localities.contactWhatsapp,
           dailyRegistrationThreshold: localities.dailyRegistrationThreshold,
           active: localities.active,
+          latitude: localities.latitude,
+          longitude: localities.longitude,
         })
         .from(localities)
         .innerJoin(municipalities, eq(municipalities.code, localities.code))
@@ -57,6 +59,10 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
       contactWhatsapp: null,
       dailyRegistrationThreshold: null,
       active: false,
+      // Its municipal seat, INEGI's locality 130690001
+      // (drizzle/0009_tizayuca_coordinates.sql).
+      latitude: 19.8410889,
+      longitude: -98.9815842,
     });
   });
 });
@@ -156,6 +162,10 @@ describe("The catalogue of states and municipalities is reference data and only 
       state: { code: STATE, name: `Estado de prueba ${STATE}`, slug: STATE_SLUG },
       timeZone: "America/Mexico_City",
       contactWhatsapp: "7719990001",
+      // Other test files activate their own fixture localities meanwhile;
+      // test/worker/locality-routes.test.ts checks this flag.
+      othersActive: expect.any(Boolean),
+      seat: null,
     });
   });
 
