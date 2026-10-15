@@ -29,6 +29,12 @@ const OTHER: ServedLocality = {
   contactWhatsapp: "7719990002",
 };
 
+/** The links of the footer: the two legal pages, which every page shares. */
+const LEGAL_LINKS = [
+  ["/aviso-de-privacidad", "Aviso de privacidad"],
+  ["/terminos", "Términos y condiciones"],
+];
+
 let container: AstroContainer;
 
 beforeAll(async () => {
@@ -122,20 +128,30 @@ describe("Global layout with header and footer on every page", () => {
     expect(footer).toContain("\nHecho para los vecinos de Tizayuca, Hidalgo.\n");
   });
 
-  // Scenario: footer with the legal links and no dead links. The legal links
-  // arrive with their pages (EMR-31): until then the footer links nowhere.
-  it("the footer identifies the site and has no dead links", async () => {
+  // Scenario: footer with the legal links and no dead links (that each one
+  // answers is checked end to end, in test/e2e/surfaces.spec.ts)
+  it("the footer identifies the site and links to the two legal pages", async () => {
     const footer = element(await renderNotFound(TIZAYUCA), "footer");
 
     expect(visibleText(footer)).toMatch(/^\s*enmirumbo\n/);
-    expect(links(footer)).toEqual([]);
+    expect(links(footer)).toEqual(LEGAL_LINKS);
   });
 
-  it("outside a locality the footer names no locality but keeps the brand", async () => {
+  // Scenario: the footer links can be tapped on a phone (measured end to end)
+  it("each footer link has a touch area of at least 44px", async () => {
+    const footer = element(await renderNotFound(TIZAYUCA), "footer");
+    const anchors = footer.match(/<a\b[^>]*>/g) ?? [];
+
+    expect(anchors).toHaveLength(2);
+    for (const anchor of anchors) expect(anchor).toMatch(/\bmin-h-11\b/);
+  });
+
+  it("outside a locality the footer names no locality but keeps the brand and the legal links", async () => {
     const footer = element(await renderNotFound(), "footer");
 
     expect(visibleText(footer)).not.toContain("Hecho para los vecinos");
     expect(visibleText(footer)).toMatch(/^\s*enmirumbo\n/);
+    expect(links(footer)).toEqual(LEGAL_LINKS);
   });
 });
 

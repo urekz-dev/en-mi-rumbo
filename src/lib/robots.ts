@@ -1,8 +1,11 @@
 // What search engines may index, per environment (ADR 0008). Every deployed
 // environment, production included, stays out of search results until the
 // cut-over: each Worker response carries `X-Robots-Tag: noindex` and
-// `/robots.txt` closes the whole site. Local development stays indexable, as
-// it always was. An unknown or missing ENVIRONMENT counts as deployed.
+// `/robots.txt` closes the whole site. Static assets, such as the prerendered
+// legal pages, never reach the Worker: the build gives them the same header
+// through `_headers`, by the same rule (src/integrations/static-noindex.ts).
+// Local development stays indexable, as it always was. An unknown or missing
+// ENVIRONMENT counts as deployed.
 
 export const ROBOTS_HEADER = "X-Robots-Tag";
 export const NOINDEX = "noindex";

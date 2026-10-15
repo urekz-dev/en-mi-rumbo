@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Smoke test after a deploy: the home page answers 200, following its
 # redirects within https (with one active locality, / answers a 301 to it), and
-# asks not to be indexed, and /robots.txt closes the site (ADR 0008). A new
-# Worker or version can take a few seconds to answer everywhere, so each check
-# is retried.
+# asks not to be indexed; so does the privacy notice, a prerendered page that
+# Cloudflare serves without the Worker, which gets the header from the
+# _headers file of the build; and /robots.txt closes the site (ADR 0008). A
+# new Worker or version can take a few seconds to answer everywhere, so each
+# check is retried.
 #
 # Usage: scripts/deploy/smoke-test.sh <https origin>
 #   for example scripts/deploy/smoke-test.sh https://enmirumbo.urekz.workers.dev
@@ -47,7 +49,7 @@ final_headers() {
   awk '/^HTTP\//{block = ""} {block = block $0 "\n"} END {printf "%s", block}' "${work}/headers"
 }
 
-# check_home and check_robots print why they failed, if they did.
+# check_home, check_static and check_robots print why they failed, if they did.
 check_home() {
   local status
   status="$(fetch "${origin}/" --location --max-redirs 5 --proto-redir '=https')"
@@ -55,6 +57,16 @@ check_home() {
     echo "GET / answered ${status}, expected 200"
   elif ! final_headers | grep -iqE '^x-robots-tag:.*noindex'; then
     echo "GET / has no X-Robots-Tag: noindex header"
+  fi
+}
+
+check_static() {
+  local status
+  status="$(fetch "${origin}/aviso-de-privacidad")"
+  if [ "${status}" != "200" ]; then
+    echo "GET /aviso-de-privacidad answered ${status}, expected 200"
+  elif ! final_headers | grep -iqE '^x-robots-tag:.*noindex'; then
+    echo "GET /aviso-de-privacidad has no X-Robots-Tag: noindex header"
   fi
 }
 
@@ -68,7 +80,7 @@ check_robots() {
   fi
 }
 
-for check in check_home check_robots; do
+for check in check_home check_static check_robots; do
   attempt=1
   while :; do
     problem="$(${check})"
@@ -82,4 +94,4 @@ for check in check_home check_robots; do
   done
 done
 
-echo "smoke-test: ${origin} answers 200, sends X-Robots-Tag: noindex and closes robots.txt"
+echo "smoke-test: ${origin} answers 200, sends X-Robots-Tag: noindex, also on its static pages, and closes robots.txt"

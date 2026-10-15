@@ -24,6 +24,7 @@ import {
   seed,
   seedSummary,
 } from "../../src/core/db/seed/index.ts";
+import { NOTICE_VERSION } from "../../src/core/legal/version.ts";
 import { normalizeText, searchTerms } from "../../src/core/search/normalize.ts";
 import { db, FIRST_FIXTURE_CODE } from "./fixtures.ts";
 
@@ -308,6 +309,13 @@ describe("Review status, origin and lifecycle timestamps", () => {
 });
 
 describe("The consent record stores which notice version it was given against", () => {
+  // docs/specs/legal-pages.md, "The privacy notice has a stable version
+  // declared in a single place": the seed reads it, with no copy.
+  it("the seed names the current notice version of the single module, and an earlier one", () => {
+    expect(SEED_NOTICE_VERSION).toBe(NOTICE_VERSION);
+    expect(Number(SEED_EARLIER_NOTICE_VERSION)).toBeLessThan(Number(SEED_NOTICE_VERSION));
+  });
+
   it("the demo seed seeds the version, except the two cases of the panel", async () => {
     const rows = await rolledBack(seedThenRead);
     const consent = ({

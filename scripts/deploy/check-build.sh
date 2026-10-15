@@ -9,7 +9,11 @@
 #   - the hourly Cron Trigger on stage and prod, none on dev (ADR 0013);
 #   - HYPERDRIVE and HYPERDRIVE_FRESH set to two different real Hyperdrive ids,
 #     so a placeholder id never reaches Cloudflare;
-#   - SITE_URL is an https origin.
+#   - SITE_URL is an https origin;
+#   - the _headers file of the static assets gives every one of them
+#     X-Robots-Tag: noindex, because Cloudflare serves them (the prerendered
+#     legal pages, the CSS) without the Worker that adds it to the rest
+#     (src/integrations/static-noindex.ts).
 # An empty ACCESS_AUD is only a warning: the panel stays closed (403) until the
 # Access application exists.
 #
@@ -95,6 +99,26 @@ site_url="$(jq -r '.vars.SITE_URL // ""' "${config}")"
   error "SITE_URL is '${site_url}', expected an https origin without a path or trailing slash"
 
 [ -n "$(jq -r '.vars.ACCESS_TEAM_DOMAIN // ""' "${config}")" ] || error "ACCESS_TEAM_DOMAIN is empty"
+
+# Whether a _headers file has a rule for /* that sets X-Robots-Tag: noindex.
+has_noindex_rule() {
+  awk '
+    /^[[:space:]]*(#|$)/ { next }
+    /^[^[:space:]]/ { every = ($1 == "/*"); next }
+    every && tolower($0) ~ /^[[:space:]]+x-robots-tag:[[:space:]]*noindex[[:space:]]*$/ { found = 1 }
+    END { exit !found }
+  ' "$1"
+}
+
+assets="$(jq -r '.assets.directory // ""' "${config}")"
+if [ -z "${assets}" ]; then
+  error "the build declares no static assets directory (assets.directory)"
+else
+  headers="$(dirname "${config}")/${assets}/_headers"
+  if [ ! -f "${headers}" ] || ! has_noindex_rule "${headers}"; then
+    error "${headers} does not give every static asset X-Robots-Tag: noindex, so the prerendered pages would be indexable (src/integrations/static-noindex.ts)"
+  fi
+fi
 if [ -z "$(jq -r '.vars.ACCESS_AUD // ""' "${config}")" ]; then
   echo "::warning::check-build (${env_name}): ACCESS_AUD is empty, so /admin answers 403 to everyone until it is set"
 fi

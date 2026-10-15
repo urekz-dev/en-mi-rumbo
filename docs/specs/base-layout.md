@@ -651,12 +651,17 @@ Every surface of the site —public pages, admin panel, metadata, share preview,
 
 Added in v2 — source: ADR 0008.
 
-In `dev`, `stage` and production, every response of the Worker —pages, errors, `/robots.txt` and any other route— MUST carry `X-Robots-Tag: noindex`, and `/robots.txt` MUST close the whole site (`User-agent: *` and `Disallow: /`). Production is included until the cut-over attaches the apex and `www`; the story of the cut-over lifts it. Until then this requirement wins over the ones that make pages indexable (the legal pages, trade pages with published businesses) and over the open `robots.txt` of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant". A response that already carries a stricter value, such as the admin panel's `noindex, nofollow`, MUST keep it. An `ENVIRONMENT` that is missing or is not exactly `local`, `dev`, `stage` or `prod` MUST count as deployed. Locally nothing changes: no header, and `/robots.txt` allows the site and excludes `/admin`. Static files that Cloudflare serves without the Worker (the hashed CSS and JavaScript under `/_astro/`) do not carry the header; the closed `robots.txt` covers them.
+In `dev`, `stage` and production, every response of the Worker —pages, errors, `/robots.txt` and any other route— MUST carry `X-Robots-Tag: noindex`, and `/robots.txt` MUST close the whole site (`User-agent: *` and `Disallow: /`). Production is included until the cut-over attaches the apex and `www`; the story of the cut-over lifts it. Until then this requirement wins over the ones that make pages indexable (the legal pages, trade pages with published businesses) and over the open `robots.txt` of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant". A response that already carries a stricter value, such as the admin panel's `noindex, nofollow`, MUST keep it. An `ENVIRONMENT` that is missing or is not exactly `local`, `dev`, `stage` or `prod` MUST count as deployed. Locally nothing changes: no header, and `/robots.txt` allows the site and excludes `/admin`. Cloudflare serves the static files of the build —the prerendered legal pages and the hashed CSS and JavaScript under `/_astro/`— without invoking the Worker, so they MUST get the header from the `_headers` file of the build: the build of an environment that blocks indexing, by the same rule as the Worker, adds a rule that gives every static file `X-Robots-Tag: noindex`, and a local build adds none. The deploy MUST refuse a build without that rule, and its smoke test checks a prerendered page. When the cut-over lets production be indexed, its builds stop adding the rule with no other change.
 
 #### Scenario: any response of a deployed environment
 
 - **WHEN** a page, a nonexistent address or any other route of `dev`, `stage` or production is requested
 - **THEN** the response carries `X-Robots-Tag: noindex`
+
+#### Scenario: a prerendered page of a deployed environment
+
+- **WHEN** `/aviso-de-privacidad` or `/terminos` of `dev`, `stage` or production is requested
+- **THEN** the response carries `X-Robots-Tag: noindex`, although Cloudflare serves it without the Worker
 
 #### Scenario: the panel keeps its stricter value
 
@@ -676,4 +681,4 @@ In `dev`, `stage` and production, every response of the Worker —pages, errors,
 #### Scenario: local
 
 - **WHEN** the site runs locally (`ENVIRONMENT` is `local`)
-- **THEN** no response carries `X-Robots-Tag`, and `/robots.txt` says `User-agent: *` and `Disallow: /admin`
+- **THEN** no response carries `X-Robots-Tag`, not even a prerendered page, and `/robots.txt` says `User-agent: *` and `Disallow: /admin`
