@@ -3,10 +3,14 @@
 // footer on every page"): the brand alone, the line for the neighbours of the
 // locality, read from the locality record (PRD §5), and the links to the two
 // legal pages, each with a touch area of at least 44px. Outside a locality
-// there is no locality to name, so the neighbours line is left out (v2). On
-// dev it also names the branch and commit deployed (docs/specs/deployment.md,
-// "The dev footer names the branch and commit deployed (v2)"). No client
-// JavaScript.
+// there is no locality to name, so the neighbours line is left out (v2).
+// While another locality is active too, a page of a locality offers to change
+// municipality with a link to the list (docs/specs/public-directory.md, "The
+// pages of a locality offer to change municipality while two or more are
+// active (v2)"). On dev it also names the branch and commit deployed
+// (docs/specs/deployment.md, "The dev footer names the branch and commit
+// deployed (v2)"). No client JavaScript.
+import { CHANGE_LOCALITY_PATH } from "../core/locality/paths.ts";
 import type { ServedLocality } from "../core/locality/served.ts";
 import type { DeployInfo } from "../lib/deploy-info.ts";
 
@@ -25,6 +29,14 @@ const { locality, deploy } = Astro.props;
       <p data-testid="neighbours-line">
         Hecho para los vecinos de {locality.name}, {locality.state.name}.
       </p>
+    )}
+    {locality?.othersActive && (
+      <a
+        href={CHANGE_LOCALITY_PATH}
+        class="inline-flex min-h-11 items-center self-start font-semibold text-ink underline underline-offset-4"
+      >
+        Cambiar de municipio
+      </a>
     )}
     <nav aria-label="Enlaces legales" class="mt-2 flex flex-wrap gap-x-4">
       <a

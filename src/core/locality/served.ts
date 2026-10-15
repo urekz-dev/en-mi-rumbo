@@ -3,10 +3,11 @@
 // and answers 404 when it returns null: an unknown state or municipality, a
 // municipality under another state, one without a locality, or an inactive
 // locality. Activating a locality is a data change, never a code change.
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.ts";
 import { SLUG_PATTERN } from "../db/schema/checks.ts";
 import { localities, municipalities, states } from "../db/schema/index.ts";
+import type { Coordinates } from "./nearest.ts";
 
 export interface ServedLocality {
   /** INEGI code of the municipality, such as `13069`. */
@@ -18,6 +19,18 @@ export interface ServedLocality {
   timeZone: string;
   /** The public number of the locality's admins, the one "Perdí mi enlace" opens. */
   contactWhatsapp: string;
+  /**
+   * Whether another locality is active too, when it was read: the visitor
+   * can then change locality (public-directory, "The pages of a locality
+   * offer to change municipality while two or more are active (v2)").
+   */
+  othersActive: boolean;
+  /**
+   * The coordinates of its municipal seat, from INEGI, or null while its
+   * reference data has none: a locality without them is listed at the root
+   * but never suggested as the nearest.
+   */
+  seat: Coordinates | null;
 }
 
 const SLUG = new RegExp(SLUG_PATTERN);
@@ -39,6 +52,12 @@ async function selectActive(db: Db, where?: SQL): Promise<ServedLocality[]> {
       stateSlug: states.slug,
       timeZone: localities.timeZone,
       contactWhatsapp: localities.contactWhatsapp,
+      othersActive: sql<boolean>`exists (
+        select 1 from ${localities} as other
+        where other.active and other.code <> ${localities.code}
+      )`,
+      latitude: localities.latitude,
+      longitude: localities.longitude,
     })
     .from(localities)
     .innerJoin(municipalities, eq(municipalities.code, localities.code))
@@ -57,6 +76,11 @@ async function selectActive(db: Db, where?: SQL): Promise<ServedLocality[]> {
             state: { code: row.stateCode, name: row.stateName, slug: row.stateSlug },
             timeZone: row.timeZone,
             contactWhatsapp: row.contactWhatsapp,
+            othersActive: row.othersActive,
+            seat:
+              row.latitude === null || row.longitude === null
+                ? null
+                : { latitude: row.latitude, longitude: row.longitude },
           },
         ],
   );
@@ -81,8 +105,8 @@ export async function servedLocality(
 
 /**
  * Every active locality, by state slug and then municipality slug: what the
- * root and the short alias decide on (./root.ts), and the localities the
- * sitemap lists.
+ * root decides on and lists (./root.ts), and the localities the sitemap
+ * lists.
  */
 export function activeLocalities(db: Db): Promise<ServedLocality[]> {
   return selectActive(db);

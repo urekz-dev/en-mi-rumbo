@@ -1150,7 +1150,7 @@ Every public route that shows the data of a locality (home, category listings, t
 #### Scenario: the same path without the prefix
 
 - **WHEN** someone opens `/plomeria-haciendas-de-tizayuca` while one locality is active
-- **THEN** it does not render the listing: it answers 404 (only `/` and `/tizayuca` redirect, see the next requirements)
+- **THEN** it does not render the listing: it answers 404 (only `/` redirects, see the next requirements)
 
 #### Scenario: links keep the prefix
 
@@ -1178,22 +1178,17 @@ A state or municipality that does not exist, or that exists in the INEGI catalog
 - **WHEN** someone opens `/jalisco/tizayuca/`
 - **THEN** the answer is 404
 
-### Requirement: While there is one active locality, the root and the alias redirect to it (v2)
+### Requirement: While there is one active locality, the root redirects to it (v2)
 
-Added in v2 — source: ADR 0007, PRD §3 (Flow F), PRD §9.
+Added in v2 — source: ADR 0007, PRD §3 (Flow F), PRD §9. Amended on 2026-10-14 by decision of the product owner: there is no short alias (see "There is no short alias of a locality (v2)"); until then this requirement also redirected `/tizayuca`.
 
-While exactly one locality is active, `/` MUST answer a 301 redirect to that locality (`/hidalgo/tizayuca` for Tizayuca), and the short alias `/tizayuca` MUST answer the same 301 so that printed material keeps working. No locality chooser is shown in the interface.
+While exactly one locality is active, `/` MUST answer a 301 redirect to that locality (`/hidalgo/tizayuca` for Tizayuca). No locality chooser is shown in the interface: the locality cookie, `?elegir=` and `?cambiar` change nothing, and `/` sets no cookie.
 
-The destination and the alias MUST come from the locality record, never from the code: the alias is the municipality slug of the active locality, and any other path of a single segment that is not a page of the site answers 404. Because where the root leads changes when a second locality is activated, the redirect MUST tell browsers to keep it for an hour at most (`Cache-Control: max-age=3600`); a 301 without it stays in a browser for good.
+The destination MUST come from the locality record, never from the code. Because where the root leads changes when a second locality is activated, the redirect MUST tell browsers to keep it for an hour at most (`Cache-Control: max-age=3600`); a 301 without it stays in a browser for good.
 
 #### Scenario: the root
 
 - **WHEN** someone opens `/` and only Tizayuca is active
-- **THEN** the answer is a 301 to `/hidalgo/tizayuca`
-
-#### Scenario: the alias
-
-- **WHEN** someone opens `/tizayuca`
 - **THEN** the answer is a 301 to `/hidalgo/tizayuca`
 
 #### Scenario: no chooser
@@ -1201,15 +1196,31 @@ The destination and the alias MUST come from the locality record, never from the
 - **WHEN** the home of Tizayuca is reviewed while it is the only active locality
 - **THEN** it offers no control to change locality
 
+#### Scenario: a cookie or a choice changes nothing
+
+- **WHEN** someone opens `/` with a locality cookie of another municipality, `/?elegir=hidalgo/tizayuca` or `/?cambiar` while only Tizayuca is active
+- **THEN** each answer is the same 301 to `/hidalgo/tizayuca`, and none sets a cookie
+
 #### Scenario: read from the record
 
 - **WHEN** the only active locality is a fixture locality with another state and municipality
-- **THEN** `/` and its municipality slug redirect to its own `/{estado}/{municipio}`, and `/tizayuca` answers 404
+- **THEN** `/` redirects to its own `/{estado}/{municipio}`
 
 #### Scenario: browsers ask again
 
-- **WHEN** the redirect of `/` or of the alias is read
+- **WHEN** the redirect of `/` is read
 - **THEN** it carries `Cache-Control: max-age=3600`
+
+### Requirement: There is no short alias of a locality (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14; amends ADR 0007.
+
+Public URLs always carry the state and the municipality. A path of a single segment that is not a page of the site, such as the municipality slug alone (`/tizayuca`), MUST answer 404 with the site's 404 page, whatever the number of active localities and whatever cookie the request carries. Printed material and shared links use the full path (`/hidalgo/tizayuca`).
+
+#### Scenario: the municipality slug alone
+
+- **WHEN** someone opens `/tizayuca` while none, one or two localities are active
+- **THEN** the answer is 404, never a redirect
 
 ### Requirement: With two or more active localities the root lists them and never redirects by location (v2)
 
@@ -1217,10 +1228,12 @@ Added in v2 — source: ADR 0007, PRD §3 (Flow F).
 
 When two or more localities are active, `/` MUST show the list of localities, each linking to its home, and MUST NOT redirect automatically based on the visitor's location. The decision rests on advice that content must not adapt itself to the visitor's IP and on the fact that crawlers request from another country.
 
+The list is headed "¿En qué municipio buscas?" and says "Elige tu municipio y te enseñamos los negocios de ahí. La próxima vez te llevamos directo.". Each entry names the municipality and its state, read from the locality record, in the order of the state slug and then the municipality slug, and is a link with a touch area of at least 44px. The link of an entry leads to its home through the choice (`/?elegir={estado}/{municipio}`, see "The chosen locality is remembered in a cookie that holds only its slug (v2)"), so following it is choosing; it works without JavaScript. The page belongs to no locality (`base-layout`, "Pages outside a locality name no locality (v2)"). Because what `/` answers depends on each visitor's cookie, and the highlight on their location, the list MUST carry `Cache-Control: no-store`.
+
 #### Scenario: the list
 
 - **WHEN** someone with no locality cookie opens `/` and two localities are active
-- **THEN** the answer is 200 with the list of both localities, each linking to its home
+- **THEN** the answer is 200 with the list of both localities, each naming its municipality and state and linking through the choice to its home, with `Cache-Control: no-store` and no cookie
 
 #### Scenario: a crawler gets the same list
 
@@ -1231,7 +1244,7 @@ When two or more localities are active, `/` MUST show the list of localities, ea
 
 Added in v2 — source: decision of the product owner, 2026-10-14.
 
-While no locality is active, as in production before the launch, `/` MUST answer 200 with the notice that the directory is being built ("Estamos armando el directorio de negocios de tu colonia."), and no alias redirects. It MUST NOT answer an error: the deploy smoke test and the availability check request it. Once the list of localities exists, this case is reviewed again.
+While no locality is active, as in production before the launch, `/` MUST answer 200 with the notice that the directory is being built ("Estamos armando el directorio de negocios de tu colonia."), whatever cookie or query the request carries. It MUST NOT answer an error: the deploy smoke test and the availability check request it. Once the list of localities exists, this case is reviewed again.
 
 #### Scenario: production before the launch
 
@@ -1244,6 +1257,8 @@ Added in v2 — source: ADR 0007, PRD §3 (Flow F), PRD §8.
 
 On the list of localities, the one nearest to the visitor MUST be highlighted using the approximate location that Cloudflare attaches to each request. The highlight is a suggestion: the visitor can choose any locality. When the request carries no location, the list MUST appear without any highlight. The approximate location MUST NOT be stored.
 
+The distance is measured, along the Earth's surface, from the approximate location to the municipal seat of each active locality, whose coordinates the locality record keeps from INEGI (`data-model`, "The locality is a first-class record keyed by the INEGI municipality code (v2)"). A locality without coordinates MUST be listed like any other but never highlighted; when no active locality has coordinates, nothing is highlighted. On a tie, the first in the order of the list wins. The highlighted entry carries the label "Te queda más cerca" and a stronger border, and stays a link to the choice like the others: the highlight is never a choice and stores nothing. The location is used for that answer only: it is never written to the database, a cookie or the logs.
+
 #### Scenario: the nearest is highlighted
 
 - **WHEN** a request located near Tizayuca opens `/` and Tizayuca and a second locality are active
@@ -1253,6 +1268,11 @@ On the list of localities, the one nearest to the visitor MUST be highlighted us
 
 - **WHEN** the request carries no approximate location
 - **THEN** the list appears with no highlighted locality
+
+#### Scenario: a locality without coordinates
+
+- **WHEN** a request located next to an active locality that has no coordinates opens `/`, while Tizayuca has its seat's
+- **THEN** that locality is listed but not highlighted, and Tizayuca, the nearest locality with coordinates, is
 
 #### Scenario: the location is not stored
 
@@ -1265,20 +1285,52 @@ Added in v2 — source: ADR 0007, PRD §3 (Flow F), PRD §7.
 
 When the visitor chooses a locality from the list, the system MUST store the choice in a cookie whose value is only the slug of that locality. Later visits to `/` with that cookie MUST redirect to that locality. A cookie whose slug is not an active locality MUST be ignored and the list shown.
 
+Choosing is following the link of an entry, `/?elegir={estado}/{municipio}`. While two or more localities are active and that pair is an active locality, the answer MUST set the cookie and redirect to its home; any other value chooses nothing, sets no cookie and shows the list. The cookie is named `locality`; its value is the municipality slug (`tizayuca`), which is how the cookie names the locality; it is `Path=/`, lasts a year from the last choice (`Max-Age=31536000`), is `HttpOnly` (no script reads it; the public site has none), `SameSite=Lax` (so a link to the site shared on WhatsApp still honours the choice) and `Secure` whenever the site is served over HTTPS. A municipality slug is unique within its state only: a cookie whose slug names two active localities MUST be ignored like a stale one.
+
+The redirect of a choice and the one of a later visit MUST be a 302 with `Cache-Control: no-store`, never a 301: it differs from one visitor to another and changes as soon as the visitor chooses again, so no browser or cache may keep it. A stale cookie is ignored, not deleted.
+
 #### Scenario: choosing
 
 - **WHEN** the visitor chooses Tizayuca from the list
 - **THEN** the response sets a cookie whose value is `tizayuca` and nothing else
+- **AND** it is a 302 to `/hidalgo/tizayuca` with `Cache-Control: no-store`, and the cookie is `locality=tizayuca; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax`, plus `Secure` over HTTPS
 
 #### Scenario: coming back
 
 - **WHEN** the visitor opens `/` with that cookie while two localities are active
 - **THEN** they are redirected to `/hidalgo/tizayuca`
+- **AND** the redirect is a 302 with `Cache-Control: no-store`
 
 #### Scenario: a stale cookie
 
 - **WHEN** the visitor opens `/` with a cookie whose slug is not an active locality
 - **THEN** the cookie is ignored and the list is shown
+
+#### Scenario: a choice that names no active locality
+
+- **WHEN** someone opens `/?elegir=hidalgo/pachuca-de-soto`, whose locality is not active, while two localities are active
+- **THEN** the answer is the list with a 200 and no cookie
+
+#### Scenario: the same slug in two states
+
+- **WHEN** two active localities share the municipality slug of the cookie
+- **THEN** the cookie is ignored and the list is shown; choosing from the list still tells them apart by their state
+
+### Requirement: The pages of a locality offer to change municipality while two or more are active (v2)
+
+Added in v2 — source: ADR 0007, PRD §3 (Flow F).
+
+While two or more localities are active, the footer of every page of a locality MUST offer the link "Cambiar de municipio", with a touch area of at least 44px, to `/?cambiar`, which shows the list of localities even to a visitor whose cookie names one. Choosing again replaces the cookie; leaving the list without choosing keeps it. While a single locality is active the link MUST NOT appear, and `/?cambiar` redirects like `/`. Pages outside a locality do not show it. Like every public page, the footer may show or hide the link up to a minute after a locality is activated or deactivated ("Public pages may show a change up to a minute late (v2)").
+
+#### Scenario: changing
+
+- **WHEN** a visitor whose cookie names Tizayuca taps "Cambiar de municipio" on a page of Tizayuca while two localities are active
+- **THEN** they see the list at `/?cambiar`, and choosing the other locality takes them to its home and replaces the cookie
+
+#### Scenario: one active locality
+
+- **WHEN** the footer of a page of Tizayuca is read while it is the only active locality
+- **THEN** it has no link to change municipality
 
 ### Requirement: The search endpoint has a per-IP quota (v2)
 

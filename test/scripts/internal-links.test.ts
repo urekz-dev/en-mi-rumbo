@@ -45,10 +45,22 @@ describe("Internal links to existing routes and protected external links", () =>
   it("the routes come from src/pages", () => {
     const routes = siteRoutes();
     expect(routes).toEqual(
-      expect.arrayContaining(["/", "/[alias]", "/[state]/[municipality]", "/admin", "/health"]),
+      expect.arrayContaining(["/", "/[state]/[municipality]", "/admin", "/health"]),
     );
     expect(routes).toContain("/robots.txt");
-    expect(staticRoutes()).not.toContain("/[alias]");
+    expect(staticRoutes()).not.toContain("/[state]/[municipality]");
+  });
+
+  // docs/specs/public-directory.md, "There is no short alias of a locality
+  // (v2)": a single segment is either a page of the site or a 404.
+  it("no route takes any single segment, so /tizayuca is no page", () => {
+    const anySegment = (route: string) => /^\/\[[^/]*\]$/.test(route);
+    expect(siteRoutes().filter(anySegment)).toEqual([]);
+    // The check itself: the alias route EMR-28 had, and a catch-all.
+    expect(["/[alias]", "/[...path]", "/[state]/[municipality]"].filter(anySegment)).toEqual([
+      "/[alias]",
+      "/[...path]",
+    ]);
   });
 
   it("every literal link and form destination of the site names a route that exists", () => {

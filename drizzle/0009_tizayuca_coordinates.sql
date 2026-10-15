@@ -1,0 +1,11 @@
+-- Custom migration (ADR 0006, ADR 0007): the coordinates of the municipal seat
+-- of Tizayuca, Hidalgo (locality 13069), for the suggestion of the nearest
+-- locality on the root's list. The seat is INEGI's locality 0001 of the
+-- municipality, Tizayuca; its latitude and longitude are INEGI's, in decimal
+-- degrees, unchanged. Written by hand from INEGI's web service (README, INEGI
+-- catalogue); the complete catalogue of localities (catun_localidad.zip) gives
+-- the same point, 19°50´27.920 N, 098°58´53.703 W. Applied migrations never
+-- change: another locality's seat ships with that locality's reference data.
+-- Fuente: INEGI, Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades, servicio web wscatgeo v2, localidad 130690001 (periodo 2015-06-01), consultado el 2026-10-14.
+-- https://gaia.inegi.org.mx/wscatgeo/v2/localidades/13/069/U
+UPDATE "localities" SET "latitude" = 19.8410889, "longitude" = -98.9815842 WHERE "code" = '13069';

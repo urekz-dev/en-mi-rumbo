@@ -4,8 +4,11 @@
 // every request: for those routes it resolves the active locality before the
 // page runs, stores it in `locals.locality` and answers 404, with the site's
 // 404 page, when the state or the municipality is unknown, does not match, or
-// has no active locality. Other routes (`/`, the alias, `/admin`, `/health`,
+// has no active locality. Other routes (`/`, `/admin`, `/health`,
 // `/robots.txt`, Astro's own) pass through untouched.
+//
+// The root (src/pages/index.astro) redirects with the helpers at the end of
+// this file and remembers the visitor's choice in the locality cookie.
 import type { ServedLocality } from "../core/locality/served.ts";
 
 /** The route pattern of a locality's home, the prefix of all its pages. */
@@ -62,13 +65,62 @@ export function requireLocality(locals: { locality?: ServedLocality }): ServedLo
 }
 
 /**
- * A 301 to a path of this site. Browsers keep a 301 with no cache headers
- * forever, and where `/` and the alias lead depends on how many localities
- * are active (ADR 0007), so they keep this one for an hour at most.
+ * A 301 to a path of this site, for `/` while one locality is active.
+ * Browsers keep a 301 with no cache headers forever, and where `/` leads
+ * depends on how many localities are active (ADR 0007), so they keep this
+ * one for an hour at most.
  */
 export function permanentRedirect(path: string): Response {
   return new Response(null, {
     status: 301,
     headers: { Location: path, "Cache-Control": "max-age=3600" },
   });
+}
+
+/**
+ * A 302 to a path of this site that no browser or cache keeps, for `/` with
+ * two or more active localities: where it sends a visitor depends on their
+ * own cookie and changes as soon as they choose another locality, so it is
+ * never permanent and never stored (`Cache-Control: no-store`).
+ */
+export function temporaryRedirect(path: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: path, "Cache-Control": "no-store" },
+  });
+}
+
+/**
+ * The cookie that remembers the locality a visitor chose from the list
+ * (docs/specs/public-directory.md, "The chosen locality is remembered in a
+ * cookie that holds only its slug (v2)"). Its value is the municipality slug
+ * and nothing else; the privacy notice lists it.
+ */
+export const LOCALITY_COOKIE = "locality";
+
+/** How long the choice is kept: a year, renewed each time the visitor chooses. */
+export const LOCALITY_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+export interface LocalityCookieOptions {
+  path: "/";
+  maxAge: number;
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+}
+
+/**
+ * The attributes of the locality cookie: the whole site (`/` reads it), a
+ * year, unreadable by scripts, sent when a visitor arrives from a link on
+ * another site (`SameSite=Lax`, so a link shared on WhatsApp still honours
+ * the choice), and `Secure` whenever the site is served over HTTPS.
+ */
+export function localityCookieOptions(url: URL): LocalityCookieOptions {
+  return {
+    path: "/",
+    maxAge: LOCALITY_COOKIE_MAX_AGE,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: url.protocol === "https:",
+  };
 }

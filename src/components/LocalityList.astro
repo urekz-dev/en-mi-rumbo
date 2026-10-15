@@ -1,0 +1,59 @@
+---
+// The list of active localities at the site root (docs/specs/public-directory.md,
+// "With two or more active localities the root lists them and never redirects
+// by location (v2)"). Each entry names its municipality and its state, read
+// from the locality record, and leads to its home through the root, which
+// remembers the choice in the locality cookie (choicePath). The locality
+// nearest to the visitor, when the page knows it, is highlighted as a
+// suggestion ("Geolocation is only a suggestion of the nearest locality
+// (v2)"); every entry stays a choice. The page belongs to no locality, so the
+// layout around it names none. No client JavaScript.
+import { choicePath, type LocalityRef } from "../core/locality/paths.ts";
+import type { ServedLocality } from "../core/locality/served.ts";
+
+interface Props {
+  localities: readonly ServedLocality[];
+  /** The locality nearest to the visitor, or null when the request carries no location. */
+  suggested?: LocalityRef | null | undefined;
+}
+
+const { localities, suggested } = Astro.props;
+const isSuggested = (locality: LocalityRef) =>
+  suggested != null &&
+  suggested.slug === locality.slug &&
+  suggested.state.slug === locality.state.slug;
+---
+
+<div class="flex flex-col gap-8">
+  <section class="flex flex-col gap-3 text-center">
+    <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">¿En qué municipio buscas?</h1>
+    <p class="text-lg text-ink-muted">
+      Elige tu municipio y te enseñamos los negocios de ahí. La próxima vez te llevamos directo.
+    </p>
+  </section>
+  <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="localities">
+    {localities.map((locality) => {
+      const highlighted = isSuggested(locality);
+      return (
+        <li>
+          <a
+            href={choicePath(locality)}
+            class:list={[
+              "flex h-full min-h-16 flex-col items-start justify-center gap-1 rounded-xl bg-surface px-4 py-4 text-ink transition-colors hover:bg-line",
+              highlighted ? "border-2 border-control" : "border border-line",
+            ]}
+            data-suggested={highlighted ? "true" : undefined}
+          >
+            {highlighted && (
+              <span class="rounded-full bg-background px-3 py-1 text-sm font-semibold">
+                Te queda más cerca
+              </span>
+            )}
+            <span class="text-lg font-semibold">{locality.name}</span>
+            <span class="text-ink-muted">{locality.state.name}</span>
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</div>

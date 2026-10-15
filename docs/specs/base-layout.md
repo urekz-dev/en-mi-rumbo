@@ -503,7 +503,7 @@ No locality name MAY be hard-coded in any surface. Every text that names the loc
 
 Added in v2 — source: decision of the product owner, 2026-10-14.
 
-The pages that belong to no locality (the site root, the admin panel, a 404 outside a locality and the legal pages, which every locality shares) MUST NOT name any locality, not even while only one is active: the footer keeps the brand and its links but leaves out the line "Hecho para los vecinos de {municipio}, {estado}.", the title is the brand alone, the wordmark leads to the root and there is no locality description. Naming one would be wrong as soon as a second locality is active, and the legal pages are prerendered without reading the database.
+The pages that belong to no locality (the site root, the admin panel, a 404 outside a locality and the legal pages, which every locality shares) MUST NOT name any locality, not even while only one is active: the footer keeps the brand and its links but leaves out the line "Hecho para los vecinos de {municipio}, {estado}.", the title is the brand alone, the wordmark leads to the root and there is no locality description. Naming one would be wrong as soon as a second locality is active, and the legal pages are prerendered without reading the database. The list of localities that the root shows while two or more are active (`public-directory`, "With two or more active localities the root lists them and never redirects by location (v2)") names each of them only as an entry of the list; its title, description, wordmark and footer follow this rule like any other page outside a locality.
 
 #### Scenario: a page without a locality
 

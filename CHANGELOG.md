@@ -25,13 +25,19 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The 8 categories and the 49 trades of the directory, in every environment, each with the slug of its public URLs.
 - No URL of a locality can be read in two ways: the tests fail when a category, a trade, a zone or a trade and zone pair would take the URL of another, or of one of the site's own pages.
 - Fictitious businesses for development, `dev` and `stage`: twelve made-up cards in Tizayuca, published in several categories and zones, one in review and one rejected, which also turn Tizayuca on there with a made-up contact WhatsApp while it has none. They never reach production.
-- The pages of a locality live under its state and municipality, such as `/hidalgo/tizayuca`. An unknown state or municipality, one under another state, or a locality that is not active answers 404. While one locality is active, `/` and its short name (`/tizayuca`) redirect to it; with none, `/` keeps the placeholder.
+- The pages of a locality live under its state and municipality, such as `/hidalgo/tizayuca`. An unknown state or municipality, one under another state, or a locality that is not active answers 404. While one locality is active, `/` redirects to it; with none, `/` keeps the placeholder.
 - Canonical and share-preview URLs are absolute and carry the full path of the locality, from the public URL of each environment.
 - The tests fail when a link or a form of the site leads to a page that does not exist, when a link of a locality's page leaves out its state and municipality, or when a link that opens a new tab lacks `rel="noopener noreferrer"`.
 - The privacy notice at `/aviso-de-privacidad` and the terms at `/terminos`, linked from the footer of every page. They belong to no locality and name none, and are prerendered and served as static files. The notice is at version 2: it names the processors (Cloudflare, Neon, Twilio, Resend and Umami) and links to Cloudflare's Turnstile privacy addendum, says how the IP address is used, lists the two cookies, gives the retention periods and says that the rights are served from the panel. Until the legal review, both pages show their missing data in square brackets and a draft mark. Changing the text of the notice without raising its version makes the tests fail.
+- With two or more active localities, `/` lists them, each with its municipality and state. Choosing one remembers it in a cookie that holds only its slug, for a year, and later visits to `/` go straight to it; the pages of a locality offer "Cambiar de municipio" to choose again. The list highlights the locality nearest to the visitor's approximate location, measured to its municipal seat, and never redirects by it. Activating a second locality is a data change only.
+- The coordinates of Tizayuca's municipal seat, from INEGI, in every environment.
 - The global layout of every page: a header with the enmirumbo wordmark, a footer with the line "Hecho para los vecinos de {municipio}, {estado}." read from the locality, the prototype's palette and typography as design tokens with WhatsApp green kept for the main action, and a 404 page in Spanish. Phones no longer turn numbers in the text into call links. On `dev`, the branch and commit deployed now show in the footer of every page.
 
 ### Changed
 
 - The brand is written enmirumbo, lowercase and in one word.
 - The smoke test after each deploy follows the redirect of the home page, which leads to the locality while only one is active.
+
+### Removed
+
+- The short address of a locality, such as `/tizayuca`, which only `dev` and `stage` served: public addresses always carry the state and the municipality, and `/tizayuca` answers 404. ADR 0007 is amended.

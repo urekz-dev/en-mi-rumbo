@@ -1,26 +1,65 @@
 ---
-// The site root (ADR 0007; docs/specs/public-directory.md, "While there is one
-// active locality, the root and the alias redirect to it (v2)"). It reads the
-// active localities through the cached HYPERDRIVE, like every public page:
-// - exactly one: a 301 to its home, such as /hidalgo/tizayuca;
-// - two or more: the list of localities, which EMR-29 builds here; until
-//   then, the placeholder;
-// - none (production before launch): the notice that the directory is coming,
-//   with 200 ("With no active locality the root says the directory is coming
-//   (v2)"), as the deploy smoke test and the availability check expect.
+// The site root (ADR 0007; docs/specs/public-directory.md). It reads the
+// active localities through the cached HYPERDRIVE, like every public page,
+// and the visitor's locality cookie and query (rootDestination):
+// - none (production before launch): the notice that the directory is
+//   coming, with 200, as the deploy smoke test and the availability check
+//   expect;
+// - exactly one: a 301 to its home, such as /hidalgo/tizayuca, whatever the
+//   request carries;
+// - two or more: the list of localities. `?elegir={estado}/{municipio}`
+//   stores the choice in the locality cookie (only the municipality slug)
+//   and redirects to that home; later visits with the cookie redirect there
+//   too, unless they ask for the list with `?cambiar`. Those redirects are a
+//   302 that nothing keeps, and the list is not stored either, since what `/`
+//   answers depends on each visitor's cookie.
+// The list highlights the locality nearest to the approximate location
+// Cloudflare attaches to the request (Astro.request.cf), as a suggestion; the
+// location is used for this answer only, never stored or logged, and never
+// redirects.
 import { env, waitUntil } from "cloudflare:workers";
 import ComingSoon from "../components/ComingSoon.astro";
+import LocalityList from "../components/LocalityList.astro";
 import { withDb } from "../core/db/client.ts";
-import { localityPath } from "../core/locality/paths.ts";
+import { approximateLocation } from "../core/locality/nearest.ts";
+import { CHANGE_PARAM, CHOOSE_PARAM, localityPath } from "../core/locality/paths.ts";
 import { rootDestination } from "../core/locality/root.ts";
 import { activeLocalities } from "../core/locality/served.ts";
-import { permanentRedirect } from "../lib/locality.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  LOCALITY_COOKIE,
+  localityCookieOptions,
+  permanentRedirect,
+  temporaryRedirect,
+} from "../lib/locality.ts";
 
 const active = await withDb(env, "HYPERDRIVE", { waitUntil }, (db) => activeLocalities(db));
-const destination = rootDestination(active);
-if (destination.kind === "locality") {
-  return permanentRedirect(localityPath(destination.locality));
+const destination = rootDestination(active, {
+  chosen: Astro.cookies.get(LOCALITY_COOKIE)?.value,
+  choose: Astro.url.searchParams.get(CHOOSE_PARAM),
+  changing: Astro.url.searchParams.has(CHANGE_PARAM),
+  location: approximateLocation(Astro.request.cf),
+});
+switch (destination.kind) {
+  case "locality":
+    return permanentRedirect(localityPath(destination.locality));
+  case "choose":
+    Astro.cookies.set(LOCALITY_COOKIE, destination.locality.slug, localityCookieOptions(Astro.url));
+    return temporaryRedirect(localityPath(destination.locality));
+  case "chosen":
+    return temporaryRedirect(localityPath(destination.locality));
+  case "list":
+    Astro.response.headers.set("Cache-Control", "no-store");
+    break;
+  case "none":
+    break;
 }
 ---
 
-<ComingSoon />
+{destination.kind === "list" ? (
+  <BaseLayout>
+    <LocalityList localities={destination.localities} suggested={destination.suggested} />
+  </BaseLayout>
+) : (
+  <ComingSoon />
+)}
