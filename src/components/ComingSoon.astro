@@ -1,28 +1,26 @@
 ---
-// The notice that the directory is coming, inside the global layout, until
-// the real pages arrive with their stories: at the root while no locality is
-// active, and as the home of a locality, which it names from its record. The
-// page passes its own path, whose absolute URL the layout declares as its
-// canonical and its Open Graph URL.
+// The notice that the directory is coming, inside the global layout, at the
+// site root while no locality is active (docs/specs/public-directory.md,
+// "With no active locality the root says the directory is coming (v2)"). The
+// root belongs to no locality, so the notice names none. The page passes its
+// own path, whose absolute URL the layout declares as its canonical and its
+// Open Graph URL.
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 interface Props {
-  /** The path of the page, such as `/` or `/hidalgo/tizayuca`. */
+  /** The path of the page: `/`. */
   canonicalPath: string;
   /** The page's own description; without it, the layout's. */
   description?: string | undefined;
 }
 
 const { canonicalPath, description } = Astro.props;
-const locality = Astro.locals.locality;
 ---
 
 <BaseLayout canonicalPath={canonicalPath} description={description}>
   <section class="flex flex-1 flex-col justify-center gap-4">
     <h1 class="text-3xl font-bold">enmirumbo</h1>
-    <p class="text-lg">
-      Estamos armando el directorio de negocios de {locality ? locality.name : "tu colonia"}.
-    </p>
+    <p class="text-lg">Estamos armando el directorio de negocios de tu colonia.</p>
     <p class="text-ink-muted">
       Muy pronto vas a poder encontrar negocios cerca de ti y escribirles directo por WhatsApp.
     </p>

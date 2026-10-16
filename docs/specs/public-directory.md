@@ -1679,3 +1679,28 @@ Where the measurement is on (`base-layout`, "Cookieless measurement is loaded on
 
 - **WHEN** a search finds nothing where the measurement is off
 - **THEN** the page has no script and no tag
+
+### Requirement: The home of a locality lives under it and names it from the record (v2)
+
+Added in v2 — source: ADR 0007, PRD §3 (Flow B), PRD §5, EMR-32.
+
+The home page of "The home page shows the 8 categories as large buttons", "Highlighted "Deporte en Tizayuca" block on the home page" and "Search box on the home page that works without client-side JavaScript", and the home of `base-layout`, "Home of the site inside the layout, with the entry to registration", is the home of each active locality, `/{estado}/{municipio}`; what `/` answers is said by "While there is one active locality, the root redirects to it (v2)" and the requirements that follow it. Every text of the home that names the locality MUST read it from the locality record (`base-layout`, "Every text that names the locality reads it from the locality record (v2)"): the `h1` "¿Qué necesitas en {municipio}?", the heading "Deporte en {municipio}" and the question "¿Tienes un negocio en {municipio}?", which for Tizayuca are the literals of those requirements. Its category buttons and the entry of the sports block lead to the listings of the same locality, its search box submits to the results page of the same locality ("The results page lives under its locality and names it from the record (v2)"), and its registration entry leads to the registration page of the same locality.
+
+The sports block highlights a category, not a page of its own: its entry "Ver clubes y escuelas deportivas" leads to the listing of the category "Clubes y escuelas deportivas", the same page as that category's button. Its decorative icon is the emoji of that category, the same one its button shows, and its entry is a secondary action, never the action green.
+
+The home keeps the site's title and description in the locality (`base-layout`, "Server Component with a document in es-MX and base metadata": "enmirumbo — Encuentra negocios y servicios en {municipio}") and declares its own path as its canonical; it is indexable and `sitemap.xml` lists it. It reads the categories through the cached connection, like every public page ("Public pages may show a change up to a minute late (v2)").
+
+#### Scenario: the home of Tizayuca
+
+- **WHEN** a resident opens `/hidalgo/tizayuca`
+- **THEN** they see "¿Qué necesitas en Tizayuca?", the search box, which submits to `/hidalgo/tizayuca/buscar`, the 8 categories, each leading to `/hidalgo/tizayuca/<categoría>`, and "Deporte en Tizayuca", whose entry leads to `/hidalgo/tizayuca/clubes-y-escuelas-deportivas`
+
+#### Scenario: the home of another locality
+
+- **WHEN** the home of a fixture locality is opened
+- **THEN** it reads "¿Qué necesitas en «municipality of the fixture»?" and "Deporte en «municipality of the fixture»", its links and its search box lead under its own `/{estado}/{municipio}`, and "Tizayuca" appears nowhere
+
+#### Scenario: the metadata of the home
+
+- **WHEN** the metadata of the home of Tizayuca are read
+- **THEN** its title is "enmirumbo — Encuentra negocios y servicios en Tizayuca", it declares no `noindex`, and its canonical is the absolute URL of `/hidalgo/tizayuca`

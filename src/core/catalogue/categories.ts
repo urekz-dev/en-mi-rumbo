@@ -12,6 +12,15 @@ import { categories } from "../db/schema/index.ts";
 import type { CatalogueEntry } from "./root-urls.ts";
 
 /**
+ * The category that the home's "Deporte en {municipio}" block highlights
+ * (docs/specs/public-directory.md, "Highlighted "Deporte en Tizayuca" block on
+ * the home page", PRD §6.5): its entry leads to this category's listing, the
+ * same one its button leads to. A slug of the global catalogue
+ * (drizzle/0007_categories_trades.sql), not a page of its own.
+ */
+export const SPORTS_CATEGORY_SLUG = "clubes-y-escuelas-deportivas";
+
+/**
  * Every category, in catalogue order: the order of the PRD, which the data
  * migration kept in the identifiers (drizzle/0007_categories_trades.sql).
  */

@@ -19,6 +19,7 @@ import {
   zones,
 } from "../../src/core/db/schema/index.ts";
 import { PERMISSIONS } from "../../src/core/access/permissions.ts";
+import { SPORTS_CATEGORY_SLUG } from "../../src/core/catalogue/categories.ts";
 import { db, FIRST_FIXTURE_CODE, isFixtureSlug } from "./fixtures.ts";
 import { slugify } from "./slug.ts";
 
@@ -136,6 +137,14 @@ describe("Catalogues of categories, zones and trades with stable slug (v2)", () 
     expect(tradeRows.find(({ name }) => name === "Plomería")?.slug).toBe("plomeria");
     expect(categoryRows.find(({ name }) => name === "Clubes y escuelas deportivas")?.slug).toBe(
       "clubes-y-escuelas-deportivas",
+    );
+  });
+
+  // public-directory, "Highlighted "Deporte en Tizayuca" block on the home
+  // page": the block's entry leads to the listing of this category.
+  it("the category the sports block of the home highlights is in the catalogue", () => {
+    expect(categoryRows.find(({ slug }) => slug === SPORTS_CATEGORY_SLUG)?.name).toBe(
+      "Clubes y escuelas deportivas",
     );
   });
 });

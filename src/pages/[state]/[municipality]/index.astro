@@ -1,14 +1,19 @@
 ---
-// The home of a locality, /{estado}/{municipio} (ADR 0007). The middleware
-// has already resolved the active locality, or answered 404
-// (src/lib/locality.ts). A placeholder until the real home arrives with its
-// story. It is in the sitemap (src/core/seo/sitemap.ts) and declares its
-// canonical URL.
-import ComingSoon from "../../../components/ComingSoon.astro";
-import { localityPath } from "../../../core/locality/paths.ts";
-import { requireLocality } from "../../../lib/locality.ts";
+// The home of a locality, /{estado}/{municipio} (ADR 0007; docs/specs/
+// public-directory.md, "The home of a locality lives under it and names it
+// from the record (v2)"). The middleware has already resolved the active
+// locality, or answered 404 (src/lib/locality.ts). The page reads the 8
+// categories through HYPERDRIVE, the cached binding of public reads, so a
+// change can take up to a minute to show ("Public pages may show a change up
+// to a minute late (v2)"); src/components/LocalityHome.astro renders the
+// home. It is in the sitemap (src/core/seo/sitemap.ts) and declares its
+// canonical URL. No client JavaScript.
+import { env, waitUntil } from "cloudflare:workers";
+import LocalityHome from "../../../components/LocalityHome.astro";
+import { catalogueCategories } from "../../../core/catalogue/categories.ts";
+import { withDb } from "../../../core/db/client.ts";
 
-const locality = requireLocality(Astro.locals);
+const categories = await withDb(env, "HYPERDRIVE", { waitUntil }, catalogueCategories);
 ---
 
-<ComingSoon canonicalPath={localityPath(locality)} />
+<LocalityHome categories={categories} />
