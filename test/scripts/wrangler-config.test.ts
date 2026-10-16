@@ -4,7 +4,7 @@
 // (scenario "one trigger"). Reads wrangler.jsonc the way Wrangler resolves it
 // for each environment, so a binding or variable that an environment only
 // inherits, or forgets, fails here instead of in a deploy.
-import { unstable_readConfig } from "wrangler";
+import { experimental_readRawConfig, unstable_readConfig } from "wrangler";
 import { describe, expect, it } from "vite-plus/test";
 
 const ENVIRONMENTS = [
@@ -39,6 +39,9 @@ interface ResolvedConfig {
   triggers: { crons?: string[] };
   vars: Record<string, unknown>;
   hyperdrive: { binding: string; id: string; localConnectionString?: string }[];
+  durable_objects: { bindings: { name: string; class_name: string; script_name?: string }[] };
+  exports?: Record<string, unknown>;
+  migrations: unknown[];
 }
 
 function read(env?: string): ResolvedConfig {
@@ -114,6 +117,29 @@ describe("Three deployed environments, each with its own Worker, bindings and va
     },
   );
 
+  // deployment, "Anti-abuse counters live in a Durable Object and never in
+  // PostgreSQL (v2)"
+  it.for(ENVIRONMENTS)(
+    "per environment: $env binds its own quota counter, declared with SQLite storage",
+    ({ env }) => {
+      const config = read(env);
+      expect(config.durable_objects.bindings).toEqual([
+        { name: "QUOTA_COUNTER", class_name: "QuotaCounter" },
+      ]);
+      expect(config.exports).toEqual({
+        QuotaCounter: { type: "durable-object", storage: "sqlite" },
+      });
+      // `exports` and the legacy `migrations` cannot be used together.
+      expect(config.migrations).toEqual([]);
+      // Wrangler would let an environment inherit `exports`; each declares it.
+      const raw = experimental_readRawConfig({ config: "wrangler.jsonc" }).rawConfig as {
+        env: Record<string, Record<string, unknown>>;
+      };
+      expect(raw.env[env]).toHaveProperty("exports");
+      expect(raw.env[env]).toHaveProperty("durable_objects");
+    },
+  );
+
   it("nothing inherited: every top-level binding and variable is declared again in each environment", () => {
     const top = read();
     for (const { env } of ENVIRONMENTS) {
@@ -124,6 +150,8 @@ describe("Three deployed environments, each with its own Worker, bindings and va
       expect(config.hyperdrive.map((h) => h.binding).sort()).toEqual(
         top.hyperdrive.map((h) => h.binding).sort(),
       );
+      expect(config.durable_objects.bindings).toEqual(top.durable_objects.bindings);
+      expect(config.exports).toEqual(top.exports);
       expect(config.vars["ENVIRONMENT"]).not.toBe("local");
     }
   });

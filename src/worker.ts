@@ -3,11 +3,14 @@
 // (src/lib/security-headers.ts) and, in a deployed environment, asks not to be
 // indexed (src/lib/robots.ts, ADR 0008). The static assets never reach this
 // Worker: the build gives them the same headers through `_headers`
-// (src/integrations/static-headers.ts).
+// (src/integrations/static-headers.ts). It also exports the Durable Object of
+// the per-IP quotas (src/lib/quota/counter.ts, ADR 0012).
 import { handle } from "@astrojs/cloudflare/handler";
 import { withRobotsPolicy } from "./lib/robots.ts";
 import { withSecurityHeaders } from "./lib/security-headers.ts";
 import { runScheduledTasks } from "./scheduled.ts";
+
+export { QuotaCounter } from "./lib/quota/counter.ts";
 
 /** Astro's answer, or a bare 500 when the handler itself throws, so it carries the headers too. */
 async function astro(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

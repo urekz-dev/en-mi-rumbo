@@ -1,8 +1,9 @@
 // The search against the database (src/core/search): the normalized columns
 // the database generates, and the query of docs/specs/public-directory.md. Fixture
 // state 95. The pure half (normalization and terms) is in
-// search-normalize.test.ts; the search page and its quota come with their
-// own stories.
+// search-normalize.test.ts; the results page is rendered in
+// test/astro/search-page.test.ts and served in test/e2e/search.spec.ts, and
+// its quota is tested in quota.test.ts.
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import {
@@ -12,6 +13,7 @@ import {
   pendingEdits,
   trades,
 } from "../../src/core/db/schema/index.ts";
+import { PAGE_SIZE, pageSlice } from "../../src/core/pagination.ts";
 import { normalizeText } from "../../src/core/search/normalize.ts";
 import {
   normalizedSql,
@@ -68,8 +70,11 @@ afterAll(async () => {
   await cleanup(STATE);
 });
 
+/** Every match, however many: these tests look at what matches, not at pages. */
+const EVERY_MATCH = { limit: 1_000, offset: 0 };
+
 const search = (text: string, locality: SearchLocality = localityA) =>
-  db((tx) => searchPublishedBusinesses(tx, locality, text));
+  db((tx) => searchPublishedBusinesses(tx, locality, text, EVERY_MATCH));
 
 /** The ids a search finds; fails the test when the query was treated as empty. */
 const found = async (text: string, locality?: SearchLocality): Promise<string[]> => {
@@ -489,5 +494,36 @@ describe("Results page with the same cards as the listing", () => {
       homeDelivery: false,
       photoKey: null,
     });
+  });
+});
+
+describe('Directory lists show 20 cards per page, with "Ver más" to the next (v2)', () => {
+  it("a page reads one row more than it shows, and the next page continues it", async () => {
+    const total = PAGE_SIZE + 5;
+    const base = Date.parse("2026-06-01T12:00:00Z");
+    const ids: string[] = [];
+    for (let n = 0; n < total; n++) {
+      ids.push(
+        await publish({
+          name: `Tamalería Paginada ${String(n).padStart(2, "0")}`,
+          // One a minute: the most recent first.
+          publishedAt: new Date(base + n * 60_000),
+        }),
+      );
+    }
+    const page = (number: number) =>
+      db((tx) => searchPublishedBusinesses(tx, localityA, "tamaleria paginada", pageSlice(number)));
+
+    const first = (await page(1))!.map((result) => result.id);
+    const second = (await page(2))!.map((result) => result.id);
+    const third = await page(3);
+
+    const newestFirst = ids.toReversed();
+    // Page 1 reads 21 rows: the 21st only says that page 2 exists.
+    expect(first).toEqual(newestFirst.slice(0, PAGE_SIZE + 1));
+    // Page 2 starts after the 20 that page 1 shows, and is the last one.
+    expect(second).toEqual(newestFirst.slice(PAGE_SIZE));
+    expect(second.length).toBeLessThanOrEqual(PAGE_SIZE);
+    expect(third).toEqual([]);
   });
 });

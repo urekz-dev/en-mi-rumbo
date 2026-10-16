@@ -1,7 +1,7 @@
 // Cookieless measurement with Umami Cloud (ADR 0014; docs/specs/base-layout.md,
 // "Cookieless measurement is loaded only in production and only when
-// configured (v2)" and "Four product events are recorded, only in production
-// (v2)").
+// configured (v2)" and "Three product events and the no-results tag are
+// recorded, only in production (v2)").
 //
 // The only configuration is the Website ID of the site at Umami Cloud, the
 // Worker var UMAMI_WEBSITE_ID. The script and the collector are Umami Cloud's,
@@ -129,20 +129,33 @@ export function pageAnalytics(
 }
 
 /**
- * The four product events (PRD §6.4, ADR 0014, amended on 2026-10-15), the
+ * The three product events (PRD §6.4, ADR 0014, amended on 2026-10-15), the
  * only names any page may send: the WhatsApp button of a listing card and of
  * a card (D3), kept apart so that the card's clicks over its views stay a
- * metric of their own, the search with no results (D5) and the registration
- * submitted (E).
+ * metric of their own, and the registration submitted (E).
  */
 export const ANALYTICS_EVENTS = {
   whatsappListing: "whatsapp-listing",
   whatsappCard: "whatsapp-card",
-  searchNoResults: "search-no-results",
   registrationSubmitted: "registration-submitted",
 } as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
+
+/**
+ * The tags a page view may carry (ADR 0014, amended on 2026-10-15 by EMR-36),
+ * the only values of the script's `data-tag`: the results page tags its view
+ * when the search found nothing (D5). The server knows it when it renders the
+ * page, so the tag needs no event and no JavaScript of the site, and the text
+ * searched never travels: the tag is a fixed word, and the page's address
+ * leaves without its query (`data-exclude-search`). Umami filters the views
+ * by tag, to compare the searches with no results with all the searches.
+ */
+export const ANALYTICS_TAGS = {
+  searchNoResults: "search-no-results",
+} as const;
+
+export type AnalyticsTag = (typeof ANALYTICS_TAGS)[keyof typeof ANALYTICS_TAGS];
 
 export interface EventProperties {
   /** The locality of the page; its value is `{estado}/{municipio}`, its slugs. */

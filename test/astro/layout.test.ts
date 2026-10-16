@@ -425,6 +425,25 @@ describe("Every page declares its title, description, canonical and share previe
     expect(meta(html, "property", "og:url")).toBeUndefined();
   });
 
+  // public-directory, "The results page is not indexable": a page that must
+  // not be indexed asks so, and declares no canonical even with a path.
+  it("a page that passes noindex asks not to be indexed, follows its links and has no canonical", async () => {
+    const html = await container.renderToString(BaseLayout, {
+      partial: false,
+      props: { canonicalPath: "/hidalgo/tizayuca/buscar", noindex: true },
+      slots: { default: "<h1>Una página</h1>" },
+      request: new Request("http://localhost:4321/hidalgo/tizayuca/buscar"),
+      locals: localsWith(TIZAYUCA),
+    });
+
+    expect(meta(html, "name", "robots")).toBe("noindex, follow");
+    expect(canonical(html)).toBeUndefined();
+    expect(meta(html, "property", "og:url")).toBeUndefined();
+    expect(meta(await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca"), "name", "robots")).toBe(
+      undefined,
+    );
+  });
+
   // Scenario: the card shared through WhatsApp arrives with the new brand
   it("a locality with its own image shares it: 1200×630, with the brand and the locality as descriptor", async () => {
     const html = await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca");

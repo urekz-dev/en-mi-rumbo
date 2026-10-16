@@ -171,6 +171,9 @@ function build(environment: Environment, overrides: Record<string, unknown> = {}
       SITE_URL: `https://${WORKERS[environment]}.urekz.workers.dev`,
     },
     assets: { binding: "ASSETS", directory: "../client" },
+    durable_objects: { bindings: [{ name: "QUOTA_COUNTER", class_name: "QuotaCounter" }] },
+    exports: { QuotaCounter: { type: "durable-object", storage: "sqlite" } },
+    migrations: [],
     ...overrides,
   };
 }
@@ -314,6 +317,29 @@ describe("Each environment is built and deployed by its own workflow (v2): the b
       const result = checkBuild("prod", { ...config, vars: { ...config.vars, SITE_URL: url } });
       expect(errors(result)).toEqual([expect.stringContaining("SITE_URL is")]);
     }
+  });
+
+  // deployment, "Anti-abuse counters live in a Durable Object and never in
+  // PostgreSQL (v2)": without the counter the quotas would not count.
+  it("a build without the quota counter, or with a counter that is not declared, is refused", () => {
+    expect(errors(checkBuild("stage", build("stage", { durable_objects: undefined })))).toEqual([
+      expect.stringMatching(
+        /expected QUOTA_COUNTER bound to the QuotaCounter Durable Object.*env\.stage\.durable_objects/,
+      ),
+    ]);
+    expect(
+      errors(
+        checkBuild(
+          "prod",
+          build("prod", {
+            durable_objects: { bindings: [{ name: "QUOTA_COUNTER", class_name: "Other" }] },
+          }),
+        ),
+      ),
+    ).toEqual([expect.stringContaining("expected QUOTA_COUNTER bound to the QuotaCounter")]);
+    expect(errors(checkBuild("dev", build("dev", { exports: {} })))).toEqual([
+      expect.stringMatching(/exports\.QuotaCounter is null.*env\.dev\.exports/),
+    ]);
   });
 
   it("an empty ACCESS_AUD is only a warning: the panel stays closed", () => {

@@ -39,6 +39,17 @@
       "localConnectionString": "postgres://enmirumbo:enmirumbo@localhost:5432/enmirumbo",
     },
   ],
+  // The per-IP quotas (ADR 0012, src/lib/quota/): one Durable Object per
+  // purpose, which keeps its counters and the key of its codes in memory and
+  // never writes to its storage. Declared with `exports`, SQLite-backed as
+  // every new Durable Object must be; Wrangler would let an environment
+  // inherit both, so each environment declares them again.
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA_COUNTER", "class_name": "QuotaCounter" }],
+  },
+  "exports": {
+    "QuotaCounter": { "type": "durable-object", "storage": "sqlite" },
+  },
   "vars": {
     // local, dev, stage or prod. Only "local" lets /admin open with the fixed
     // identity admin@enmirumbo.test, and only on a loopback host (ADR 0010).
@@ -76,6 +87,12 @@
         { "binding": "HYPERDRIVE", "id": "0a3272c97e4d4fc98be93810797b2da3" },
         { "binding": "HYPERDRIVE_FRESH", "id": "e54b23629d3d4b5491020a29a4b041fd" },
       ],
+      "durable_objects": {
+        "bindings": [{ "name": "QUOTA_COUNTER", "class_name": "QuotaCounter" }],
+      },
+      "exports": {
+        "QuotaCounter": { "type": "durable-object", "storage": "sqlite" },
+      },
       "vars": {
         "ENVIRONMENT": "dev",
         "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
@@ -106,6 +123,12 @@
         { "binding": "HYPERDRIVE", "id": "5eb632efe8ec4ae7acb051de4fbfbdc0" },
         { "binding": "HYPERDRIVE_FRESH", "id": "1c9b85b07a3d4df2811c2ec83046ecec" },
       ],
+      "durable_objects": {
+        "bindings": [{ "name": "QUOTA_COUNTER", "class_name": "QuotaCounter" }],
+      },
+      "exports": {
+        "QuotaCounter": { "type": "durable-object", "storage": "sqlite" },
+      },
       "vars": {
         "ENVIRONMENT": "stage",
         "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",
@@ -132,6 +155,12 @@
         { "binding": "HYPERDRIVE", "id": "9c3586cc9df74be2b745eccd83efb81b" },
         { "binding": "HYPERDRIVE_FRESH", "id": "6759de1d09dc48229664e712f38fee30" },
       ],
+      "durable_objects": {
+        "bindings": [{ "name": "QUOTA_COUNTER", "class_name": "QuotaCounter" }],
+      },
+      "exports": {
+        "QuotaCounter": { "type": "durable-object", "storage": "sqlite" },
+      },
       "vars": {
         "ENVIRONMENT": "prod",
         "ACCESS_TEAM_DOMAIN": "urekz.cloudflareaccess.com",

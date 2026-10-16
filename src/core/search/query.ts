@@ -43,7 +43,8 @@ export function normalizedSql(text: SQLWrapper): SQL<string> {
 }
 
 /**
- * The published cards of `locality` that match `query`, or null when nothing
+ * The published cards of `locality` that match `query`, the `slice` of them a
+ * page reads (`pageSlice`, src/core/pagination.ts), or null when nothing
  * searchable remains (an empty, blank or only-symbols query): then no query
  * runs, and the page shows the empty-query notice instead of the directory.
  *
@@ -52,12 +53,14 @@ export function normalizedSql(text: SQLWrapper): SQL<string> {
  * the trades the admin assigned; different stems may match in different
  * places. There is no ranking: the order is the listing's, most recently
  * published first, then by name, then by id so that it never changes between
- * two identical searches. There is no page size: the spec shows every match.
+ * two identical searches, which is also what lets a page continue where the
+ * previous one ended.
  */
 export async function searchPublishedBusinesses(
   db: Db,
   locality: SearchLocality,
   query: string,
+  slice: { limit: number; offset: number },
 ): Promise<SearchResult[] | null> {
   const terms = searchTerms(query, locality.name);
   if (terms.length === 0) return null;
@@ -106,5 +109,7 @@ export async function searchPublishedBusinesses(
       sql`${businesses.publishedAt} DESC NULLS LAST`,
       asc(businesses.name),
       asc(businesses.id),
-    );
+    )
+    .limit(slice.limit)
+    .offset(slice.offset);
 }

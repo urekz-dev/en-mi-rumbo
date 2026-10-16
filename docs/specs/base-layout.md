@@ -610,13 +610,15 @@ The document head MUST carry `<meta name="format-detection" content="telephone=n
 - **WHEN** a card shows a landline as plain text ("Teléfono: …")
 - **THEN** the text is not wrapped in a `tel:` link by the site
 
-### Requirement: Four product events are recorded, only in production (v2)
+### Requirement: Three product events and the no-results tag are recorded, only in production (v2)
 
-Added in v2 — source: PRD §6.4, ADR 0014. Amended on 2026-10-15 by decision of the product owner (ADR 0014, amended): a fourth event, the WhatsApp click from a listing card, kept apart from the card's; until then there were three events and this requirement was named "Three product events are recorded, only in production (v2)".
+Added in v2 — source: PRD §6.4, ADR 0014. Amended on 2026-10-15 by decision of the product owner (ADR 0014, amended): a fourth event, the WhatsApp click from a listing card, kept apart from the card's; until then there were three events and this requirement was named "Three product events are recorded, only in production (v2)". Amended again on 2026-10-15 by decision of the product owner (ADR 0014, amended; EMR-36): the search with no results is no longer an event but a tag of the page view (`public-directory`, "A search with no results tags its page view (v2)"); until then there were four events and this requirement was named "Four product events are recorded, only in production (v2)".
 
-The analytics (Umami Cloud) MUST record four product events: a WhatsApp click from a listing card, a WhatsApp click from a card, a search with no results and a registration submitted. Each event MUST carry the locality and the category as its only properties. No cookie is set and no personal data travels. The script and the events MUST exist only in production: `stage` and `dev` load no analytics. The admin panel and the management-link screens stay outside the measurement.
+The analytics (Umami Cloud) MUST record three product events —a WhatsApp click from a listing card, a WhatsApp click from a card and a registration submitted— and MUST tag the page view of a search with no results. Each event MUST carry the locality and the category as its only properties. No cookie is set and no personal data travels. The script, the events and the tag MUST exist only in production: `stage` and `dev` load no analytics. The admin panel and the management-link screens stay outside the measurement.
 
-The four events are named `whatsapp-listing`, `whatsapp-card`, `search-no-results` and `registration-submitted`, and no page sends any other name. The two WhatsApp events stay apart: most contacts may start from a listing, and the card's own clicks over its views are a metric of their own (PRD §10). They are declared as attributes of the element that triggers them, read from one place in the code: `data-umami-event` with the name, `data-umami-event-locality` with the locality as `{estado}/{municipio}` (its two slugs, as in its URLs) and, when the event has a category, `data-umami-event-category` with the category slug. Where the measurement is off (every environment but production with a Website ID, the panel and the edit mode) the element carries none of them. The elements arrive with their stories: the WhatsApp buttons of the listing card and of the card, the search results and the registration form.
+The three events are named `whatsapp-listing`, `whatsapp-card` and `registration-submitted`, and no page sends any other name. The two WhatsApp events stay apart: most contacts may start from a listing, and the card's own clicks over its views are a metric of their own (PRD §10). They are declared as attributes of the element that triggers them, read from one place in the code: `data-umami-event` with the name, `data-umami-event-locality` with the locality as `{estado}/{municipio}` (its two slugs, as in its URLs) and, when the event has a category, `data-umami-event-category` with the category slug. Where the measurement is off (every environment but production with a Website ID, the panel and the edit mode) the element carries none of them. The elements arrive with their stories: the WhatsApp buttons of the listing card and of the card, and the registration form.
+
+The tag is `search-no-results`, the only value a page view may carry, declared as the `data-tag` attribute of the Umami script, read from the same place in the code. The results page sets it when its search found nothing, since the server knows it when it renders the page; the page's address names the locality, and the tag is a fixed word, so no text a person typed travels. Where the measurement is off there is no script, so there is no tag.
 
 #### Scenario: WhatsApp click from a listing card
 
@@ -631,7 +633,7 @@ The four events are named `whatsapp-listing`, `whatsapp-card`, `search-no-result
 #### Scenario: search with no results
 
 - **WHEN** a search in production returns no results
-- **THEN** the event is recorded with the locality and no query text
+- **THEN** its page view is recorded with the tag `search-no-results` and the address of the results page of its locality, and no query text
 
 #### Scenario: registration submitted
 

@@ -1,0 +1,39 @@
+---
+// The 8 categories as large buttons that lead to their listings
+// (docs/specs/public-directory.md, "The home page shows the 8 categories as
+// large buttons", amended in the visual review batch 2): each with the name
+// as the database writes it and the decorative emoji of its category, in
+// catalogue order. The grid collapses: one column on the narrowest phones,
+// two on a normal phone and three from `sm` up; a long name wraps, and the
+// buttons of a row share their height. It adds no heading: the page that
+// shows it heads it (the home page with "Busca por categoría", the results
+// page with its own sentence). Every link is built with `localityPath`. No
+// client JavaScript.
+import type { CatalogueEntry } from "../core/catalogue/root-urls.ts";
+import { categoryEmoji } from "../core/catalogue/category-emoji.ts";
+import { localityPath, type LocalityRef } from "../core/locality/paths.ts";
+
+interface Props {
+  locality: LocalityRef;
+  /** The categories, in catalogue order (catalogueCategories). */
+  categories: readonly CatalogueEntry[];
+}
+
+const { locality, categories } = Astro.props;
+---
+
+<ul class="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2 sm:grid-cols-3">
+  {categories.map((category) => (
+    <li>
+      <a
+        href={localityPath(locality, category.slug)}
+        class="flex h-full min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface px-3 py-4 text-center text-sm font-semibold break-words text-ink transition-colors hover:border-control focus:ring-2 focus:ring-action-strong focus:outline-none"
+      >
+        <span aria-hidden="true" class="text-2xl leading-none">
+          {categoryEmoji(category.slug)}
+        </span>
+        {category.name}
+      </a>
+    </li>
+  ))}
+</ul>

@@ -1,0 +1,88 @@
+---
+// The results page of a search, in the global layout (docs/specs/
+// public-directory.md, "Results page with the same cards as the listing",
+// "With no results, the page offers the categories as an alternative",
+// "Empty query and hostile terms bounded, without error", "The results page
+// is not indexable", "The search endpoint has a per-IP quota (v2)", "Directory lists show 20 cards per page, with
+// "Ver más" to the next (v2)" and "Heading levels
+// never skip (v2)"). The page (src/pages/[state]/[municipality]/buscar.astro)
+// decides the state and reads the data; this renders it, so every state is
+// tested with the Container API.
+//
+// - Its title is static, never the query: Umami sends the title with every
+//   view, and the query must not leave the site (base-layout, "The
+//   measurement carries no personal data or text typed by people").
+// - It is never indexed (`noindex`, so no canonical either).
+// - The query is shown bounded (displayedQuery) and as text, in one text node.
+// - The results are listing cards, whose names are `h2` under the only `h1`.
+// - With no results, the page view carries the tag `search-no-results`
+//   (ADR 0014, amended): the measurement of the searches that found nothing.
+// No client JavaScript.
+import { displayedQuery } from "../core/search/display.ts";
+import type { SearchState } from "../core/search/state.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { ANALYTICS_TAGS, type Analytics } from "../lib/analytics.ts";
+import { requireLocality } from "../lib/locality.ts";
+import CategoryGrid from "./CategoryGrid.astro";
+import ListingCard from "./ListingCard.astro";
+import MoreLink from "./MoreLink.astro";
+import SearchBox from "./SearchBox.astro";
+
+interface Props {
+  /** What the resident typed: the first `q` of the address. */
+  query: string;
+  state: SearchState;
+  /** The measurement of the page (pageAnalytics), or null when it is off. */
+  analytics: Analytics | null;
+}
+
+const { query, state, analytics } = Astro.props;
+const locality = requireLocality(Astro.locals);
+const shown = displayedQuery(query);
+const heading =
+  state.kind === "empty" ? "¿Qué estás buscando?" : `Resultados para "${shown.quoted}"`;
+const analyticsTag = state.kind === "no-results" ? ANALYTICS_TAGS.searchNoResults : undefined;
+---
+
+<BaseLayout title={`Buscar en ${locality.name}`} noindex analyticsTag={analyticsTag}>
+  <section class="flex flex-col gap-6">
+    <div class="flex flex-col gap-2">
+      <h1 class="text-2xl font-bold break-words text-ink sm:text-3xl">{heading}</h1>
+      {state.kind === "empty" && (
+        <p class="text-ink-muted">
+          {`Escribe qué necesitas y te decimos quién lo hace en ${locality.name}.`}
+        </p>
+      )}
+    </div>
+    <SearchBox locality={locality} value={state.kind === "empty" ? "" : shown.field} />
+    {state.kind === "empty" && <CategoryGrid locality={locality} categories={state.categories} />}
+    {state.kind === "results" && (
+      <>
+        <ul class="flex flex-col gap-4">
+          {state.businesses.map((business) => (
+            <li>
+              <ListingCard business={business} locality={locality} analytics={analytics} />
+            </li>
+          ))}
+        </ul>
+        <MoreLink href={state.next} />
+      </>
+    )}
+    {state.kind === "no-results" && (
+      <div class="flex flex-col gap-4">
+        <p class="break-words text-ink">{`No encontramos negocios para "${shown.quoted}".`}</p>
+        <p class="text-ink-muted">Prueba con otra palabra o elige una categoría:</p>
+        <CategoryGrid locality={locality} categories={state.categories} />
+      </div>
+    )}
+    {state.kind === "over-quota" && (
+      <div class="flex flex-col gap-4">
+        <p class="text-ink">
+          Recibimos muchas búsquedas desde aquí. Espera un rato y vuelve a intentar.
+        </p>
+        <p class="text-ink-muted">Mientras, puedes ver los negocios por categoría:</p>
+        <CategoryGrid locality={locality} categories={state.categories} />
+      </div>
+    )}
+  </section>
+</BaseLayout>

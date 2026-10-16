@@ -13,11 +13,19 @@ import { brandFindings } from "../brand-rules.ts";
 import { collapseProblems } from "../responsive-rules.ts";
 
 /**
- * Where the crawl starts: the root, the panel (never linked), a 404, and
- * every page of the sitemap, such as the listings, which the home does not
- * link to yet.
+/**
+ * Where the crawl starts: the root, the panel (never linked), a 404, the
+ * states of the search results (no page links to them yet), and every page
+ * of the sitemap, such as the listings and the cards.
  */
-const START = ["/", "/admin", "/no-existe"];
+const START = [
+  "/",
+  "/admin",
+  "/no-existe",
+  "/hidalgo/tizayuca/buscar",
+  "/hidalgo/tizayuca/buscar?q=plomero",
+  "/hidalgo/tizayuca/buscar?q=veterinario%20espacial",
+];
 /** Enough for every page the seeded directory links to, with two localities. */
 const MAX_PAGES = 150;
 
@@ -59,6 +67,9 @@ test("the crawl reaches the start pages, the legal pages, the listings and the c
     expect.arrayContaining([
       "/admin",
       "/no-existe",
+      "/hidalgo/tizayuca/buscar",
+      "/hidalgo/tizayuca/buscar?q=plomero",
+      "/hidalgo/tizayuca/buscar?q=veterinario%20espacial",
       "/aviso-de-privacidad",
       "/terminos",
       "/hidalgo/tizayuca/servicios-del-hogar",

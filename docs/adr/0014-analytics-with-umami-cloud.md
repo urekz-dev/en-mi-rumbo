@@ -16,6 +16,10 @@ Amended on 2026-10-15 (EMR-34), by decision of the product owner:
 
 - There are four events: a WhatsApp click from a listing card (`whatsapp-listing`) joins the WhatsApp click from a card (`whatsapp-card`), the search with no results and the registration submitted, with the same two properties, locality and category. Most contacts may start from a listing, where the WhatsApp button opens the conversation without going through the card, and without the event they would not be counted at all. Keeping it apart from the card's event preserves the card's clicks over its views as a metric of its own (PRD §10).
 
+Amended again on 2026-10-15 (EMR-36), by decision of the product owner:
+
+- The search with no results is not an event. The results page knows it found nothing when the server renders it, so it tags its page view instead: the Umami script of that page carries `data-tag="search-no-results"`, and the tagged views are filtered in Umami and compared with all the views of the results page. It needs no JavaScript of the site and no count on the server, and the text searched never reaches Umami: the tag is a fixed word and the script already leaves the query out of the address (`data-exclude-search`). Three events remain: `whatsapp-listing`, `whatsapp-card` and `registration-submitted`.
+
 ## Consequences
 
 Ad blockers undercount; if an exact contact count is ever needed, a redirect route in the Worker can count it server-side. Moving to the Pro plan (20 USD per month) adds websites for `stage` and longer retention.
