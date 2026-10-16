@@ -5,7 +5,8 @@
 // Cloudflare serves it as a static asset (ADR 0003). Indexable: it asks
 // search engines nothing of its own; until the cut-over the deployed
 // environments add their noindex header through the `_headers` file of the
-// build (src/integrations/static-noindex.ts). The version comes from
+// build (src/integrations/static-headers.ts). Its canonical URL comes from the
+// SITE_URL of the environment the build targets. The version comes from
 // src/core/legal/version.ts, never written here.
 import LegalDocument from "../components/LegalDocument.astro";
 import { PRIVACY_NOTICE, PRIVACY_NOTICE_PAGE } from "../core/legal/privacy-notice.ts";
@@ -15,6 +16,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 export const prerender = true;
 ---
 
-<BaseLayout title={PRIVACY_NOTICE_PAGE.title} description={PRIVACY_NOTICE_PAGE.description}>
+<BaseLayout
+  title={PRIVACY_NOTICE_PAGE.title}
+  description={PRIVACY_NOTICE_PAGE.description}
+  canonicalPath={PRIVACY_NOTICE_PAGE.path}
+>
   <LegalDocument document={PRIVACY_NOTICE} version={NOTICE_VERSION} />
 </BaseLayout>

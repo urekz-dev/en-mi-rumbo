@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Smoke test after a deploy: the home page answers 200, following its
-# redirects within https (with one active locality, / answers a 301 to it), and
-# asks not to be indexed; so does the privacy notice, a prerendered page that
-# Cloudflare serves without the Worker, which gets the header from the
+# redirects within https (with one active locality, / answers a 301 to it),
+# asks not to be indexed and carries the security headers (a
+# Content-Security-Policy, X-Content-Type-Options: nosniff, X-Frame-Options:
+# DENY and a Referrer-Policy); so does the privacy notice, a prerendered page
+# that Cloudflare serves without the Worker, which gets its headers from the
 # _headers file of the build; and /robots.txt closes the site (ADR 0008). A
 # new Worker or version can take a few seconds to answer everywhere, so each
 # check is retried.
@@ -49,25 +51,47 @@ final_headers() {
   awk '/^HTTP\//{block = ""} {block = block $0 "\n"} END {printf "%s", block}' "${work}/headers"
 }
 
+# The security headers of the last response that are missing, comma-separated
+# (docs/specs/deployment.md, "Every response carries the security headers and
+# the content security policy (v2)").
+missing_security_headers() {
+  local headers missing=()
+  headers="$(final_headers | tr -d '\r')"
+  grep -iqE "^content-security-policy:.*frame-ancestors 'none'" <<<"${headers}" ||
+    missing+=("Content-Security-Policy")
+  grep -iqE '^x-content-type-options:[[:space:]]*nosniff' <<<"${headers}" ||
+    missing+=("X-Content-Type-Options: nosniff")
+  grep -iqE '^x-frame-options:[[:space:]]*deny' <<<"${headers}" ||
+    missing+=("X-Frame-Options: DENY")
+  grep -iqE '^referrer-policy:[[:space:]]*strict-origin' <<<"${headers}" ||
+    missing+=("Referrer-Policy")
+  local IFS=,
+  # An empty array is unbound under set -u in bash 3.2.
+  echo "${missing[*]+"${missing[*]}"}"
+}
+
 # check_home, check_static and check_robots print why they failed, if they did.
-check_home() {
-  local status
-  status="$(fetch "${origin}/" --location --max-redirs 5 --proto-redir '=https')"
+# check_page <path> [curl options...]
+check_page() {
+  local path="$1" status missing
+  shift
+  status="$(fetch "${origin}${path}" "$@")"
   if [ "${status}" != "200" ]; then
-    echo "GET / answered ${status}, expected 200"
+    echo "GET ${path} answered ${status}, expected 200"
   elif ! final_headers | grep -iqE '^x-robots-tag:.*noindex'; then
-    echo "GET / has no X-Robots-Tag: noindex header"
+    echo "GET ${path} has no X-Robots-Tag: noindex header"
+  else
+    missing="$(missing_security_headers)"
+    [ -z "${missing}" ] || echo "GET ${path} lacks security headers: ${missing}"
   fi
 }
 
+check_home() {
+  check_page / --location --max-redirs 5 --proto-redir '=https'
+}
+
 check_static() {
-  local status
-  status="$(fetch "${origin}/aviso-de-privacidad")"
-  if [ "${status}" != "200" ]; then
-    echo "GET /aviso-de-privacidad answered ${status}, expected 200"
-  elif ! final_headers | grep -iqE '^x-robots-tag:.*noindex'; then
-    echo "GET /aviso-de-privacidad has no X-Robots-Tag: noindex header"
-  fi
+  check_page /aviso-de-privacidad
 }
 
 check_robots() {
@@ -94,4 +118,4 @@ for check in check_home check_static check_robots; do
   done
 done
 
-echo "smoke-test: ${origin} answers 200, sends X-Robots-Tag: noindex, also on its static pages, and closes robots.txt"
+echo "smoke-test: ${origin} answers 200, sends X-Robots-Tag: noindex and the security headers, also on its static pages, and closes robots.txt"

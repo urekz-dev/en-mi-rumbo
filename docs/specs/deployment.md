@@ -348,6 +348,8 @@ The cap on unattended reports per business MUST be enforced even when simultaneo
 
 ### Requirement: The site declares where JavaScript may come from and where data may go
 
+Superseded in v2 by Every response carries the security headers and the content security policy (v2) — source: ADR 0012, ADR 0014, ADR 0011.
+
 The site MUST send a `Content-Security-Policy` header on all its responses. The policy MUST allow the analytics provider's script (`cloud.umami.is`) **and** submissions to its collector (`gateway.umami.is`), which are different domains, and MUST NOT allow any other external script origin. It MUST block framing of the site on other people's pages, plugins and form submission to another domain. `docs/despliegue.md` MUST contain the written policy and how to verify it against the already deployed site.
 
 #### Scenario: analytics measurement works with the policy in place
@@ -366,6 +368,8 @@ The site MUST send a `Content-Security-Policy` header on all its responses. The 
 - **THEN** it finds the exact command to read the header of the online site and what it must say
 
 ### Requirement: Every site response carries the basic security headers
+
+Superseded in v2 by Every response carries the security headers and the content security policy (v2) — source: ADR 0012, ADR 0014, ADR 0011.
 
 In addition to the Content-Security-Policy, EVERY site response —dynamic, static and error— MUST carry: the instruction not to guess the content type (the site serves bytes uploaded by users), the one not to allow being framed in another page, and a referrer policy that does not leak the path to other domains. The site MUST NOT announce in every response which framework it uses.
 
@@ -409,7 +413,7 @@ The project MUST have a single document, `docs/despliegue.md`, that is enough to
 
 Added in v2 — source: ADR 0011, PRD §6.8.
 
-Photos MUST be stored in a Cloudflare R2 bucket and served from a dedicated hostname, with one bucket and one hostname per environment: `fotos.enmirumbo.com`, `fotos-stage.enmirumbo.com` and `fotos-dev.enmirumbo.com`. Serving a photo MUST NOT invoke the Worker. The bucket MUST NOT be shared between environments, and the hostname MUST NOT list the bucket.
+Photos MUST be stored in a Cloudflare R2 bucket and served from a dedicated hostname, with one bucket and one hostname per environment: `fotos.enmirumbo.com`, `fotos-stage.enmirumbo.com` and `fotos-dev.enmirumbo.com`. Each environment names its hostname, as an https origin, in its variable `PHOTOS_URL`, the only other origin the content security policy lets images come from; locally it is empty. Serving a photo MUST NOT invoke the Worker. The bucket MUST NOT be shared between environments, and the hostname MUST NOT list the bucket.
 
 #### Scenario: per environment
 
@@ -540,12 +544,12 @@ The per-IP quotas of registration, edits, reports, search and SMS MUST be kept i
 
 Added in v2 — source: ADR 0008, ADR 0005, ADR 0010.
 
-The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environments `dev`, `stage` and `prod` inside `env`, and each MUST declare for itself, without relying on the top level: its Worker name (`dev-enmirumbo`, `stage-enmirumbo` and `enmirumbo`), the `workers.dev` URL on, Version and Preview URLs off (`preview_urls: false`, so no URL can bypass Access), its `HYPERDRIVE` (cached) and `HYPERDRIVE_FRESH` (caching disabled) bindings with ids of its own, and the variables `ENVIRONMENT` (its own identifier), `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `SITE_URL` (its `workers.dev` URL, `https://<worker>.urekz.workers.dev`, the base of every absolute URL). The Cron Trigger follows "Scheduled work runs from one hourly Cron Trigger per environment (v2)"; `dev` MUST declare an empty list, so a deploy also removes a trigger left on its Worker. No route or Custom Domain is declared until the DNS move. The top level is the local Worker (`enmirumbo-local`, `ENVIRONMENT` `local`) with the `workers.dev` URL and Version URLs off, so a deploy without an environment by mistake publishes nothing reachable. While the Access application does not exist, `ACCESS_AUD` is empty and the panel stays closed.
+The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environments `dev`, `stage` and `prod` inside `env`, and each MUST declare for itself, without relying on the top level: its Worker name (`dev-enmirumbo`, `stage-enmirumbo` and `enmirumbo`), the `workers.dev` URL on, Version and Preview URLs off (`preview_urls: false`, so no URL can bypass Access), its `HYPERDRIVE` (cached) and `HYPERDRIVE_FRESH` (caching disabled) bindings with ids of its own, and the variables `ENVIRONMENT` (its own identifier), `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `SITE_URL` (its `workers.dev` URL, `https://<worker>.urekz.workers.dev`, the base of every absolute URL), `PHOTOS_URL` (its photo hostname, "Business photos live in R2, with one bucket and one hostname per environment (v2)") and `UMAMI_WEBSITE_ID` (empty but in production, `base-layout`, "Cookieless measurement is loaded only in production and only when configured (v2)"). The Cron Trigger follows "Scheduled work runs from one hourly Cron Trigger per environment (v2)"; `dev` MUST declare an empty list, so a deploy also removes a trigger left on its Worker. No route or Custom Domain is declared until the DNS move. The top level is the local Worker (`enmirumbo-local`, `ENVIRONMENT` `local`) with the `workers.dev` URL and Version URLs off, so a deploy without an environment by mistake publishes nothing reachable. While the Access application does not exist, `ACCESS_AUD` is empty and the panel stays closed.
 
 #### Scenario: per environment
 
 - **WHEN** the configuration of `dev`, `stage` and `prod` is read as Wrangler resolves it
-- **THEN** each has its Worker name, `workers_dev` on, `preview_urls` off, both Hyperdrive bindings with two ids that no other environment uses, and the four variables with its own `ENVIRONMENT` and `SITE_URL`
+- **THEN** each has its Worker name, `workers_dev` on, `preview_urls` off, both Hyperdrive bindings with two ids that no other environment uses, and the six variables with its own `ENVIRONMENT`, `SITE_URL` and `PHOTOS_URL`
 
 #### Scenario: nothing inherited
 
@@ -561,7 +565,7 @@ The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environmen
 
 Added in v2 — source: ADR 0008, ADR 0005, ADR 0016.
 
-Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id, or the `_headers` file of its static assets does not give every one of them `X-Robots-Tag: noindex` (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)"). An empty `ACCESS_AUD` is only a warning.
+Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id, or the `_headers` file of its static assets does not give every one of them `X-Robots-Tag: noindex` (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)") and the security headers ("Every response carries the security headers and the content security policy (v2)"). An empty `ACCESS_AUD` is only a warning.
 
 The build prerenders the legal pages in a local workerd with the bindings of its environment. The Hyperdrive bindings of a deployed environment have no local connection string, so the build gives them an address where nothing answers: no prerendered page reads the database ("The production build does not need the database"), and one that tried would fail the build. The deployed Worker never sees that address.
 
@@ -569,7 +573,7 @@ The build prerenders the legal pages in a local workerd with the bindings of its
 - `stage` (`deploy-stage.yml`): on every push to `main`, or by hand on `main`. It applies the migrations, runs the fictitious seed and deploys.
 - `prod` (`deploy-prod.yml`): on a tag `vX.Y.Z` (three numbers without leading zeros and nothing after them), or by hand on such a tag. It applies the migrations without seeding, deploys, and then creates the GitHub Release of the tag with generated notes; only that job may write to the repository.
 
-After each deploy a smoke test MUST request the site URL and fail unless the home answers 200, following its redirects only over https, with `X-Robots-Tag: noindex` on the page the redirects end at, `/aviso-de-privacidad`, a prerendered page that Cloudflare serves without the Worker, answers 200 with `X-Robots-Tag: noindex`, and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. The home redirects while one locality is active (`public-directory`, "While there is one active locality, the root redirects to it (v2)"), as on `dev` and `stage` once the fictitious seed turns Tizayuca on. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
+After each deploy a smoke test MUST request the site URL and fail unless the home answers 200, following its redirects only over https, with `X-Robots-Tag: noindex` and the security headers on the page the redirects end at, `/aviso-de-privacidad`, a prerendered page that Cloudflare serves without the Worker, answers 200 with `X-Robots-Tag: noindex` and the security headers, and `/robots.txt` closes the site, retrying for about a minute while the new version spreads. The home redirects while one locality is active (`public-directory`, "While there is one active locality, the root redirects to it (v2)"), as on `dev` and `stage` once the fictitious seed turns Tizayuca on. Two deploys of the same environment never run at the same time, and a running deploy is never cancelled.
 
 #### Scenario: a placeholder Hyperdrive id
 
@@ -598,13 +602,18 @@ After each deploy a smoke test MUST request the site URL and fail unless the hom
 
 #### Scenario: the smoke test
 
-- **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex`, `/aviso-de-privacidad` does not answer 200 with `X-Robots-Tag: noindex`, or `/robots.txt` does not close the site
+- **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex` or a security header, `/aviso-de-privacidad` does not answer 200 with `X-Robots-Tag: noindex` and the security headers, or `/robots.txt` does not close the site
 - **THEN** the workflow fails
 
 #### Scenario: a build whose static pages would be indexable
 
 - **WHEN** the `_headers` file of a build for `dev`, `stage` or `prod` is missing, or has no rule that gives every static asset `X-Robots-Tag: noindex`
 - **THEN** the workflow stops before the migrations and the deploy, naming the file
+
+#### Scenario: a build whose static assets lack the security headers
+
+- **WHEN** the `_headers` file of a build for `dev`, `stage` or `prod` has no rule that gives every static asset the content security policy, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and the referrer policy
+- **THEN** the workflow stops before the migrations and the deploy, naming the file and the missing headers
 
 #### Scenario: a prerendered page that reads the database
 
@@ -746,3 +755,49 @@ The system MUST use PostgreSQL 18 in development, in testing, in continuous inte
 
 - **WHEN** the project is reviewed
 - **THEN** there is a single Drizzle schema, a single migrations directory and its declared dialect is PostgreSQL; no file in the project declares a different dialect
+
+### Requirement: Every response carries the security headers and the content security policy (v2)
+
+Added in v2 — source: ADR 0011, ADR 0012, ADR 0014, PRD §8.
+
+Every response of the site, in every environment —pages, redirects, errors, `/robots.txt`, `/sitemap.xml`, `/health` and the static assets that Cloudflare serves without the Worker— MUST carry:
+
+- `Content-Security-Policy`, with exactly these directives: `default-src 'self'`; `script-src 'self' https://challenges.cloudflare.com`, plus `https://cloud.umami.is` where the measurement is on (production with a Website ID, `base-layout`, "Cookieless measurement is loaded only in production and only when configured (v2)"); `style-src 'self'`; `img-src 'self'`, plus the environment's `PHOTOS_URL` when it is an https origin; `connect-src 'self'`, plus `https://gateway.umami.is` and `https://cloud.umami.is`, Umami Cloud's collectors, where the measurement is on; `frame-src https://challenges.cloudflare.com`; `frame-ancestors 'none'`; `object-src 'none'`; `base-uri 'none'`; and `form-action 'self'`. No inline script or style is allowed, so no page may carry one: every stylesheet and script of the build is a file.
+- `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: strict-origin-when-cross-origin`, which never sends a path to another site.
+
+The admin panel —every response at `/admin` and below, and the admin actions— gets `Referrer-Policy: strict-origin`, the policy its pages declare (`base-layout`, "The measurement carries no personal data or text typed by people"), and its `form-action` also allows the Access team domain (`https://<team>.cloudflareaccess.com`), where Access sends a panel submission whose session has expired. A response that already declares one of these headers keeps its own value. No response announces the framework (`X-Powered-By`, a `generator` meta tag). The Worker adds the headers to its responses; the build writes the same headers, computed from the vars of the environment it targets, in the `_headers` file of the static assets, in every environment. The dev server leaves out only the content security policy, because Vite's development pages need inline styles and scripts; the preview and every build send it. The README holds the policy and the command that reads it from the deployed site.
+
+#### Scenario: any response
+
+- **WHEN** a page, a redirect, a nonexistent address, `/robots.txt`, `/sitemap.xml`, `/health`, a prerendered page or a stylesheet is requested
+- **THEN** the response carries the content security policy, `nosniff`, `X-Frame-Options: DENY` and the referrer policy, and no header or tag names the framework
+
+#### Scenario: a script from another origin
+
+- **WHEN** a page tries to load a script from a domain that is not the site's, Turnstile's or, in production with a Website ID, Umami's
+- **THEN** the browser blocks it
+
+#### Scenario: Umami only where it measures
+
+- **WHEN** the policy of `dev`, `stage`, local, or production without a Website ID is read
+- **THEN** it names no Umami origin
+
+#### Scenario: the pages load whole under the policy
+
+- **WHEN** the home of a locality, a legal page, a 404 and the panel are opened with the policy active
+- **THEN** their stylesheet applies and the browser reports no violation
+
+#### Scenario: the panel
+
+- **WHEN** an address of the panel is requested
+- **THEN** its referrer policy is `strict-origin` and its forms may be sent to the site and to the Access team domain only
+
+#### Scenario: a static asset
+
+- **WHEN** the build of any environment is read
+- **THEN** its `_headers` file gives every static asset the same security headers a page of that environment gets
+
+#### Scenario: verified against the site
+
+- **WHEN** the README is followed after a deploy
+- **THEN** it gives the command that reads the headers of the deployed site and what they must say

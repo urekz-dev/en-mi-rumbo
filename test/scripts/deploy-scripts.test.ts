@@ -176,11 +176,27 @@ function build(environment: Environment, overrides: Record<string, unknown> = {}
 }
 
 // What the build of a deployed environment writes to dist/client/_headers: the
-// adapter's cache rule and the noindex rule of src/integrations/static-noindex.ts.
+// adapter's cache rule, and the security and noindex rules of
+// src/integrations/static-headers.ts.
+const CSP =
+  "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; " +
+  "img-src 'self' https://fotos.enmirumbo.com; connect-src 'self'; " +
+  "frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; object-src 'none'; " +
+  "base-uri 'none'; form-action 'self'";
+const SECURITY_RULE = [
+  "/*",
+  `  Content-Security-Policy: ${CSP}`,
+  "  X-Content-Type-Options: nosniff",
+  "  X-Frame-Options: DENY",
+  "  Referrer-Policy: strict-origin-when-cross-origin",
+  "",
+].join("\n");
 const HEADERS_OK = [
   "/_astro/*",
   "  Cache-Control: public, max-age=31536000, immutable",
   "",
+  "# The security headers of every response, also on the static assets (docs/specs/deployment.md).",
+  SECURITY_RULE,
   "# Deployed environments stay out of search engines until the cut-over (ADR 0008).",
   "/*",
   "  X-Robots-Tag: noindex",
@@ -310,10 +326,15 @@ describe("Each environment is built and deployed by its own workflow (v2): the b
   // base-layout, "Deployed environments stay out of search engines until the
   // cut-over (v2)": the static assets skip the Worker that adds the header.
   it.for([
-    ["no _headers file", null],
-    ["only the adapter's cache rule", HEADERS_OK.split("\n\n")[0] ?? ""],
-    ["the rule for another path", "/aviso-de-privacidad\n  X-Robots-Tag: noindex\n"],
-    ["a rule that does not ask for noindex", "/*\n  X-Robots-Tag: nofollow\n"],
+    [
+      "only the adapter's cache rule and the security rule",
+      HEADERS_OK.split("\n# Deployed")[0] ?? "",
+    ],
+    [
+      "the rule for another path",
+      `${SECURITY_RULE}\n/aviso-de-privacidad\n  X-Robots-Tag: noindex\n`,
+    ],
+    ["a rule that does not ask for noindex", `${SECURITY_RULE}\n/*\n  X-Robots-Tag: nofollow\n`],
   ] as const)("a build whose static assets would be indexable is refused: %s", ([, headers]) => {
     const result = checkBuild("prod", build("prod"), {}, headers);
     expect(result.status).toBe(1);
@@ -323,6 +344,64 @@ describe("Each environment is built and deployed by its own workflow (v2): the b
       ),
     ]);
   });
+
+  // deployment, "Every response carries the security headers and the content
+  // security policy (v2)", scenario "a build whose static assets lack them"
+  it("a build without a _headers file is refused for both reasons", () => {
+    const result = checkBuild("prod", build("prod"), {}, null);
+    expect(result.status).toBe(1);
+    expect(errors(result)).toEqual([
+      expect.stringContaining("does not give every static asset X-Robots-Tag: noindex"),
+      expect.stringContaining("does not give every static asset its security headers"),
+    ]);
+  });
+
+  it.for([
+    [
+      "no security rule",
+      "Content-Security-Policy,Content-Security-Policy with frame-ancestors 'none',Content-Security-Policy with object-src 'none',Content-Security-Policy with form-action 'self',X-Content-Type-Options: nosniff,X-Frame-Options: DENY,Referrer-Policy: strict-origin…",
+      HEADERS_OK.replace(SECURITY_RULE, ""),
+    ],
+    [
+      "a policy that lets other sites frame the pages",
+      "Content-Security-Policy with frame-ancestors 'none'",
+      HEADERS_OK.replace("frame-ancestors 'none'", "frame-ancestors *"),
+    ],
+    [
+      "no nosniff",
+      "X-Content-Type-Options: nosniff",
+      HEADERS_OK.replace("  X-Content-Type-Options: nosniff\n", ""),
+    ],
+    [
+      "framing allowed",
+      "X-Frame-Options: DENY",
+      HEADERS_OK.replace("X-Frame-Options: DENY", "X-Frame-Options: SAMEORIGIN"),
+    ],
+    [
+      "a referrer policy that sends paths",
+      "Referrer-Policy: strict-origin…",
+      HEADERS_OK.replace("strict-origin-when-cross-origin", "unsafe-url"),
+    ],
+    [
+      "the headers only for one page",
+      "X-Content-Type-Options: nosniff,X-Frame-Options: DENY,Referrer-Policy: strict-origin…",
+      HEADERS_OK.replace(
+        "  X-Content-Type-Options: nosniff\n",
+        "\n/terminos\n  X-Content-Type-Options: nosniff\n",
+      ),
+    ],
+  ] as const)(
+    "a build whose static assets lack a security header is refused: %s",
+    ([, missing, headers]) => {
+      const result = checkBuild("prod", build("prod"), {}, headers);
+      expect(result.status).toBe(1);
+      expect(errors(result)).toEqual([
+        expect.stringContaining(
+          `does not give every static asset its security headers; missing: ${missing} (`,
+        ),
+      ]);
+    },
+  );
 
   it("a build without a static assets directory is refused", () => {
     const result = checkBuild("prod", build("prod", { assets: undefined }));
@@ -500,9 +579,15 @@ describe("Each environment is built and deployed by its own workflow (v2): reset
 // smoke-test.sh
 
 const ORIGIN = "https://enmirumbo.urekz.workers.dev";
+const SECURITY_HEADERS = {
+  "content-security-policy": CSP,
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
 const HOME_OK: Answer = {
   status: 200,
-  headers: { "content-type": "text/html", "x-robots-tag": "noindex" },
+  headers: { "content-type": "text/html", "x-robots-tag": "noindex", ...SECURITY_HEADERS },
   body: "<!doctype html>",
 };
 const ROBOTS_OK: Answer = { status: 200, body: "User-agent: *\nDisallow: /" };
@@ -570,7 +655,7 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
   // cut-over (v2)", scenario "a prerendered page of a deployed environment"
   it.for([
     [
-      { ...STATIC_OK, headers: { "content-type": "text/html" } },
+      { ...STATIC_OK, headers: { "content-type": "text/html", ...SECURITY_HEADERS } },
       "/aviso-de-privacidad has no X-Robots-Tag: noindex",
     ],
     [{ ...STATIC_OK, status: 404 }, "GET /aviso-de-privacidad answered 404"],
@@ -588,7 +673,7 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
     ["the home does not answer 200", { ...HOME_OK, status: 500 }, ROBOTS_OK, "answered 500"],
     [
       "the home has no noindex header",
-      { ...HOME_OK, headers: {} },
+      { ...HOME_OK, headers: SECURITY_HEADERS },
       ROBOTS_OK,
       "no X-Robots-Tag: noindex",
     ],
@@ -603,6 +688,45 @@ describe("Each environment is built and deployed by its own workflow (v2): the s
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(message);
     expect(result.stderr).toContain("after 3 attempts");
+  });
+
+  // deployment, "Every response carries the security headers and the content
+  // security policy (v2)", scenario "the smoke test"
+  it.for([
+    ["the policy", "content-security-policy", "Content-Security-Policy"],
+    ["nosniff", "x-content-type-options", "X-Content-Type-Options: nosniff"],
+    ["the framing header", "x-frame-options", "X-Frame-Options: DENY"],
+    ["the referrer policy", "referrer-policy", "Referrer-Policy"],
+  ] as const)("fails when the home or the privacy notice lacks %s", ([, header, name]) => {
+    const headers = Object.entries(HOME_OK.headers ?? {}).filter(([name]) => name !== header);
+    const lacking = { ...HOME_OK, headers: Object.fromEntries(headers) };
+    for (const routes of [
+      { [`GET ${ORIGIN}/`]: [lacking], [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK] },
+      {
+        [`GET ${ORIGIN}/`]: [HOME_OK],
+        [STATIC_PAGE]: [lacking],
+        [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
+      },
+    ]) {
+      const result = smoke(routes);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`lacks security headers: ${name}`);
+    }
+  });
+
+  it("the security headers count only on the page the redirects end at", () => {
+    const redirect = {
+      status: 301,
+      headers: { location: "/hidalgo/tizayuca", ...SECURITY_HEADERS },
+    };
+    const result = smoke({
+      [`GET ${ORIGIN}/`]: [
+        { ...HOME_OK, headers: { "x-robots-tag": "noindex" }, redirects: [redirect] },
+      ],
+      [`GET ${ORIGIN}/robots.txt`]: [ROBOTS_OK],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("GET / lacks security headers: Content-Security-Policy,");
   });
 
   it("refuses anything but an https origin", () => {

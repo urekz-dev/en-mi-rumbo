@@ -10,6 +10,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 export const prerender = true;
 ---
 
-<BaseLayout title={TERMS_PAGE.title} description={TERMS_PAGE.description}>
+<BaseLayout
+  title={TERMS_PAGE.title}
+  description={TERMS_PAGE.description}
+  canonicalPath={TERMS_PAGE.path}
+>
   <LegalDocument document={TERMS} />
 </BaseLayout>

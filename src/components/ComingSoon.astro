@@ -1,24 +1,23 @@
 ---
 // The notice that the directory is coming, inside the global layout, until
 // the real pages arrive with their stories: at the root while no locality is
-// active, and as the home of a locality, which it names from its record. With
-// a canonical URL it declares it and its Open Graph URL.
+// active, and as the home of a locality, which it names from its record. The
+// page passes its own path, whose absolute URL the layout declares as its
+// canonical and its Open Graph URL.
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 interface Props {
-  /** The absolute URL of the page, or null when the environment has no base. */
-  canonical?: string | null;
+  /** The path of the page, such as `/` or `/hidalgo/tizayuca`. */
+  canonicalPath: string;
+  /** The page's own description; without it, the layout's. */
+  description?: string | undefined;
 }
 
-const { canonical } = Astro.props;
+const { canonicalPath, description } = Astro.props;
 const locality = Astro.locals.locality;
 ---
 
-<BaseLayout>
-  <Fragment slot="head">
-    {canonical && <link rel="canonical" href={canonical} />}
-    {canonical && <meta property="og:url" content={canonical} />}
-  </Fragment>
+<BaseLayout canonicalPath={canonicalPath} description={description}>
   <section class="flex flex-1 flex-col justify-center gap-4">
     <h1 class="text-3xl font-bold">enmirumbo</h1>
     <p class="text-lg">

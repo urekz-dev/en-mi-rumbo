@@ -52,7 +52,12 @@ export default defineConfig({
       name: "phone, two localities",
       use: PHONE,
       dependencies: ["second locality"],
-      testMatch: ["two-localities/*.spec.ts", "surfaces.spec.ts", "internal-links.spec.ts"],
+      testMatch: [
+        "two-localities/*.spec.ts",
+        "surfaces.spec.ts",
+        "internal-links.spec.ts",
+        "seo.spec.ts",
+      ],
     },
   ],
   webServer: {
@@ -61,8 +66,9 @@ export default defineConfig({
     // coding agent, and Playwright reports that the server exited early.
     command: `astro preview --port ${port} --ignore-lock`,
     // Playwright starts the server before the global setup migrates the
-    // database, so readiness is a route that needs no database.
-    url: `http://localhost:${port}/robots.txt`,
+    // database, so readiness is a page that needs no database: a prerendered
+    // one, served as a static asset.
+    url: `http://localhost:${port}/terminos`,
     reuseExistingServer: !process.env["CI"],
   },
 });

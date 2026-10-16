@@ -4,7 +4,7 @@
 // for the helpers of src/lib/site.ts. The rendered layout is tested in
 // test/astro/layout.test.ts.
 import { describe, expect, it } from "vite-plus/test";
-import { documentTitle, homePath, siteDescription } from "../../src/lib/site.ts";
+import { documentTitle, homePath, ROOT_DESCRIPTION, siteDescription } from "../../src/lib/site.ts";
 
 const TIZAYUCA = {
   name: "Tizayuca",
@@ -47,6 +47,14 @@ describe("Server Component with a document in es-MX and base metadata", () => {
   it("outside a locality the title is the brand alone and there is no site description", () => {
     expect(documentTitle(undefined, undefined)).toBe("enmirumbo");
     expect(siteDescription(undefined)).toBeUndefined();
+  });
+
+  // Scenario: the root's description (Pages outside a locality name no locality (v2))
+  it("the root's own description names no locality", () => {
+    expect(ROOT_DESCRIPTION).toBe(
+      "Encuentra negocios, servicios y deporte de tu municipio y contáctalos directo por WhatsApp. Registro gratis para negocios locales.",
+    );
+    expect(ROOT_DESCRIPTION).not.toMatch(/tizayuca|hidalgo/i);
   });
 
   it("the home is the locality's home on its routes, and the root elsewhere", () => {
