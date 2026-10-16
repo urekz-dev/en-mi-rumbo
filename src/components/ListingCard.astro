@@ -1,0 +1,76 @@
+---
+// The listing card (docs/specs/public-directory.md, "The listing card brings
+// the essentials and WhatsApp without extra taps"): the photo slot, the name,
+// the zone, the "A domicilio" tag when it applies, and a green WhatsApp button
+// that opens the conversation directly, without going through the card. The
+// listings by category, by trade and by trade and zone, and the search
+// results, all render this one card, in a list that the page heads with its
+// `h1`, so the name is an `h2` ("Heading levels never skip (v2)").
+//
+// The rest of the card leads to the business's card with a stretched link:
+// the name is a link whose `::after` covers the whole card, and the WhatsApp
+// button sits above it (`z-10`), so no link is nested in another.
+//
+// The photo slot is square and keeps its proportion whatever the text beside
+// it measures (`self-start`), so the card takes the same space with a photo or
+// without one. Until the photos arrive (ADR 0011, epic D) it always shows the
+// placeholder; the photo key is never read here.
+//
+// Measurement (docs/specs/base-layout.md, "Four product events are recorded,
+// only in production (v2)"; public-directory, "Only the WhatsApp buttons of
+// the card and the listing card are measured (v2)"): the WhatsApp button
+// declares `whatsapp-listing` with the locality and the business's own
+// category (not the page's: the results mix categories), on the link itself,
+// since it opens a new tab. With the measurement off there are no attributes.
+// No client JavaScript.
+import type { ListingBusiness } from "../core/business/listing.ts";
+import { cardPath } from "../core/business/card-path.ts";
+import { whatsappLink } from "../core/business/contact.ts";
+import type { LocalityRef } from "../core/locality/paths.ts";
+import { ANALYTICS_EVENTS, eventAttributes, type Analytics } from "../lib/analytics.ts";
+import { PRIMARY_BUTTON } from "../lib/buttons.ts";
+import HomeDeliveryTag from "./HomeDeliveryTag.astro";
+import PhotoPlaceholder from "./PhotoPlaceholder.astro";
+
+interface Props {
+  business: ListingBusiness;
+  /** The locality of the page, whose path the card's link carries. */
+  locality: LocalityRef;
+  /** The measurement of the page (pageAnalytics), or null when it is off. */
+  analytics: Analytics | null;
+}
+
+const { business, locality, analytics } = Astro.props;
+const whatsapp = whatsappLink(business.whatsapp);
+const whatsappEvent = eventAttributes(analytics, ANALYTICS_EVENTS.whatsappListing, {
+  locality,
+  category: business.categorySlug,
+});
+---
+
+<article class="relative flex gap-4 rounded-xl border border-line bg-background p-4">
+  <div class="relative aspect-square w-20 shrink-0 self-start overflow-hidden rounded-lg">
+    <PhotoPlaceholder categorySlug={business.categorySlug} />
+  </div>
+  <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+    <h2 class="font-semibold break-words text-ink">
+      <a href={cardPath(locality, business)} class="after:absolute after:inset-0">
+        {business.name}
+      </a>
+    </h2>
+    {business.zoneName && <p class="text-sm break-words text-ink-muted">{business.zoneName}</p>}
+    {business.homeDelivery && <HomeDeliveryTag />}
+    {whatsapp && (
+      <a
+        href={whatsapp}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Enviar WhatsApp a ${business.name}`}
+        class={`${PRIMARY_BUTTON} relative z-10 mt-1 w-fit px-4 py-2 text-sm`}
+        {...whatsappEvent}
+      >
+        WhatsApp
+      </a>
+    )}
+  </div>
+</article>

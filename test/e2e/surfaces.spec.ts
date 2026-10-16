@@ -1,24 +1,34 @@
 // Checks of docs/specs/base-layout.md that hold on every page of the site, run
-// on every page reachable by links from the start pages, so a page added later
-// is checked as soon as something links to it: "Global layout with header and
-// footer on every page", "Mobile-first design with no horizontal scroll",
-// "Base accessibility from PRD §8", "Server Component with a document in es-MX
-// and base metadata", "Phone number auto-detection is turned off (v2)" and "No
-// surface of the site names the previous brand or attaches the locality to the
-// name". The 390px checks run in the phone project of playwright.config.ts,
-// with the viewport emulated, as the spec asks.
+// on every page reachable by links from the start pages and the sitemap, so a
+// page added later is checked as soon as something links to it or the sitemap
+// lists it: "Global layout with header and footer on every page", "Mobile-first
+// design with no horizontal scroll", "Base accessibility from PRD §8", "Server
+// Component with a document in es-MX and base metadata", "Phone number
+// auto-detection is turned off (v2)" and "No surface of the site names the
+// previous brand or attaches the locality to the name". The 390px checks run in
+// the phone project of playwright.config.ts, with the viewport emulated, as the
+// spec asks.
 import { expect, test, type Page } from "@playwright/test";
 import { brandFindings } from "../brand-rules.ts";
 import { collapseProblems } from "../responsive-rules.ts";
 
-/** Where the crawl starts: the root, the panel (never linked) and a 404. */
+/**
+ * Where the crawl starts: the root, the panel (never linked), a 404, and
+ * every page of the sitemap, such as the cards, which no page links to yet.
+ */
 const START = ["/", "/admin", "/no-existe"];
 const MAX_PAGES = 60;
 
-/** Every path reachable by links from START, after redirects. */
+/** The paths of the sitemap. */
+async function sitemapPaths(page: Page): Promise<string[]> {
+  const xml = await (await page.request.get("/sitemap.xml")).text();
+  return [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map(([, url = ""]) => new URL(url).pathname);
+}
+
+/** Every path reachable by links from START and the sitemap, after redirects. */
 async function crawl(page: Page): Promise<string[]> {
   const seen = new Set<string>();
-  const queue = [...START];
+  const queue = [...START, ...(await sitemapPaths(page))];
   while (queue.length > 0 && seen.size < MAX_PAGES) {
     const path = queue.shift() ?? "/";
     const response = await page.request.get(path);
@@ -42,9 +52,15 @@ test.beforeEach(async ({ page }) => {
   if (pages.length === 0) pages = await crawl(page);
 });
 
-test("the crawl reaches the start pages and, through the footer, the legal pages", () => {
+test("the crawl reaches the start pages, the legal pages and the cards", () => {
   expect(pages).toEqual(
-    expect.arrayContaining(["/admin", "/no-existe", "/aviso-de-privacidad", "/terminos"]),
+    expect.arrayContaining([
+      "/admin",
+      "/no-existe",
+      "/aviso-de-privacidad",
+      "/terminos",
+      "/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-b5q68b2e72",
+    ]),
   );
 });
 
@@ -81,8 +97,13 @@ test("every page is an es-MX document inside the layout, with its base metadata"
       .soft(footer.getByRole("link", { name: "Términos y condiciones", exact: true }), path)
       .toHaveAttribute("href", "/terminos");
     // Scenario: no client JS in the layout. Third-party scripts are not the
-    // layout's (the analytics, docs/specs/base-layout.md).
-    await expect.soft(page.locator('script:not([src^="https://"])'), path).toHaveCount(0);
+    // layout's (the analytics, docs/specs/base-layout.md), and a card's
+    // Schema.org block is data, which no browser runs (public-directory,
+    // "Directory in Server Components, mobile-first and usable without
+    // JavaScript").
+    await expect
+      .soft(page.locator('script:not([src^="https://"]):not([type="application/ld+json"])'), path)
+      .toHaveCount(0);
   }
 });
 

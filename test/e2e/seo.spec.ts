@@ -9,6 +9,8 @@
 // sitemap's URLs carry SITE_URL's origin, while the server under test may
 // listen on another port (E2E_PORT), so each URL is requested by its path.
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { cardPath } from "../../src/core/business/card-path.ts";
+import { FAKE_BUSINESSES } from "../../src/core/db/seed/businesses.ts";
 
 const SITE_URL = "http://localhost:4321";
 
@@ -52,6 +54,26 @@ test.describe("The sitemap lists the pages that exist, from the database (v2)", 
       ).toHaveLength(1);
     }
     expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  // Scenarios: card date; nothing that is not a public page
+  test("it lists every published card of Tizayuca at its current URL with its publication date, and no other card", async ({
+    request,
+  }) => {
+    const tizayuca = { slug: "tizayuca", state: { slug: "hidalgo" } };
+    const published = FAKE_BUSINESSES.filter(({ status }) => status === "published");
+    const xml = await (await request.get("/sitemap.xml")).text();
+    const cards = [
+      ...xml.matchAll(
+        /<url><loc>([^<]*\/negocio\/[^<]*)<\/loc>(?:<lastmod>([^<]*)<\/lastmod>)?<\/url>/g,
+      ),
+    ].map(([, url = "", lastmod]) => ({ path: pathOf(url), lastmod }));
+
+    expect(published.length).toBeGreaterThan(5);
+    expect(cards.map(({ path }) => path).toSorted()).toEqual(
+      published.map((fake) => cardPath(tizayuca, fake)).toSorted(),
+    );
+    for (const { path, lastmod } of cards) expect(lastmod, path).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   // Scenario: no private or search pages

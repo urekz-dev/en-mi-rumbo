@@ -1,6 +1,6 @@
 // Cookieless measurement with Umami Cloud (ADR 0014; docs/specs/base-layout.md,
 // "Cookieless measurement is loaded only in production and only when
-// configured (v2)" and "Three product events are recorded, only in production
+// configured (v2)" and "Four product events are recorded, only in production
 // (v2)").
 //
 // The only configuration is the Website ID of the site at Umami Cloud, the
@@ -129,12 +129,14 @@ export function pageAnalytics(
 }
 
 /**
- * The three product events (PRD §6.4, ADR 0014), the only names any page may
- * send. The elements that carry them arrive with their stories: the WhatsApp
- * button of a card (D3), the search with no results (D5) and the registration
+ * The four product events (PRD §6.4, ADR 0014, amended on 2026-10-15), the
+ * only names any page may send: the WhatsApp button of a listing card and of
+ * a card (D3), kept apart so that the card's clicks over its views stay a
+ * metric of their own, the search with no results (D5) and the registration
  * submitted (E).
  */
 export const ANALYTICS_EVENTS = {
+  whatsappListing: "whatsapp-listing",
   whatsappCard: "whatsapp-card",
   searchNoResults: "search-no-results",
   registrationSubmitted: "registration-submitted",
