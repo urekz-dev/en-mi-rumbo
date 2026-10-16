@@ -1,0 +1,43 @@
+---
+// The zone navigation of a listing (docs/specs/public-directory.md, "Zone
+// filter in the listing, without client-side JavaScript", "Indexable trade
+// page at the root, generated from the closed catalogue" and "Indexable trade
+// and zone page"): "Todas las colonias" and one option per zone with
+// published cards. On a category listing each option is the listing with
+// `?colonia=`; on the trade pages, each is its own trade and zone page. The
+// paths come built (src/core/business/listing-page.ts).
+//
+// Links, not a `<select>`: they work without JavaScript and each option is a
+// URL people can share. The current option is marked with `aria-current` and
+// a stronger border. Each pill is at least 44px tall. No client JavaScript.
+import type { ZoneNav } from "../core/business/listing-page.ts";
+
+interface Props {
+  nav: ZoneNav;
+}
+
+const { nav } = Astro.props;
+const options = [{ name: "Todas las colonias", ...nav.all }, ...nav.zones];
+const pill =
+  "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold break-words transition-colors";
+---
+
+<nav aria-label="Filtrar por colonia">
+  <ul class="flex flex-wrap gap-2">
+    {options.map((option) => (
+      <li>
+        <a
+          href={option.path}
+          aria-current={option.current ? "page" : undefined}
+          class={
+            option.current
+              ? `${pill} border-action-strong bg-surface text-ink`
+              : `${pill} border-line text-ink-muted hover:bg-surface`
+          }
+        >
+          {option.name}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

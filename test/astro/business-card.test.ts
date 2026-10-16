@@ -250,14 +250,17 @@ describe("Contact buttons on the card with WhatsApp as the main action", () => {
 
   // Scenario: buttons that depend on what was registered
   it("a landline and an address but no page: Llamar and Cómo llegar, and no external page", async () => {
-    const html = await renderCard(complete({ pageUrl: null }));
+    // Without trades, whose links are no contact buttons.
+    const html = await renderCard(complete({ pageUrl: null, trades: [] }));
 
     expect(anchors(html).map((a) => a.text)).toEqual(["Enviar WhatsApp", "Llamar", "Cómo llegar"]);
   });
 
   // Scenario: business without a phone or an address
   it("without a landline or an address the only contact is Enviar WhatsApp", async () => {
-    const html = await renderCard(complete({ landline: null, address: null, pageUrl: null }));
+    const html = await renderCard(
+      complete({ landline: null, address: null, pageUrl: null, trades: [] }),
+    );
 
     expect(anchors(html).map((a) => a.text)).toEqual(["Enviar WhatsApp"]);
   });
@@ -370,20 +373,45 @@ describe("Only the WhatsApp buttons of the card and the listing card are measure
 });
 
 describe("From the card the pages of its trades are reached", () => {
-  // Scenario: card with assigned trades (the links arrive with the trade
-  // pages, D2)
-  it("each trade the admin assigned is shown with its curated phrase", async () => {
+  /** The links of the trades' navigation: [href, text, class]. */
+  function tradeLinks(html: string): [string, string, string][] {
+    const nav = /<nav aria-label="Lo que hace este negocio"[^>]*>([\s\S]*?)<\/nav>/.exec(html)?.[1];
+    return [...(nav ?? "").matchAll(/<a href="([^"]*)" class="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map(
+      ([, href = "", className = "", text = ""]) => [href, text.trim(), className],
+    );
+  }
+
+  // Scenario: card with assigned trades
+  it("each trade the admin assigned links to its page in the card's locality, with its curated phrase", async () => {
     const html = await container.renderToString(CardTrades, {
-      props: { trades: complete().trades },
+      props: { trades: complete().trades, locality: TIZAYUCA },
     });
 
-    expect(html).toContain('aria-label="Lo que hace este negocio"');
-    expect(visibleText(html).split("\n")).toEqual(["Plomería", "Fondas y comida corrida"]);
+    expect(tradeLinks(html).map(([href, text]) => [href, text])).toEqual([
+      ["/hidalgo/tizayuca/plomeria", "Plomería"],
+      ["/hidalgo/tizayuca/fonda-comida-corrida", "Fondas y comida corrida"],
+    ]);
+    // A touch area of at least 44px.
+    for (const [, , className] of tradeLinks(html))
+      expect(className.split(" ")).toContain("min-h-11");
+  });
+
+  it("the card links its trades under its own locality", async () => {
+    const links = tradeLinks(await renderCard(complete(), { locality: OTHER }));
+
+    expect(links.map(([href]) => href)).toEqual([
+      "/estado-de-prueba-92/pueblo-uno/plomeria",
+      "/estado-de-prueba-92/pueblo-uno/fonda-comida-corrida",
+    ]);
   });
 
   // Scenario: card without trades
   it("a card without trades shows no trades section", async () => {
-    expect((await container.renderToString(CardTrades, { props: { trades: [] } })).trim()).toBe("");
+    expect(
+      (
+        await container.renderToString(CardTrades, { props: { trades: [], locality: TIZAYUCA } })
+      ).trim(),
+    ).toBe("");
     expect(await renderCard(minimal())).not.toContain("Lo que hace este negocio");
   });
 });

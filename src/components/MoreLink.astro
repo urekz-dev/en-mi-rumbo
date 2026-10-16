@@ -1,0 +1,22 @@
+---
+// "Ver más" (docs/specs/public-directory.md, "Directory lists show 20 cards
+// per page, with "Ver más" to the next (v2)"): a link to the next page of a
+// list of cards, below the last card, or nothing on the last page. A link,
+// not a button, so it works without JavaScript; neutral, not green, because
+// the WhatsApp buttons are the only main action of a list; at least 44px.
+// No client JavaScript.
+import { SECONDARY_BUTTON } from "../lib/buttons.ts";
+
+interface Props {
+  /** The URL of the next page, or null on the last one. */
+  href: string | null;
+}
+
+const { href } = Astro.props;
+---
+
+{href !== null && (
+  <a href={href} class={`${SECONDARY_BUTTON} w-full px-4 text-base`}>
+    Ver más
+  </a>
+)}

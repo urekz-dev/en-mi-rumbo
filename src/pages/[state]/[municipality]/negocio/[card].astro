@@ -15,6 +15,9 @@
 //   for an hour at most: the name can change again, even back.
 // - The card declares its title, description and canonical URL, which the
 //   layout also shares as its preview, and its Schema.org block.
+// - Its zone is shown with its display name everywhere (src/core/catalogue/
+//   zone-names.ts): with its type when another zone of the locality, or the
+//   locality itself, has the same name.
 //
 // Its view is measured as the page view Umami records by itself, with no
 // event or counter of its own ("The card view is measured on its own,
@@ -24,6 +27,8 @@ import BusinessCard from "../../../../components/BusinessCard.astro";
 import JsonLd from "../../../../components/JsonLd.astro";
 import { publishedCard } from "../../../../core/business/card.ts";
 import { cardIdOf, cardPath, cardSegment } from "../../../../core/business/card-path.ts";
+import { localityZoneNames } from "../../../../core/catalogue/pages.ts";
+import { withZoneName } from "../../../../core/catalogue/zone-names.ts";
 import { withDb } from "../../../../core/db/client.ts";
 import { cardDescription, cardTitle, localBusinessData } from "../../../../core/seo/card.ts";
 import BaseLayout from "../../../../layouts/BaseLayout.astro";
@@ -37,7 +42,10 @@ const id = cardIdOf(segment);
 const card =
   id === null
     ? null
-    : await withDb(env, "HYPERDRIVE", { waitUntil }, (db) => publishedCard(db, locality.code, id));
+    : await withDb(env, "HYPERDRIVE", { waitUntil }, async (db) => {
+        const found = await publishedCard(db, locality.code, id);
+        return found && withZoneName(found, await localityZoneNames(db, locality));
+      });
 if (card === null) return notFound();
 
 const path = cardPath(locality, card);

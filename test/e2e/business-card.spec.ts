@@ -60,10 +60,10 @@ test.describe("Business card at its own URL with the registered information and 
     ]) {
       await expect(main.getByText(text, { exact: true }), text).toBeVisible();
     }
-    // Its trade, with its phrase (a link once the trade pages exist, D2).
-    await expect(main.getByRole("list", { name: "Lo que hace este negocio" })).toHaveText(
-      "Plomería",
-    );
+    // Its trade, with its phrase, as a link to the trade's page.
+    await expect(
+      main.getByRole("navigation", { name: "Lo que hace este negocio" }).getByRole("link"),
+    ).toHaveText(["Plomería"]);
   });
 
   // Scenario: card of a business that filled in only the required fields
@@ -78,7 +78,8 @@ test.describe("Business card at its own URL with the registered information and 
     );
     await expect(main.getByText("Negocio verificado")).toBeVisible();
     await expect(main.getByText("Tizayuca Centro", { exact: true })).toBeVisible();
-    await expect(main.getByRole("link")).toHaveText(["Enviar WhatsApp"]);
+    // Besides its trade, the only link is WhatsApp.
+    await expect(main.locator("a:not(nav a)")).toHaveText(["Enviar WhatsApp"]);
     await expect(main).not.toContainText(/Horario|Teléfono|A domicilio|No disponible/);
   });
 
@@ -197,7 +198,8 @@ test.describe("Contact buttons on the card with WhatsApp as the main action", ()
     await page.goto(COMPLETE);
     const main = page.getByRole("main");
 
-    await expect(main.getByRole("link")).toHaveText([
+    // The contact buttons, apart from the links of its trades.
+    await expect(main.locator("a:not(nav a)")).toHaveText([
       "Enviar WhatsApp",
       "Llamar",
       "Cómo llegar",

@@ -3,12 +3,12 @@
 // URLs carry the state and the municipality (v2)", scenario "links keep the
 // prefix", on the rendered site: starting at `/` (the home of the seeded
 // locality), at a page that does not exist and at every page of the sitemap
-// (the cards, which no page links to yet), it follows every internal link
-// and form destination of the public pages and checks that each one answers,
-// that the links of a page of a locality keep its prefix, and that links that
-// open a new tab carry `rel="noopener noreferrer"`. The panel is left out: no
-// public page links to it. test/scripts/internal-links.test.ts checks the
-// links written literally in the source.
+// (the listings, which the home does not link to yet), it follows every
+// internal link and form destination of the public pages and checks that each
+// one answers, that the links of a page of a locality keep its prefix, and
+// that links that open a new tab carry `rel="noopener noreferrer"`. The panel
+// is left out: no public page links to it. test/scripts/internal-links.test.ts
+// checks the links written literally in the source.
 import { expect, test } from "@playwright/test";
 import { routePath, staticRoutes } from "../site-routes.ts";
 
