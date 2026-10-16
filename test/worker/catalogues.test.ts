@@ -1,12 +1,12 @@
 // Scenarios of docs/specs/data-model.md about the reference data, against the
 // database the migrations leave: the categories and trades come from
 // drizzle/0007_categories_trades.sql, the zones of Tizayuca from
-// drizzle/0006_tizayuca_zones.sql (zones.test.ts), the INEGI catalogue from
-// drizzle/0003_inegi_catalogue.sql (locality.test.ts). The expected lists are
-// the prototype PRD's (§6.1 and Appendix B), in its order.
+// drizzle/0006_tizayuca_zones.sql (zones.test.ts), Hidalgo and Tizayuca from
+// drizzle/0003_inegi_catalogue.sql, which drizzle/0010_tizayuca_only.sql trims
+// to them (locality.test.ts). The expected lists are the prototype PRD's (§6.1
+// and Appendix B), in its order.
 import { asc, count, eq, lt } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vite-plus/test";
-import { slugify } from "../../scripts/catalogues/slug.ts";
 import { SLUG_PATTERN } from "../../src/core/db/schema/checks.ts";
 import {
   categories,
@@ -20,6 +20,7 @@ import {
 } from "../../src/core/db/schema/index.ts";
 import { PERMISSIONS } from "../../src/core/access/permissions.ts";
 import { db, FIRST_FIXTURE_CODE, isFixtureSlug } from "./fixtures.ts";
+import { slugify } from "./slug.ts";
 
 const CATEGORIES = [
   ["Restaurantes y fondas", "restaurantes-y-fondas"],
@@ -167,8 +168,9 @@ describe("Reproducible migrations that carry the reference data (v2)", () => {
     expect(categoryRows).toHaveLength(8);
     expect(tradeRows).toHaveLength(49);
     expect(counts).toMatchObject({
-      states: 32,
-      municipalities: 2478,
+      // Hidalgo and Tizayuca only.
+      states: 1,
+      municipalities: 1,
       localities: ["13069"],
       zones: 105,
       permissions: Object.keys(PERMISSIONS).length,

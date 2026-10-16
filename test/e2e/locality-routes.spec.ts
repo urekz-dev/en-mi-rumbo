@@ -9,7 +9,14 @@
 // `astro preview` runs with the local vars of wrangler.jsonc (SITE_URL is
 // http://localhost:4321). Two active localities are covered by
 // test/e2e/two-localities/, and none by test/worker/locality-routes.test.ts.
+// The database holds no other real state or municipality, so the 404 checks
+// add a fictitious one (./unserved-municipality.ts) and remove it.
 import { expect, test } from "@playwright/test";
+import {
+  addUnservedMunicipality,
+  removeUnservedMunicipality,
+  UNSERVED,
+} from "./unserved-municipality.ts";
 
 const HOME = "/hidalgo/tizayuca";
 
@@ -43,10 +50,18 @@ test.describe("Public URLs carry the state and the municipality (v2)", () => {
 });
 
 test.describe("Unknown or inactive state and municipality answer 404 (v2)", () => {
+  test.beforeAll(async () => {
+    await addUnservedMunicipality();
+  });
+  test.afterAll(async () => {
+    await removeUnservedMunicipality();
+  });
+
   for (const [scenario, path] of [
     ["a state that does not exist", "/atlantida/tizayuca/"],
-    ["a real municipality that is not active", "/hidalgo/pachuca-de-soto"],
-    ["a municipality under the wrong state", "/jalisco/tizayuca/"],
+    ["a municipality the database does not hold", "/hidalgo/pachuca-de-soto"],
+    ["a municipality that is not active", `/${UNSERVED.state.slug}/${UNSERVED.slug}`],
+    ["a municipality under the wrong state", `/${UNSERVED.state.slug}/tizayuca/`],
     ["a page under an unknown state", "/atlantida/tizayuca/servicios-del-hogar"],
   ] as const) {
     test(scenario, async ({ request }) => {

@@ -37,7 +37,9 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 
 - The brand is written enmirumbo, lowercase and in one word.
 - The smoke test after each deploy follows the redirect of the home page, which leads to the locality while only one is active.
+- The database keeps only the reference data of Tizayuca, the one city the directory serves: the state of Hidalgo, the municipality of Tizayuca, its locality and its 105 zones. The other 31 states and 2,477 municipalities of INEGI's catalogue are removed from every environment; their addresses answer 404, as before. Cities are added one at a time, each in its own data migration. ADR 0006 is amended.
 
 ### Removed
 
 - The short address of a locality, such as `/tizayuca`, which only `dev` and `stage` served: public addresses always carry the state and the municipality, and `/tizayuca` answers 404. ADR 0007 is amended.
+- The scripts that wrote the migrations of INEGI's catalogue and of SEPOMEX's zones (`vp run db:inegi` and `vp run db:zones`). How the data of a new city is prepared is decided when one is needed.

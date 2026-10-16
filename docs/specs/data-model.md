@@ -594,9 +594,9 @@ The fictitious business seed MUST leave at least one published business **with a
 
 ### Requirement: The locality is a first-class record keyed by the INEGI municipality code (v2)
 
-Added in v2 — source: ADR 0006, PRD §8, ADR 0021.
+Added in v2 — source: ADR 0006, PRD §8, ADR 0021. Amended on 2026-10-15 by decision of the product owner: the database holds only the reference data of the localities it serves (see "The database holds only the reference data of the localities it serves (v2)"); until then the municipality of a locality came from INEGI's full catalogue.
 
-The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its INEGI municipality, so they cannot disagree with the catalogue. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset), an active flag and, optionally, the coordinates of its municipal seat (latitude and longitude in decimal degrees, both or neither, within range), which place the locality for the suggestion of the nearest one on the root (`public-directory`, "Geolocation is only a suggestion of the nearest locality (v2)"). The seat is the locality of the INEGI catalogue that heads the municipality (locality `0001` for Tizayuca), and its coordinates are INEGI's, loaded by a data migration that cites the source with the rest of that locality's reference data; a locality without them is never suggested. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. The data migration that loads the INEGI catalogue also creates the locality of Tizayuca, inactive and without a contact WhatsApp, so that every environment has it, production included; a super admin then sets its contact WhatsApp and turns its flag on, which is a data change (ADR 0021). No text, catalogue or route of the system MAY assume that a single locality exists.
+The system MUST persist each locality as its own record from the first migration. The identity of a locality MUST be the INEGI code of its municipality: the two-digit state code followed by the three-digit municipality code (Tizayuca, Hidalgo, is `13069`). Its name, its slug and its state MUST be those of its municipality, which the database holds with its INEGI code, so they cannot disagree with the reference data. The record MUST also hold its IANA time zone, its contact WhatsApp, the daily registrations threshold that triggers the alert (none when unset), an active flag and, optionally, the coordinates of its municipal seat (latitude and longitude in decimal degrees, both or neither, within range), which place the locality for the suggestion of the nearest one on the root (`public-directory`, "Geolocation is only a suggestion of the nearest locality (v2)"). The seat is the locality of the INEGI catalogue that heads the municipality (locality `0001` for Tizayuca), and its coordinates are INEGI's, loaded by a data migration that cites the source with the rest of that locality's reference data; a locality without them is never suggested. The contact WhatsApp is the public number of the locality's admins, the one "Perdí mi enlace" opens; a locality MUST NOT be active without it. Who administers a locality is not a field of the locality: it comes from the role assignments of "Panel users, roles and permissions live in the database (v2)". Municipality names repeat across states, so the slug of a locality MUST be unique within its state; the public URL always carries both, `/{estado}/{municipio}`. The contact WhatsApp is a real number of the team: a super admin sets it in the database, never in the repository. The data migrations that load the reference data of Tizayuca also create its locality, inactive and without a contact WhatsApp, so that every environment has it, production included; a super admin then sets its contact WhatsApp and turns its flag on, which is a data change (ADR 0021). No text, catalogue or route of the system MAY assume that a single locality exists.
 
 #### Scenario: Tizayuca as a locality
 
@@ -607,7 +607,7 @@ The system MUST persist each locality as its own record from the first migration
 
 #### Scenario: a locality without its required data
 
-- **WHEN** a locality is saved without a time zone, with a contact WhatsApp that is not ten digits, active without a contact WhatsApp, with a latitude and no longitude (or the reverse), with coordinates out of range, or with a code that is not a municipality of the INEGI catalogue
+- **WHEN** a locality is saved without a time zone, with a contact WhatsApp that is not ten digits, active without a contact WhatsApp, with a latitude and no longitude (or the reverse), with coordinates out of range, or with a code that is not a municipality in the database
 - **THEN** the database rejects the write
 
 #### Scenario: one record per municipality
@@ -616,6 +616,8 @@ The system MUST persist each locality as its own record from the first migration
 - **THEN** the database rejects the write
 
 ### Requirement: The catalogue of states and municipalities is reference data and only active localities are served (v2)
+
+Superseded in v2 by The database holds only the reference data of the localities it serves (v2) — source: decision of the product owner, 2026-10-14; ADR 0006 (amended on 2026-10-15).
 
 Added in v2 — source: ADR 0006.
 
@@ -655,11 +657,46 @@ A municipality is served only when it has a locality whose active flag is on. A 
 - **WHEN** the zones of a municipality are loaded, its contact WhatsApp is set, its admins are assigned and its active flag is turned on
 - **THEN** the municipality is served without any change in the code
 
+### Requirement: The database holds only the reference data of the localities it serves (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14; ADR 0006 (amended on 2026-10-15).
+
+The database MUST hold the states and municipalities of the localities the directory serves, and no others: today the state of Hidalgo (INEGI code `13`, slug `hidalgo`) and its municipality of Tizayuca (`13069`, slug `tizayuca`), with the locality of Tizayuca, the coordinates of its municipal seat and its zones. They are reference data and ship as data migrations, so that they reach every environment, production included, without seeds. Each state and municipality keeps its INEGI code and its official name as INEGI writes it, and has a slug: the official name in lowercase ASCII words joined by hyphens, without accents (`ñ` becomes `n`) and without punctuation. The slug of a state MUST be unique, and the slug of a municipality unique within its state. The data of Tizayuca comes from INEGI's "Catálogo Único de Claves de Áreas Geoestadísticas Estatales, Municipales y Localidades", and its migrations carry the credit INEGI asks for: they are the record of where it came from, and the source files are not kept in the repository. The migration that loaded INEGI's full catalogue is applied in every environment and never changes; a later one removes every state and municipality that no locality uses, so a new database and an existing one end the same.
+
+Cities are added one at a time, on purpose: the reference data of a new city (its state when it is new, its municipality, its locality, its seat and its zones) MUST ship in its own data migration. The repository keeps no script for INEGI's or SEPOMEX's catalogues: how the data of a new city is prepared is decided when one is needed.
+
+A municipality is served only when it has a locality whose active flag is on. A state or municipality that is not in the database, or that is but is not served, MUST answer 404 on every public route. Once the reference data of a city is in the database, activating it MUST be data work only: set its contact WhatsApp, assign its admins and turn its flag on, with no code change.
+
+#### Scenario: only Tizayuca's reference data
+
+- **WHEN** the migrations are applied to an empty database, or to one that holds INEGI's full catalogue
+- **THEN** there is one state, Hidalgo (`13`, slug `hidalgo`), and one municipality, Tizayuca (`13069`, slug `tizayuca`, under Hidalgo), with the locality of Tizayuca, the coordinates of its seat and its zones, and their names stay as INEGI writes them
+
+#### Scenario: the migrations credit INEGI
+
+- **WHEN** the data migrations that load the state and municipality of Tizayuca and the coordinates of its seat are read
+- **THEN** they name INEGI's catalogue and carry the credit "Fuente: INEGI, …" with its fecha de corte or the date it was consulted
+
+#### Scenario: a state or municipality that is not in the database is not served
+
+- **WHEN** someone asks for a state or a municipality that the database does not hold, such as `/jalisco/tizayuca` or `/hidalgo/pachuca-de-soto`
+- **THEN** it is not served, and the public routes answer 404 (see "Unknown or inactive state and municipality answer 404 (v2)" in `public-directory`)
+
+#### Scenario: a municipality without an active locality is not served
+
+- **WHEN** a municipality is in the database but has no locality, or its locality has the active flag off
+- **THEN** it is treated as not served, and the public routes of its state and municipality answer 404
+
+#### Scenario: activating a locality is data only
+
+- **WHEN** the reference data of a city is in the database, and its contact WhatsApp is set, its admins are assigned and its active flag is turned on
+- **THEN** the municipality is served without any change in the code
+
 ### Requirement: Catalogues of categories, zones and trades with stable slug (v2)
 
 Added in v2 — source: ADR 0006.
 
-The system MUST have three persisted catalogues: the 8 categories of PRD §6.1 and the trades of Appendix B, which are global, and the zones of each locality, which come from the SEPOMEX postal catalogue (see "Zones belong to a locality and are loaded from the SEPOMEX postal catalogue (v2)"). Each category and each trade MUST have a unique name and slug. Each zone MUST have a slug unique within its locality; two zones of a locality MAY share a name when SEPOMEX lists it with two settlement types, and their slugs tell them apart. A slug MUST be suitable for SEO URLs: lowercase ASCII words joined by hyphens, without accents or punctuation (e.g. `plomeria`, `haciendas-de-tizayuca`, to compose `/plomeria-haciendas-de-tizayuca`). A slug MUST NOT change once published, even when the admin renames its entry.
+The system MUST have three persisted catalogues: the 8 categories of PRD §6.1 and the trades of Appendix B, which are global, and the zones of each locality, Tizayuca's from the SEPOMEX postal catalogue (see "Zones belong to a locality, and Tizayuca's come from the SEPOMEX postal catalogue (v2)"). Each category and each trade MUST have a unique name and slug. Each zone MUST have a slug unique within its locality; two zones of a locality MAY share a name when SEPOMEX lists it with two settlement types, and their slugs tell them apart. A slug MUST be suitable for SEO URLs: lowercase ASCII words joined by hyphens, without accents or punctuation (e.g. `plomeria`, `haciendas-de-tizayuca`, to compose `/plomeria-haciendas-de-tizayuca`). A slug MUST NOT change once published, even when the admin renames its entry.
 
 #### Scenario: catalogues populated
 
@@ -672,6 +709,8 @@ The system MUST have three persisted catalogues: the 8 categories of PRD §6.1 a
 - **THEN** they are `plomeria` and `haciendas-de-tizayuca` (no capitals, accents or spaces)
 
 ### Requirement: Zones belong to a locality and are loaded from the SEPOMEX postal catalogue (v2)
+
+Superseded in v2 by Zones belong to a locality, and Tizayuca's come from the SEPOMEX postal catalogue (v2) — source: decision of the product owner, 2026-10-14; ADR 0006 (amended on 2026-10-15).
 
 Added in v2 — source: ADR 0006.
 
@@ -722,6 +761,51 @@ The prototype's hand-maintained list of colonias MUST be used only to cross-chec
 
 - **WHEN** the admin hides a zone and renames another
 - **THEN** the hidden zone is no longer offered as an option for new registrations, and the renamed zone shows its new name while keeping its slug (see "Catalogues of categories, zones and trades with stable slug")
+
+### Requirement: Zones belong to a locality, and Tizayuca's come from the SEPOMEX postal catalogue (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14; ADR 0006 (amended on 2026-10-15).
+
+Each zone MUST belong to exactly one locality, and its settlement type (colonia, fraccionamiento, pueblo, barrio, unidad habitacional or another settlement type) MUST be stored with it. Zones are reference data and ship as data migrations with the rest of their locality's reference data, so that they reach every environment, production included, without seeds; an automatic check MUST verify what they leave in the database. Postal codes are not stored. Every zone starts visible, and the admin MUST be able to hide or rename a zone. How the zones of a new city are prepared is decided when one is needed (see "The database holds only the reference data of the localities it serves (v2)").
+
+The zones of Tizayuca are its settlements in SEPOMEX's Catálogo Nacional de Códigos Postales, which Correos de México publishes: one zone per settlement, with its type as SEPOMEX writes it. Their data migration MUST name the source, its download page and the date of the catalogue's last update; it is the record of where they came from, and SEPOMEX's file is not kept in the repository. Their names are SEPOMEX's, with its accents and capitals, single spaces and no text garbled by an encoding, and settlements whose names differ only in case, accents or spacing are a single zone. Their slugs follow the slug rule of the states and municipalities (see "The database holds only the reference data of the localities it serves (v2)") and are unique within the locality. Four names that SEPOMEX lists with two settlement types keep the name in both zones, and their slugs carry the type: "El Carmen" (`colonia-el-carmen`, `fraccionamiento-el-carmen`), "El Chopo" (`pueblo-el-chopo`, `rancho-el-chopo`), "El Manantial" (`fraccionamiento-el-manantial`, `rancho-el-manantial`) and "Tizayuca" (`unidad-habitacional-tizayuca`, `zona-industrial-tizayuca`).
+
+The prototype's hand-maintained list of colonias MUST be used only to cross-check the zones of Tizayuca, never as the source. The option "Otra" is not a zone: a business that chooses it keeps its free text and no zone, as described in "The zone allows "Otra" with free text pending normalization".
+
+#### Scenario: zones carry their locality and type
+
+- **WHEN** the migrations are applied to an empty database
+- **THEN** Tizayuca has one zone per SEPOMEX settlement, 105 in all, each linked to the locality of Tizayuca, with its settlement type and visible
+
+#### Scenario: the migration credits SEPOMEX
+
+- **WHEN** the data migration of the zones of Tizayuca is read
+- **THEN** it names SEPOMEX's catalogue and its download page, carries the line "Fuente: Servicio Postal Mexicano (Correos de México), …" with the date of the catalogue's last update, and holds no postal code
+
+#### Scenario: names as SEPOMEX writes them
+
+- **WHEN** the names of the zones of Tizayuca are read
+- **THEN** each has SEPOMEX's accents and capitals, single spaces and no text garbled by an encoding
+
+#### Scenario: no duplicates
+
+- **WHEN** the zones of Tizayuca are compared by name, ignoring case, accents and spacing
+- **THEN** only the four names that SEPOMEX lists with two settlement types repeat, and each of those zones has the slug chosen for it
+
+#### Scenario: slugs follow the rule
+
+- **WHEN** the slugs of the zones of Tizayuca are read
+- **THEN** each is the slug of its name, or, for the four names with two types, of its type and its name
+
+#### Scenario: cross-check against the prototype's list
+
+- **WHEN** the zones of Tizayuca are compared with the prototype's list of colonias
+- **THEN** every colonia of the prototype that is missing from the zones, or spelled differently, is reported, and none is dropped silently
+
+#### Scenario: hide and rename
+
+- **WHEN** the admin hides a zone and renames another
+- **THEN** the hidden zone is no longer offered as an option for new registrations, and the renamed zone shows its new name while keeping its slug (see "Catalogues of categories, zones and trades with stable slug (v2)")
 
 ### Requirement: Businesses, pending edits, reports and the audit log reference their locality, and slugs are unique per locality (v2)
 
@@ -1001,14 +1085,14 @@ A zone on its own is not a page, so a zone slug that matches a trade slug or a c
 
 ### Requirement: Reproducible migrations that carry the reference data (v2)
 
-Added in v2 — source: ADR 0005, ADR 0006, ADR 0019.
+Added in v2 — source: ADR 0005, ADR 0006, ADR 0019. Amended on 2026-10-15 by decision of the product owner: the reference data holds the state and municipality of Tizayuca, not INEGI's full catalogue (see "The database holds only the reference data of the localities it serves (v2)").
 
-The project MUST be able to bring up the database from scratch by applying the migrations in `drizzle/`, and the migrations alone MUST leave it with all the tables and all the reference data every environment needs, production included: the permission catalogue and the base roles, the INEGI catalogue of states and municipalities with the locality of Tizayuca, the zones of Tizayuca from SEPOMEX, and the 8 categories and the 49 trades with their slugs. Reference data MUST ship as data migrations, never as a seed, and a migration that is applied never changes: new or changed reference data ships in a new migration. The database MUST be of the same engine in development, tests and production (PostgreSQL), with a single migration tree. Bringing up the local database MUST take one documented command, with no accounts or paid services. Wherever another requirement says to seed or populate the catalogues, applying the migrations does it; the only seed is the fictitious one of "Seed of fictitious businesses for development (v2)".
+The project MUST be able to bring up the database from scratch by applying the migrations in `drizzle/`, and the migrations alone MUST leave it with all the tables and all the reference data every environment needs, production included: the permission catalogue and the base roles, the state of Hidalgo and the municipality and locality of Tizayuca, the zones of Tizayuca from SEPOMEX, and the 8 categories and the 49 trades with their slugs. Reference data MUST ship as data migrations, never as a seed, and a migration that is applied never changes: new or changed reference data ships in a new migration. The database MUST be of the same engine in development, tests and production (PostgreSQL), with a single migration tree. Bringing up the local database MUST take one documented command, with no accounts or paid services. Wherever another requirement says to seed or populate the catalogues, applying the migrations does it; the only seed is the fictitious one of "Seed of fictitious businesses for development (v2)".
 
 #### Scenario: database from scratch
 
 - **WHEN** the migrations are applied to an empty database
-- **THEN** it has all the tables and the reference data: the 8 categories and the 49 trades with their slugs, the 32 states and 2,478 municipalities, the locality of Tizayuca and its 105 zones
+- **THEN** it has all the tables and the reference data: the 8 categories and the 49 trades with their slugs, one state and one municipality, Hidalgo and Tizayuca, the locality of Tizayuca and its 105 zones
 
 #### Scenario: the development database is the same as the production one
 

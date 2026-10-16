@@ -39,7 +39,7 @@ import {
   type FindLocality,
   type LocalityGateContext,
 } from "../../src/lib/locality.ts";
-import { cleanup, createFixture, db, type Fixture } from "./fixtures.ts";
+import { cleanup, createFixture, db, type Fixture, UNSERVED_MUNICIPALITY } from "./fixtures.ts";
 
 const STATE = "94";
 const STATE_SLUG = `estado-de-prueba-${STATE}`;
@@ -76,7 +76,7 @@ const HIDALGO_TIZAYUCA = locality("hidalgo", "tizayuca", {
   latitude: 19.8410889,
   longitude: -98.9815842,
 });
-const OTHER = locality("jalisco", "pueblo-uno");
+const OTHER = locality("estado-de-prueba", "pueblo-uno");
 /** The same municipality slug in another state. */
 const TWIN = locality("estado-de-prueba", "tizayuca");
 
@@ -130,12 +130,12 @@ describe("Public URLs carry the state and the municipality (v2)", () => {
     }
   });
 
-  it("no state or municipality slug of the catalogue is one of the site's own segments", async () => {
+  it("no state or municipality slug of the database is one of the site's own segments", async () => {
     const slugs = await db(async (tx) => [
       ...(await tx.select({ slug: states.slug }).from(states)),
       ...(await tx.select({ slug: municipalities.slug }).from(municipalities)),
     ]);
-    expect(slugs.length).toBeGreaterThan(2478);
+    expect(slugs.map(({ slug }) => slug)).toEqual(expect.arrayContaining(["hidalgo", "tizayuca"]));
     expect(slugs.filter(({ slug }) => isReservedSegment(slug))).toEqual([]);
   });
 });
@@ -172,9 +172,10 @@ describe("Unknown or inactive state and municipality answer 404 (v2)", () => {
 
   it.for([
     ["a state that does not exist", "atlantida", "pueblo-uno"],
-    ["a real municipality that is not active", STATE_SLUG, "pueblo-dos"],
-    ["a municipality of the catalogue without a locality", "hidalgo", "pachuca-de-soto"],
-    ["a municipality under the wrong state", "jalisco", "pueblo-uno"],
+    ["a municipality the database does not hold", "hidalgo", "pachuca-de-soto"],
+    ["a municipality whose locality is not active", STATE_SLUG, "pueblo-dos"],
+    ["a municipality without a locality", STATE_SLUG, UNSERVED_MUNICIPALITY],
+    ["a municipality under the wrong state", "hidalgo", "pueblo-uno"],
     ["a segment that cannot be a slug", STATE_SLUG.toUpperCase(), "pueblo-uno"],
   ] as const)(
     "%s answers an empty 404 and the page never runs",
@@ -248,7 +249,7 @@ describe("While there is one active locality, the root redirects to it (v2)", ()
   it("no chooser: a cookie, a choice or a request to change still redirect to it", () => {
     for (const request of [
       { chosen: "pueblo-uno" },
-      { choose: "jalisco/pueblo-uno" },
+      { choose: "estado-de-prueba/pueblo-uno" },
       { choose: "hidalgo/tizayuca" },
       { changing: true },
     ]) {
@@ -295,7 +296,7 @@ describe("With two or more active localities the root lists them and never redir
 
   it("each entry leads to its home through the choice", () => {
     expect(choicePath(HIDALGO_TIZAYUCA)).toBe("/?elegir=hidalgo/tizayuca");
-    expect(choicePath(OTHER)).toBe("/?elegir=jalisco/pueblo-uno");
+    expect(choicePath(OTHER)).toBe("/?elegir=estado-de-prueba/pueblo-uno");
   });
 
   it("the list is read from the database with both fixture localities", async () => {
@@ -362,9 +363,9 @@ describe("Geolocation is only a suggestion of the nearest locality (v2)", () => 
       localities: [HIDALGO_TIZAYUCA, OTHER],
       suggested: HIDALGO_TIZAYUCA,
     });
-    expect(rootDestination([OTHER, locality("sonora", "otro")], { location: FAR_AWAY })).toEqual(
-      expect.objectContaining({ kind: "list", suggested: null }),
-    );
+    expect(
+      rootDestination([OTHER, locality("otro-estado", "otro")], { location: FAR_AWAY }),
+    ).toEqual(expect.objectContaining({ kind: "list", suggested: null }));
   });
 
   it("the seat is read with the locality, null while it has no coordinates", async () => {
@@ -404,7 +405,9 @@ describe("The chosen locality is remembered in a cookie that holds only its slug
       locality: HIDALGO_TIZAYUCA,
     });
     // A new choice wins over the cookie and over a request to change.
-    expect(rootDestination(BOTH, { choose: "jalisco/pueblo-uno", chosen: "tizayuca" })).toEqual({
+    expect(
+      rootDestination(BOTH, { choose: "estado-de-prueba/pueblo-uno", chosen: "tizayuca" }),
+    ).toEqual({
       kind: "choose",
       locality: OTHER,
     });

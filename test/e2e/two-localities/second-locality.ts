@@ -1,17 +1,13 @@
 // A second, fictitious active locality for the end-to-end tests of the list
-// of localities (playwright.config.ts, the "two localities" projects). It
-// lives in a state above INEGI's 32, like the fixtures of the workers tests,
-// so it never touches the catalogue; the setup creates it after the other
-// end-to-end tests have run with Tizayuca alone, and the teardown removes it.
-// Never in a migration or the seed. Only a database on this machine is
-// accepted, the same one the global setup migrates and seeds.
+// of localities (playwright.config.ts, the "two localities" projects). The
+// database holds only the reference data of Tizayuca, so the locality brings
+// its own state and municipality, with a code above the 32 that INEGI gives
+// the states, like the fixtures of the workers tests; the setup creates it
+// after the other end-to-end tests have run with Tizayuca alone, and the
+// teardown removes it. Never in a migration or the seed.
 import { eq } from "drizzle-orm";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import * as schema from "../../../src/core/db/schema/index.ts";
-import { isLocalConnectionString, LOCAL_DATABASE_URL } from "../../../src/core/db/url.ts";
-
-const { localities, municipalities, states } = schema;
+import { localities, municipalities, states } from "../../../src/core/db/schema/index.ts";
+import { withDatabase } from "../database.ts";
 
 export const SECOND_LOCALITY = {
   code: "90001",
@@ -21,20 +17,6 @@ export const SECOND_LOCALITY = {
   /** A made-up seat, about 330 km north-west of Tizayuca's. */
   seat: { latitude: 21, longitude: -101 },
 } as const;
-
-async function withDatabase(run: (db: NodePgDatabase<typeof schema>) => Promise<void>) {
-  const url = process.env["DATABASE_URL"] ?? LOCAL_DATABASE_URL;
-  if (!isLocalConnectionString(url)) {
-    throw new Error("e2e: DATABASE_URL is not a local database; the end-to-end tests change it.");
-  }
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  try {
-    await run(drizzle({ client, schema }));
-  } finally {
-    await client.end();
-  }
-}
 
 /** Creates the second locality, active, or turns it on again. */
 export function addSecondLocality(): Promise<void> {

@@ -19,6 +19,7 @@ These seven files are the functional contract of enmirumbo. The code is tested a
 - References such as "PRD §6.1", "ADR-004" and "T-005" point to the prototype's documents. File paths, variable names and tool names in the translated text (Prisma, Vercel, Supabase, `SITIO_URL`) are the prototype's; the v2 architecture decisions are in `docs/adr/`.
 - A requirement whose heading ends with ` (v2)` is a v2 amendment. Its body starts with `Added in v2 — source: <PRD section or ADR>.`
 - A prototype requirement that v2 replaces is kept in full. The line `Superseded in v2 by <requirement> — source: <ADR or PRD section>.` follows its heading. A superseded requirement is not part of the contract any more; the requirement named in that line is.
+- A v2 requirement that a later decision replaces is kept in full the same way, with the `Superseded in v2 by` line before its `Added in v2` line. A smaller change to a v2 requirement is made in place, and its `Added in v2` line says when and why: `Amended on <date> by <decision>: <what changed>.`
 - Where a v2 amendment and an unmarked prototype requirement seem to disagree, the amendment wins.
 
 ## Glossary
