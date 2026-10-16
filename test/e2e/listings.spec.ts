@@ -352,6 +352,13 @@ test.describe("Trade pages without published businesses are neither indexed nor 
   test("no link of the listings, the trade pages or the cards leads to a page that is not indexed", async ({
     request,
   }) => {
+    // The pages robots.txt keeps crawlers out of, such as the report form of
+    // a card, are not indexed on purpose and are not followed.
+    const robots = await (await request.get("/robots.txt")).text();
+    const disallowed = [...robots.matchAll(/^Disallow: (\S+)$/gm)].map(
+      ([, rule = ""]) =>
+        new RegExp(`^${rule.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*")}`),
+    );
     const sitemap = await (await request.get("/sitemap.xml")).text();
     const queue = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map(
       ([, url = ""]) => new URL(url).pathname,
@@ -366,7 +373,8 @@ test.describe("Trade pages without published businesses are neither indexed nor 
       if (html.includes('name="robots"')) problems.push(`${path} is not indexed`);
       for (const [, href = ""] of html.matchAll(/<a\b[^>]*\bhref="([^"]*)"/g)) {
         const target = href.replaceAll("&amp;", "&");
-        if (target.startsWith(`${HOME}/`) && !seen.has(target)) queue.push(target);
+        if (!target.startsWith(`${HOME}/`) || seen.has(target)) continue;
+        if (!disallowed.some((rule) => rule.test(target))) queue.push(target);
       }
     }
     expect(seen.size).toBeGreaterThan(40);

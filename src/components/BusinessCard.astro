@@ -6,7 +6,8 @@
 // action"), in the prototype's order: the photo, the name as the only `h1`,
 // the seal and the "A domicilio" tag, the zone, what it offers, its address or
 // references, its opening hours, a landline that cannot be dialled, its
-// trades and the contact block.
+// trades, the contact block and, apart from it, "Reportar este negocio" and
+// "¿Es tu negocio?" with "Perdí mi enlace" (CardSecondaryLinks.astro).
 //
 // A field the business did not register is not drawn at all: no empty label,
 // no "No disponible". Everything shown is what the business wrote, as it
@@ -17,12 +18,12 @@
 // The photo arrives with the photo storage (ADR 0011, epic D); until then a
 // card has none, and a card without a photo shows no gap, frame or text
 // about one ("The card shows the business photo when it has one").
-// Reporting and "Perdí mi enlace" go after the contact block (D6).
 // No client JavaScript.
 import type { PublishedCard } from "../core/business/card.ts";
 import { callLink } from "../core/business/contact.ts";
 import type { ServedLocality } from "../core/locality/served.ts";
 import type { Analytics } from "../lib/analytics.ts";
+import CardSecondaryLinks from "./CardSecondaryLinks.astro";
 import CardTrades from "./CardTrades.astro";
 import ContactButtons from "./ContactButtons.astro";
 import HomeDeliveryTag from "./HomeDeliveryTag.astro";
@@ -71,4 +72,6 @@ const undialableLandline = card.landline !== null && callLink(card.landline) ===
   <CardTrades trades={card.trades} locality={locality} />
 
   <ContactButtons card={card} locality={locality} analytics={analytics} />
+
+  <CardSecondaryLinks card={card} locality={locality} />
 </article>

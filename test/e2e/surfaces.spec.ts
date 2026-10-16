@@ -16,8 +16,9 @@ import { collapseProblems } from "../responsive-rules.ts";
  * Where the crawl starts: the root, which leads to the home of the locality
  * (or, with two, to the list of localities), the panel (never linked), a 404,
  * the states of the search results (only the search box's form leads to
- * them, and the crawl follows links), and every page of the sitemap, so a
- * page nothing links to yet is checked too.
+ * them, and the crawl follows links), the thank-you page of a report (only a
+ * received report leads there), and every page of the sitemap, so a page
+ * nothing links to yet is checked too, and the report forms of its cards.
  */
 const START = [
   "/",
@@ -26,6 +27,7 @@ const START = [
   "/hidalgo/tizayuca/buscar",
   "/hidalgo/tizayuca/buscar?q=plomero",
   "/hidalgo/tizayuca/buscar?q=veterinario%20espacial",
+  "/hidalgo/tizayuca/reportar/gracias?negocio=b5q68b2e72",
 ];
 /** Enough for every page the seeded directory links to, with two localities. */
 const MAX_PAGES = 150;
@@ -63,7 +65,7 @@ test.beforeEach(async ({ page }) => {
   if (pages.length === 0) pages = await crawl(page);
 });
 
-test("the crawl reaches the start pages, the home, the legal pages, the listings and the cards", () => {
+test("the crawl reaches the start pages, the home, the legal pages, the listings, the cards and their reports", () => {
   expect(pages).toEqual(
     expect.arrayContaining([
       "/hidalgo/tizayuca",
@@ -80,6 +82,8 @@ test("the crawl reaches the start pages, the home, the legal pages, the listings
       "/hidalgo/tizayuca/plomeria",
       "/hidalgo/tizayuca/plomeria-huicalco",
       "/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-b5q68b2e72",
+      "/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-b5q68b2e72/reportar",
+      "/hidalgo/tizayuca/reportar/gracias?negocio=b5q68b2e72",
     ]),
   );
   expect(pages.length).toBeLessThan(MAX_PAGES);

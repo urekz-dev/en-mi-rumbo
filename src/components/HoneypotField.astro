@@ -1,0 +1,15 @@
+---
+// The trap field of a public form (src/core/forms/honeypot.ts): off the
+// screen, out of the keyboard's order (`tabindex="-1"`) and hidden from
+// screen readers (`aria-hidden`), so no person fills it and no assistive
+// technology announces it, while a bot that fills every field does.
+// `autocomplete="off"` keeps the browser's autofill away from it. Off the
+// screen with classes, never a `style` attribute (the content security
+// policy allows no inline style). No client JavaScript.
+import { HONEYPOT_FIELD } from "../core/forms/honeypot.ts";
+---
+
+<div aria-hidden="true" class="absolute left-[-9999px] h-px w-px overflow-hidden">
+  <label for={HONEYPOT_FIELD}>No llenes este campo</label>
+  <input type="text" id={HONEYPOT_FIELD} name={HONEYPOT_FIELD} tabindex="-1" autocomplete="off" />
+</div>

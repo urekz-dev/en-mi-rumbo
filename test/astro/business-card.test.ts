@@ -20,6 +20,7 @@ import type { ServedLocality } from "../../src/core/locality/served.ts";
 import type { Analytics } from "../../src/lib/analytics.ts";
 import BusinessCard from "../../src/components/BusinessCard.astro";
 import CardTrades from "../../src/components/CardTrades.astro";
+import ContactButtons from "../../src/components/ContactButtons.astro";
 import JsonLd from "../../src/components/JsonLd.astro";
 import ListingCard from "../../src/components/ListingCard.astro";
 import { collapseProblems } from "../responsive-rules.ts";
@@ -87,6 +88,13 @@ function minimal(overrides: Partial<PublishedCard> = {}): PublishedCard {
     ...overrides,
   });
 }
+
+/**
+ * What every card shows after its contact block (test/astro/report.test.ts):
+ * the report link and the owner's block, as text and as links.
+ */
+const SECONDARY_TEXT = ["Reportar este negocio", "¿Es tu negocio?", "Perdí mi enlace"];
+const SECONDARY_LINKS = ["Reportar este negocio", "Perdí mi enlace"];
 
 let container: AstroContainer;
 
@@ -188,6 +196,7 @@ describe("Business card at its own URL with the registered information and the v
       "Llamar",
       "Cómo llegar",
       "Ver su página (mi-negocio.example)",
+      ...SECONDARY_TEXT,
     ]);
   });
 
@@ -200,6 +209,7 @@ describe("Business card at its own URL with the registered information and the v
       "Negocio verificado",
       "Huicalco",
       "Enviar WhatsApp",
+      ...SECONDARY_TEXT,
     ]);
     expect(text).not.toMatch(/No disponible|Horario|Teléfono|A domicilio/);
   });
@@ -253,7 +263,12 @@ describe("Contact buttons on the card with WhatsApp as the main action", () => {
     // Without trades, whose links are no contact buttons.
     const html = await renderCard(complete({ pageUrl: null, trades: [] }));
 
-    expect(anchors(html).map((a) => a.text)).toEqual(["Enviar WhatsApp", "Llamar", "Cómo llegar"]);
+    expect(anchors(html).map((a) => a.text)).toEqual([
+      "Enviar WhatsApp",
+      "Llamar",
+      "Cómo llegar",
+      ...SECONDARY_LINKS,
+    ]);
   });
 
   // Scenario: business without a phone or an address
@@ -262,7 +277,7 @@ describe("Contact buttons on the card with WhatsApp as the main action", () => {
       complete({ landline: null, address: null, pageUrl: null, trades: [] }),
     );
 
-    expect(anchors(html).map((a) => a.text)).toEqual(["Enviar WhatsApp"]);
+    expect(anchors(html).map((a) => a.text)).toEqual(["Enviar WhatsApp", ...SECONDARY_LINKS]);
   });
 
   // base-layout, "Internal links to existing routes and protected external
@@ -314,12 +329,21 @@ describe("Contact buttons on the card with WhatsApp as the main action", () => {
     expect(visibleText(html)).not.toMatch(/facebook/i);
   });
 
-  // Scenario: reporting stays outside the contact block (D6 adds the rest)
-  it("the contact block is the last thing of the card and holds only the contact buttons", async () => {
-    const html = await renderCard(complete());
-    const block = html.slice(html.indexOf("Enviar WhatsApp"));
+  // Scenario: reporting stays outside the contact block
+  it("the contact block holds only the contact buttons; reporting and the owner's block come after it", async () => {
+    const block = await container.renderToString(ContactButtons, {
+      props: { card: complete(), locality: TIZAYUCA, analytics: null },
+    });
+    expect(anchors(block).map((a) => a.text)).toEqual([
+      "Enviar WhatsApp",
+      "Llamar",
+      "Cómo llegar",
+      "Ver su página (mi-negocio.example)",
+    ]);
 
-    expect(visibleText(block)).not.toMatch(/Reportar|Perdí mi enlace/);
+    const text = visibleText(await renderCard(complete()));
+    expect(text.indexOf("Ver su página")).toBeLessThan(text.indexOf("Reportar este negocio"));
+    expect(text.endsWith(SECONDARY_TEXT.join("\n"))).toBe(true);
   });
 });
 

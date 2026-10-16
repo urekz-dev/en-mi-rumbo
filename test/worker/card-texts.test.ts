@@ -1,6 +1,7 @@
 // The pure half of the business card (docs/specs/public-directory.md): its URL
-// (src/core/business/card-path.ts), its contact links
-// (src/core/business/contact.ts), its title, description and structured data
+// (src/core/business/card-path.ts), its contact links and "Perdí mi enlace"
+// (src/core/business/contact.ts), the addresses of its report
+// (src/core/report/paths.ts), its title, description and structured data
 // (src/core/seo/card.ts), and the phrases of the trades
 // (src/core/catalogue/trade-phrases.ts). The card read from the database is
 // tested in card.test.ts; the rendered card in test/astro/business-card.test.ts
@@ -17,12 +18,21 @@ import {
 import {
   callLink,
   directionsLink,
+  lostLinkLink,
+  lostLinkMessage,
   nationalNumber,
   registeredPage,
   WHATSAPP_MESSAGE,
   whatsappLink,
 } from "../../src/core/business/contact.ts";
 import { isReservedSegment } from "../../src/core/catalogue/root-urls.ts";
+import {
+  REPORT_SEGMENT,
+  REPORTED_CARD_PARAM,
+  reportPath,
+  reportThanksPath,
+  THANKS_SEGMENT,
+} from "../../src/core/report/paths.ts";
 import { TRADE_PHRASES, tradePhrase } from "../../src/core/catalogue/trade-phrases.ts";
 import { isMeasured } from "../../src/lib/analytics.ts";
 import {
@@ -185,6 +195,69 @@ describe("Contact buttons on the card with WhatsApp as the main action: the link
     expect(registeredPage("javascript:alert(1)")).toBeNull();
     expect(registeredPage("no es una dirección")).toBeNull();
     expect(registeredPage(null)).toBeNull();
+  });
+});
+
+describe('"Perdí mi enlace" button on the card, toward the admin\'s WhatsApp: the link', () => {
+  const MESSAGE =
+    "Hola, soy de «Plomería Los Fontaneros Ficticios» en enmirumbo y perdí el enlace para " +
+    "editar mi ficha. Les escribo desde el número que registré, ¿me lo pueden pasar?";
+
+  // Scenario: asking for the link from the card
+  it("opens the admin's conversation with the message already written, naming the business", () => {
+    expect(lostLinkMessage("Plomería Los Fontaneros Ficticios")).toBe(MESSAGE);
+    const link = new URL(lostLinkLink("7719990100", "Plomería Los Fontaneros Ficticios")!);
+    expect(`${link.origin}${link.pathname}`).toBe("https://wa.me/527719990100");
+    expect(link.searchParams.get("text")).toBe(MESSAGE);
+    expect([...link.searchParams.keys()]).toEqual(["text"]);
+  });
+
+  // "Perdí mi enlace" opens WhatsApp to the admin of the card's locality (v2):
+  // the number is the locality's, as its record keeps it.
+  it("to the contact WhatsApp of the locality, whatever its locality", () => {
+    expect(lostLinkLink("+52 771 999 0190", "Herrería")).toMatch(
+      /^https:\/\/wa\.me\/527719990190\?/,
+    );
+    expect(lostLinkLink("7719990100", "Herrería")).not.toBe(lostLinkLink("7719990190", "Herrería"));
+  });
+
+  // Scenario: no admin number configured
+  it("without a number of ten digits there is no link, so the card shows no block", () => {
+    expect(lostLinkLink("", "Herrería")).toBeNull();
+    expect(lostLinkLink("999 0100", "Herrería")).toBeNull();
+    expect(lostLinkLink("pregúntale al admin", "Herrería")).toBeNull();
+  });
+
+  it("a name with symbols travels encoded, inside the message", () => {
+    const name = "Tacos & Más «El Güero» #1?";
+    const link = new URL(lostLinkLink("7719990100", name)!);
+    expect(link.searchParams.get("text")).toBe(lostLinkMessage(name));
+    expect([...link.searchParams.keys()]).toEqual(["text"]);
+  });
+});
+
+describe("Report mini-form without an account, with a closed-list reason and optional comment: the addresses", () => {
+  it("the form lives under the card, at its current address", () => {
+    expect(reportPath(TIZAYUCA, card())).toBe(
+      "/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-b5q68b2e72/reportar",
+    );
+    expect(reportPath(OTHER, card({ name: "★★★" }))).toBe(
+      "/estado-de-prueba-92/pueblo-uno/negocio/b5q68b2e72/reportar",
+    );
+  });
+
+  // The report form lands on its thank-you page (v2)
+  it("the thank-you page is /reportar/gracias of the locality, naming the card", () => {
+    expect(reportThanksPath(TIZAYUCA, "b5q68b2e72")).toBe(
+      "/hidalgo/tizayuca/reportar/gracias?negocio=b5q68b2e72",
+    );
+    expect([REPORT_SEGMENT, THANKS_SEGMENT, REPORTED_CARD_PARAM]).toEqual([
+      "reportar",
+      "gracias",
+      "negocio",
+    ]);
+    // Its first segment is reserved, so no catalogue slug can take it.
+    expect(isReservedSegment(REPORT_SEGMENT)).toBe(true);
   });
 });
 

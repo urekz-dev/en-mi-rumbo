@@ -1,0 +1,49 @@
+---
+// The end of a card, after its contact block and apart from it (docs/specs/
+// public-directory.md, "Discreet "Reportar este negocio" control on the
+// card", ""Perdí mi enlace" button on the card, toward the admin's
+// WhatsApp" and ""Perdí mi enlace" opens WhatsApp to the admin of the
+// card's locality (v2)"). Neither is a contact button, so both are small
+// underlined links in muted ink, never the action green or the size of a
+// button, each with a touch area 44px tall, behind one separator:
+//
+// - "Reportar este negocio" leads to the report form of the card. Its
+//   accessible name says which business it reports.
+// - "¿Es tu negocio?" with "Perdí mi enlace", which opens WhatsApp in a new
+//   tab to the contact WhatsApp of the card's locality, read from its record,
+//   with the message already written. Without a number of ten digits there is
+//   no block at all: no broken link, no made-up number.
+//
+// Only the card has them: no listing card shows either. No client JavaScript.
+import { lostLinkLink } from "../core/business/contact.ts";
+import type { ServedLocality } from "../core/locality/served.ts";
+import { reportPath } from "../core/report/paths.ts";
+
+interface Props {
+  card: { id: string; name: string };
+  locality: ServedLocality;
+}
+
+const { card, locality } = Astro.props;
+const lostLink = lostLinkLink(locality.contactWhatsapp, card.name);
+const link =
+  "inline-flex min-h-11 items-center self-start text-sm text-ink-muted underline underline-offset-4 hover:text-ink";
+---
+
+<div class="flex flex-col gap-3 border-t border-line pt-4">
+  <a
+    href={reportPath(locality, card)}
+    aria-label={`Reportar este negocio: ${card.name}`}
+    class={link}
+  >
+    Reportar este negocio
+  </a>
+  {lostLink && (
+    <div class="flex flex-col gap-1">
+      <p class="text-sm font-semibold text-ink">¿Es tu negocio?</p>
+      <a href={lostLink} target="_blank" rel="noopener noreferrer" class={link}>
+        Perdí mi enlace
+      </a>
+    </div>
+  )}
+</div>

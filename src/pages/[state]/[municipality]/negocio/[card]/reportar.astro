@@ -1,0 +1,65 @@
+---
+// The report form of a card, /{estado}/{municipio}/negocio/<slug>-<id>/reportar
+// (docs/specs/public-directory.md, the report requirements; ADR 0007, ADR
+// 0012). The middleware has already resolved the active locality, or answered
+// 404. The form posts to this same address with the action `report`
+// (src/actions/index.ts), which Astro runs before this page; then:
+//
+// 1. The identifier is read from the segment, as the card does, so a link
+//    with an earlier name opens the report too. Only a published card of
+//    this locality can be reported: anything else, and an action that found
+//    none, answers the same 404 as a card that does not exist. The card is
+//    read through the cached HYPERDRIVE, like every public read, but through
+//    HYPERDRIVE_FRESH after a submission, which follows the action's read.
+// 2. A received report (saved, caught by the trap or past the cap, which
+//    look the same) answers a 303 to the thank-you page, so reloading it
+//    sends nothing again.
+// 3. Any other answer of the action renders the form again from the same
+//    submission, with its error and what the resident had chosen and
+//    written: no cookie and nothing in the address. Astro gives the page the
+//    status of the error (400, 429 or 500), and no cache keeps it.
+//
+// The page is rendered by src/components/ReportPage.astro. No client
+// JavaScript.
+import { actions } from "astro:actions";
+import { env, waitUntil } from "cloudflare:workers";
+import ReportPage from "../../../../../components/ReportPage.astro";
+import { cardIdOf } from "../../../../../core/business/card-path.ts";
+import { withDb } from "../../../../../core/db/client.ts";
+import { reportThanksPath } from "../../../../../core/report/paths.ts";
+import { reportableCard } from "../../../../../core/report/save.ts";
+import { EMPTY_DRAFT, reportDraft } from "../../../../../core/report/submission.ts";
+import { notFound, requireLocality, seeOther } from "../../../../../lib/locality.ts";
+import { reportPageFailure } from "../../../../../lib/report.ts";
+
+const locality = requireLocality(Astro.locals);
+const id = cardIdOf(Astro.params.card ?? "");
+if (id === null) return notFound();
+
+const result = Astro.getActionResult(actions.report);
+const failure = result?.error ? reportPageFailure(result.error) : null;
+const card = await withDb(env, result ? "HYPERDRIVE_FRESH" : "HYPERDRIVE", { waitUntil }, (db) =>
+  reportableCard(db, locality.code, id),
+);
+if (card === null || failure?.kind === "not-found") return notFound();
+if (result && !result.error) return seeOther(reportThanksPath(locality, card.id));
+
+let draft = EMPTY_DRAFT;
+if (failure?.kind === "form") {
+  Astro.response.headers.set("Cache-Control", "no-store");
+  if (failure.keepsDraft) {
+    try {
+      draft = reportDraft(await Astro.request.formData());
+    } catch {
+      // A body that is no form leaves the fields empty.
+    }
+  }
+}
+---
+
+<ReportPage
+  card={card}
+  action={actions.report.queryString}
+  error={failure?.kind === "form" ? failure.error : null}
+  draft={draft}
+/>
