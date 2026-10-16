@@ -12,13 +12,26 @@
 import type { ImageMetadata } from "astro";
 import type { LocalityRef } from "../core/locality/paths.ts";
 import type { ServedLocality } from "../core/locality/served.ts";
-import generic from "../assets/share/enmirumbo.png";
 import { SITE_NAME } from "./site.ts";
 
+// Both imports go through import.meta.glob, typed with Astro's ImageMetadata:
+// a plain `import x from "….png"` takes its type from the generated
+// .astro/types.d.ts, which `vp check` in CI does not have.
 const LOCALITY_IMAGES = import.meta.glob<ImageMetadata>("../assets/share/*/*.png", {
   eager: true,
   import: "default",
 });
+const GENERIC_IMAGES = import.meta.glob<ImageMetadata>("../assets/share/enmirumbo.png", {
+  eager: true,
+  import: "default",
+});
+const generic: ImageMetadata = requireImage(GENERIC_IMAGES, "../assets/share/enmirumbo.png");
+
+function requireImage(images: Record<string, ImageMetadata>, key: string): ImageMetadata {
+  const image = images[key];
+  if (image === undefined) throw new Error(`share-image: ${key} is missing`);
+  return image;
+}
 
 /** The key of a locality's image in LOCALITY_IMAGES. */
 function imageKey(locality: LocalityRef): string {
