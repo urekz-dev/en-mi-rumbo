@@ -748,7 +748,7 @@ describe("The locality is a first-class record keyed by the INEGI municipality c
   });
 });
 
-describe("The catalogue of states and municipalities is reference data and only active localities are served (v2)", () => {
+describe("The database holds only the reference data of the localities it serves (v2)", () => {
   it("a municipality code starts with its state code", async () => {
     expect(
       await pgErrorCode(() =>

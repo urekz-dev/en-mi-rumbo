@@ -1159,23 +1159,28 @@ Every public route that shows the data of a locality (home, category listings, t
 
 ### Requirement: Unknown or inactive state and municipality answer 404 (v2)
 
-Added in v2 — source: ADR 0006, ADR 0007.
+Added in v2 — source: ADR 0006, ADR 0007. Amended on 2026-10-15 by decision of the product owner: the database holds only the states and municipalities of the localities it serves (`data-model`, "The database holds only the reference data of the localities it serves (v2)"); until then it held INEGI's full catalogue.
 
-A state or municipality that does not exist, or that exists in the INEGI catalogue but has no active locality, MUST answer 404 on every public route, with the site's 404 page. Only active localities are served.
+A state or municipality that the database does not hold, or that it holds but has no active locality, MUST answer 404 on every public route, with the site's 404 page. Only active localities are served.
 
 #### Scenario: a state that does not exist
 
 - **WHEN** someone opens `/atlantida/tizayuca/`
 - **THEN** the answer is 404 with the site's 404 page
 
-#### Scenario: a real municipality that is not active
+#### Scenario: a municipality the database does not hold
 
-- **WHEN** someone opens the path of a municipality that is in the catalogue but whose locality is not active
+- **WHEN** someone opens `/hidalgo/pachuca-de-soto`, a real municipality that the directory does not serve
+- **THEN** the answer is 404
+
+#### Scenario: a municipality that is not active
+
+- **WHEN** someone opens the path of a municipality that is in the database but has no locality, or whose locality is not active
 - **THEN** the answer is 404
 
 #### Scenario: a municipality under the wrong state
 
-- **WHEN** someone opens `/jalisco/tizayuca/`
+- **WHEN** someone opens the path of an active municipality under a state that the database holds but that is not its own
 - **THEN** the answer is 404
 
 ### Requirement: While there is one active locality, the root redirects to it (v2)

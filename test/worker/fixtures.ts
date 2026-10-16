@@ -1,8 +1,11 @@
 // Fixtures for the database tests: a fictitious state with two localities,
-// their zones, a category and trades. Each test file passes its own state
-// code (two digits above INEGI's 32) so files can run at the same time, and
-// removes everything it created with `cleanup`. All phone numbers follow the
-// 771999xxxx convention.
+// their zones, a municipality without a locality, a category and trades. The
+// database holds only the reference data of the localities it serves
+// (Hidalgo and Tizayuca), so every other state or municipality a test needs is
+// one of these. Each test file passes its own state code, above the 32 codes
+// INEGI gives the states so it never takes a real state's, and files can run
+// at the same time; each removes everything it created with `cleanup`. All
+// phone numbers follow the 771999xxxx convention.
 import { waitUntil, env } from "cloudflare:workers";
 import { eq, inArray, like, sql } from "drizzle-orm";
 import { newBusinessId } from "../../src/core/business/id.ts";
@@ -35,6 +38,9 @@ export interface Fixture {
   tradeIds: [number, number, number];
 }
 
+/** The slug of the municipality of every fixture state that has no locality. */
+export const UNSERVED_MUNICIPALITY = "pueblo-sin-localidad";
+
 let phoneCounter = 0;
 
 /** A fictitious WhatsApp number of the 771999xxxx series. */
@@ -56,6 +62,13 @@ export async function createFixture(stateCode: string): Promise<Fixture> {
     await tx.insert(municipalities).values([
       { code: localityA, stateCode, name: "Pueblo Uno", slug: "pueblo-uno" },
       { code: localityB, stateCode, name: "Pueblo Dos", slug: "pueblo-dos" },
+      // 004: data-model.test.ts saves a locality for 003 to see it rejected.
+      {
+        code: `${stateCode}004`,
+        stateCode,
+        name: "Pueblo Sin Localidad",
+        slug: UNSERVED_MUNICIPALITY,
+      },
     ]);
     await tx.insert(localities).values([
       {
@@ -139,8 +152,16 @@ export function isFixtureSlug(slug: string): boolean {
   return /^(categoria|giro)-prueba-/.test(slug);
 }
 
-/** The localities and zones of the fixtures are in states above INEGI's 32. */
+/**
+ * The states of the fixtures, and their municipalities, localities and zones,
+ * have codes above the 32 that INEGI gives the states.
+ */
 export const FIRST_FIXTURE_CODE = "33";
+
+/** Whether a state is a fixture of a test file that runs at the same time. */
+export function isFixtureState(state: { code: string; slug: string }): boolean {
+  return state.code >= FIRST_FIXTURE_CODE && state.slug === `estado-de-prueba-${state.code}`;
+}
 
 /** Removes every row the fixture of `stateCode` created, in dependency order. */
 export async function cleanup(stateCode: string): Promise<void> {

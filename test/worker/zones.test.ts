@@ -1,12 +1,14 @@
 // Scenarios of docs/specs/data-model.md about the zones of a locality, against
 // the database the migrations leave: Tizayuca's zones come from
-// drizzle/0006_tizayuca_zones.sql. How scripts/catalogues/sepomex.ts writes
-// that migration is tested in test/scripts/sepomex-zones.test.ts.
+// drizzle/0006_tizayuca_zones.sql, written from SEPOMEX's postal catalogue.
+// That the migration credits SEPOMEX is checked in
+// test/scripts/reference-data.test.ts.
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vite-plus/test";
 import { SLUG_PATTERN } from "../../src/core/db/schema/checks.ts";
 import { zones } from "../../src/core/db/schema/index.ts";
 import { db } from "./fixtures.ts";
+import { slugify } from "./slug.ts";
 
 interface Row {
   type: string;
@@ -75,7 +77,7 @@ describe("Catalogues of categories, zones and trades with stable slug (v2)", () 
   });
 });
 
-describe("Zones belong to a locality and are loaded from the SEPOMEX postal catalogue (v2)", () => {
+describe("Zones belong to a locality, and Tizayuca's come from the SEPOMEX postal catalogue (v2)", () => {
   it("zones carry their locality and type", () => {
     expect(tizayuca).toHaveLength(105);
     const types = Object.fromEntries(
@@ -115,6 +117,21 @@ describe("Zones belong to a locality and are loaded from the SEPOMEX postal cata
         row("Fraccionamiento", "Rancho la Purísima", "rancho-la-purisima"),
       ]),
     );
+  });
+
+  it("names as SEPOMEX writes them: no stray spaces, no text garbled by an encoding", () => {
+    for (const zone of tizayuca) {
+      expect(zone.name).toBe(zone.name.trim().replace(/\s+/gu, " "));
+      // UTF-8 read as ISO-8859-1 turns "í" into "Ã­".
+      expect(zone.name).not.toMatch(/[ÃÂ\uFFFD]/u);
+    }
+  });
+
+  it("slugs follow the slug rule, and carry the type where a name has two types", () => {
+    const twoTypes = new Set(["El Carmen", "El Chopo", "El Manantial", "Tizayuca"]);
+    const expected = (zone: Row) =>
+      slugify(twoTypes.has(zone.name) ? `${zone.type} ${zone.name}` : zone.name);
+    expect(tizayuca.filter((zone) => zone.slug !== expected(zone))).toEqual([]);
   });
 
   it("no duplicates after the cleanup", () => {
