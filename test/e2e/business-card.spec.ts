@@ -78,8 +78,13 @@ test.describe("Business card at its own URL with the registered information and 
     );
     await expect(main.getByText("Negocio verificado")).toBeVisible();
     await expect(main.getByText("Tizayuca Centro", { exact: true })).toBeVisible();
-    // Besides its trade, the only link is WhatsApp.
-    await expect(main.locator("a:not(nav a)")).toHaveText(["Enviar WhatsApp"]);
+    // Besides its trade, the only contact is WhatsApp; reporting and "Perdí
+    // mi enlace" come after it (report.spec.ts).
+    await expect(main.locator("a:not(nav a)")).toHaveText([
+      "Enviar WhatsApp",
+      "Reportar este negocio",
+      "Perdí mi enlace",
+    ]);
     await expect(main).not.toContainText(/Horario|Teléfono|A domicilio|No disponible/);
   });
 
@@ -198,12 +203,15 @@ test.describe("Contact buttons on the card with WhatsApp as the main action", ()
     await page.goto(COMPLETE);
     const main = page.getByRole("main");
 
-    // The contact buttons, apart from the links of its trades.
+    // The contact buttons, apart from the links of its trades, and then
+    // reporting and "Perdí mi enlace" (report.spec.ts).
     await expect(main.locator("a:not(nav a)")).toHaveText([
       "Enviar WhatsApp",
       "Llamar",
       "Cómo llegar",
       "Ver su página (facebook.example)",
+      "Reportar este negocio",
+      "Perdí mi enlace",
     ]);
     const call = main.getByRole("link", { name: "Llamar" });
     await expect(call).toHaveAttribute("href", "tel:+527719990151");

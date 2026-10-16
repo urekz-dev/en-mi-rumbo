@@ -93,6 +93,19 @@ export function temporaryRedirect(path: string): Response {
 }
 
 /**
+ * A 303 to a path of this site once a form was received: the browser follows
+ * it with a GET, so reloading the page it lands on never sends the form again
+ * (POST, redirect, GET). It answers one visitor's submission, so it is never
+ * stored (`Cache-Control: no-store`).
+ */
+export function seeOther(path: string): Response {
+  return new Response(null, {
+    status: 303,
+    headers: { Location: path, "Cache-Control": "no-store" },
+  });
+}
+
+/**
  * The cookie that remembers the locality a visitor chose from the list
  * (docs/specs/public-directory.md, "The chosen locality is remembered in a
  * cookie that holds only its slug (v2)"). Its value is the municipality slug

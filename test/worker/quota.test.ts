@@ -11,12 +11,7 @@ import { env } from "cloudflare:workers";
 import { abortAllDurableObjects, runInDurableObject } from "cloudflare:test";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import {
-  isQuotaPurpose,
-  MAX_WINDOW_SECONDS,
-  QUOTAS,
-  type QuotaPurpose,
-} from "../../src/core/quota/quotas.ts";
+import { isQuotaPurpose, MAX_WINDOW_SECONDS, QUOTAS } from "../../src/core/quota/quotas.ts";
 import { quotaSubject } from "../../src/core/quota/subject.ts";
 import { FixedWindowCounters, MAX_COUNTERS } from "../../src/core/quota/window.ts";
 import { MAX_TIMER_MS, type QuotaCounter } from "../../src/lib/quota/counter.ts";
@@ -230,7 +225,7 @@ describe("Anti-abuse counters live in a Durable Object and never in PostgreSQL (
       Promise.all([
         instance["code"]("search", address),
         instance["code"]("search", address),
-        instance["code"]("report" as QuotaPurpose, address),
+        instance["code"]("report", address),
         instance["code"]("search", "198.51.100.32"),
       ]),
     );

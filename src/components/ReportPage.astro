@@ -1,0 +1,48 @@
+---
+// The report page of a card, in the global layout (docs/specs/
+// public-directory.md, "Report mini-form without an account, with a
+// closed-list reason and optional comment"): "Reportar este negocio" as its
+// only `h1`, the name of the business as it wrote it, "Dinos qué pasa y lo
+// revisamos. No te pedimos ningún dato tuyo.", the form (ReportForm.astro)
+// and "Volver a la ficha". The page (src/pages/[state]/[municipality]/
+// negocio/[card]/reportar.astro) reads the card and the submission; this
+// renders them, so each state is tested with the Container API.
+//
+// It is never indexed (`noindex`, so no canonical either), and its title is
+// static: neither the business nor what the resident wrote leaves through
+// it. No client JavaScript.
+import type { ReportableCard } from "../core/report/save.ts";
+import type { ReportDraft, ReportFormError } from "../core/report/submission.ts";
+import { cardPath } from "../core/business/card-path.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { requireLocality } from "../lib/locality.ts";
+import ReportForm from "./ReportForm.astro";
+
+interface Props {
+  card: ReportableCard;
+  /** Where the form posts (`actions.report`). */
+  action: string;
+  error: ReportFormError | null;
+  draft: ReportDraft;
+}
+
+const { card, action, error, draft } = Astro.props;
+const locality = requireLocality(Astro.locals);
+---
+
+<BaseLayout title="Reportar este negocio" noindex>
+  <section class="flex flex-col gap-6 py-4">
+    <div class="flex flex-col gap-2">
+      <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Reportar este negocio</h1>
+      <p class="font-semibold break-words text-ink">{card.name}</p>
+      <p class="text-ink-muted">Dinos qué pasa y lo revisamos. No te pedimos ningún dato tuyo.</p>
+    </div>
+    <ReportForm action={action} error={error} draft={draft} />
+    <a
+      href={cardPath(locality, card)}
+      class="inline-flex min-h-11 items-center self-start text-base font-semibold text-action-strong underline underline-offset-4"
+    >
+      Volver a la ficha
+    </a>
+  </section>
+</BaseLayout>

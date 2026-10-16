@@ -620,6 +620,8 @@ The page MUST declare `noindex` in its robots metadata. If the business does not
 
 ### Requirement: The server validates the report's reason and comment
 
+Superseded in v2 by The server validates the report's reason and comment, and keeps the draft without a cookie (v2) — source: decision of the product owner, 2026-10-14; `legal-pages`, "The privacy notice lists the cookies (v2)".
+
 All the report validation MUST happen on the server, because the form works without JavaScript and because a submission can arrive directly, without going through the page. The reason MUST belong to the closed list: a submission without a reason, with an empty reason or with a value that is not in the list MUST NOT save anything and MUST return the form with the literal text "Dinos qué pasa con este negocio", keeping the comment that had already been written. The comment MUST always be treated as plain text —never interpreted as markup, neither when saved nor when displayed— and MUST be rejected if it exceeds 300 characters, with the literal text "El comentario es muy largo (máximo 300 caracteres)". An empty comment or one of only spaces MUST be saved as "no comment", not as a string of spaces. If the report cannot be saved because of a server failure, the resident MUST see the literal text "No pudimos enviar tu reporte. Vuelve a intentarlo en un momento." without any technical detail.
 
 **The comment kept after an error MUST NOT travel in the URL**, because what a resident writes about a business would end up in the browser history and in the log of any proxy: the return address carries only the error code, and the draft is kept in a short-lived cookie (at most a couple of minutes), marked `HttpOnly`, `SameSite=Lax`, `Secure` whenever the site is served over HTTPS and scoped with `Path` to the form route of that card, which is deleted as soon as the report is submitted successfully. That cookie MUST be bounded by the server before being written, so that no long comment produces an oversized header; a value that is not the one the server wrote MUST leave the field empty, never break the page, and the draft MUST always be rendered escaped inside the field.
@@ -1440,9 +1442,9 @@ Photos are served from the environment's photo hostname under opaque keys genera
 
 ### Requirement: "Perdí mi enlace" opens WhatsApp to the admin of the card's locality (v2)
 
-Added in v2 — source: ADR 0006, ADR 0021, PRD §3 (Flows C and D).
+Added in v2 — source: ADR 0006, ADR 0021, PRD §3 (Flows C and D). Amended on 2026-10-15 by EMR-37: what replaces the environment variable of the prototype requirement when the number cannot be used.
 
-The button "Perdí mi enlace" MUST open WhatsApp to the contact WhatsApp stored in the locality record of the card, not to a global number.
+The button "Perdí mi enlace" MUST open WhatsApp to the contact WhatsApp stored in the locality record of the card, not to a global number. In the prototype requirement of the button, the number is that record's, not a server environment variable, and the scenario "the admin's number does not live in the repo" holds for it: no code, seed or test holds a real one. An active locality always has a contact WhatsApp (`data-model`); when the stored one does not normalize to a Mexican number of 10 digits, the card MUST show neither the block "¿Es tu negocio?" nor the control, as the prototype requirement says for a missing variable, and stays complete.
 
 #### Scenario: Tizayuca
 
@@ -1453,6 +1455,11 @@ The button "Perdí mi enlace" MUST open WhatsApp to the contact WhatsApp stored 
 
 - **WHEN** a second locality is active with a different contact WhatsApp and an owner taps "Perdí mi enlace" on one of its cards
 - **THEN** WhatsApp opens to the contact WhatsApp of that locality
+
+#### Scenario: a number that cannot be dialled
+
+- **WHEN** the contact WhatsApp of a card's locality does not normalize to 10 digits
+- **THEN** the card is shown complete, with "Reportar este negocio", but without "¿Es tu negocio?" or "Perdí mi enlace", and no broken link or invented number appears
 
 ### Requirement: The honeypot of the report form is trimmed before it is checked (v2)
 
@@ -1704,3 +1711,149 @@ The home keeps the site's title and description in the locality (`base-layout`, 
 
 - **WHEN** the metadata of the home of Tizayuca are read
 - **THEN** its title is "enmirumbo — Encuentra negocios y servicios en Tizayuca", it declares no `noindex`, and its canonical is the absolute URL of `/hidalgo/tizayuca`
+
+### Requirement: The server validates the report's reason and comment, and keeps the draft without a cookie (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14; `legal-pages`, "The privacy notice lists the cookies (v2)". It replaces "The server validates the report's reason and comment", which kept the draft in a short-lived cookie: the privacy notice lists exactly two cookies, and a third would make it false.
+
+All the report validation MUST happen on the server, because the form works without JavaScript and because a submission can arrive directly, without going through the page. The reason MUST be exactly one value of the closed list: a submission without a reason, with an empty reason, with several reasons or with a value that is not in the list MUST NOT save anything and MUST return the form with the literal text "Dinos qué pasa con este negocio". The comment MUST always be treated as plain text —never interpreted as markup, neither when saved nor when displayed— and MUST be rejected if it exceeds 300 characters, with the literal text "El comentario es muy largo (máximo 300 caracteres)". The characters are counted as the field's `maxlength` counts them: what surrounds the comment is trimmed first, and a line break counts as one character and is kept as one, although browsers send it as two. A NUL character, which no person types and the database cannot store, is dropped. An empty comment or one of only spaces MUST be saved as "no comment", not as a string of spaces. The reason is checked before the comment. If the report cannot be saved because of a server failure, the resident MUST see the literal text "No pudimos enviar tu reporte. Vuelve a intentarlo en un momento." without any technical detail, and the log MUST record only the kind of failure, never the comment.
+
+**The draft is kept without a cookie.** When the form comes back with an error —the reason, the comment, the per-IP quota or a server failure— the server MUST render it again in its answer to that same submission, with the reason the resident had chosen, when it is one of the list, and the comment they had written, both read from that submission. What the resident wrote MUST NOT travel in the address, which carries only the name of the action, MUST NOT be kept in a cookie and MUST NOT be stored on the server. The comment shown again is bounded to 300 characters, never cutting a character in two, so a forged submission cannot make the page echo a large body, and it is always rendered escaped inside the field. That answer MUST carry the status of its error (400 for the reason and the comment, 429 over the quota, 500 for a failure), `Cache-Control: no-store` and no `Set-Cookie`. Each error is shown next to what it is about and announced as an alert: the reason's inside the group "¿Qué pasa?", the comment's under its help, and the quota's and the failure's above the form. No field is `required` in the markup, so a missing reason always reaches the server and its message.
+
+#### Scenario: submission without choosing a reason
+
+- **WHEN** the resident taps "Enviar reporte" without selecting any option
+- **THEN** no report is saved and they see "Dinos qué pasa con este negocio", with the comment they had written still in the field
+
+#### Scenario: what the resident wrote stays in neither the address nor a cookie
+
+- **WHEN** the resident submits the form without a reason with a written comment, and then submits it with a reason
+- **THEN** the first answer is the form again, with status 400, the comment in the field and an address that carries only the action; no answer sets a cookie, and the browser holds none at the end
+
+#### Scenario: the chosen reason comes back too
+
+- **WHEN** a report with the reason "Los datos están mal" comes back over the quota, or with a comment too long
+- **THEN** "Los datos están mal" is still chosen and the comment is still in the field
+
+#### Scenario: a draft that looks like markup
+
+- **WHEN** a submission that comes back with an error carries `</textarea><script>alert(1)</script>` as its comment
+- **THEN** the form shows that text escaped inside the field, and no tag is interpreted
+
+#### Scenario: a forged comment of any length
+
+- **WHEN** a submission forged without the form carries a comment of thousands of characters
+- **THEN** no report is saved, the resident sees "El comentario es muy largo (máximo 300 caracteres)" and the field shows the first 300 characters
+
+#### Scenario: reason outside the list
+
+- **WHEN** a submission with an invented reason, or with two reasons, arrives directly at the server
+- **THEN** no report is saved and the response is the same reason error, without a server error
+
+#### Scenario: comment too long
+
+- **WHEN** the submission carries a comment of more than 300 characters
+- **THEN** no report is saved and the resident sees "El comentario es muy largo (máximo 300 caracteres)"
+
+#### Scenario: line breaks count once
+
+- **WHEN** a resident writes a comment of 300 characters that has line breaks
+- **THEN** the report is saved with that comment and its line breaks
+
+#### Scenario: comment that looks like markup
+
+- **WHEN** someone submits `<script>alert(1)</script>` as the comment with a valid reason
+- **THEN** the report is saved with that text as is and, when the admin reads it in the admin panel, they see it as plain text: no tag is interpreted on any screen
+
+#### Scenario: comment of only spaces
+
+- **WHEN** the resident submits a valid reason and a comment of only spaces
+- **THEN** the report is saved without a comment, not with a string of spaces
+
+#### Scenario: the report cannot be saved
+
+- **WHEN** the database fails while a report is saved
+- **THEN** the resident sees "No pudimos enviar tu reporte. Vuelve a intentarlo en un momento." with what they wrote still in the form, and the log names the kind of failure without the comment, the card or the address
+
+### Requirement: The report form posts to its own address, which names the card (v2)
+
+Added in v2 — source: ADR 0007, ADR 0019. It amends "Report mini-form without an account, with a closed-list reason and optional comment" on the 404 of an unusable identifier, and takes the place of the paragraph of the prototype requirement on validation that rebuilt the route on the server.
+
+The form posts to the address of its own page, `/{estado}/{municipio}/negocio/<slug>-<id>/reportar`, with the server action of the report, and the server reads the card from that address, as the page does: no field of the submission names or chooses the card, and an address with an earlier name still reports its card. Only a published card of the locality of the address can be reported. A submission to an address whose identifier is unusable —invented, empty or not an identifier— or whose card is in review, rejected, deleted or of another locality MUST save nothing, spend no quota and answer the same 404 as the page of a card that does not exist, byte for byte and without a cookie, whatever it carries, the trap field included. There are no bound arguments a submission could add or change, so "a submission arriving with more arguments than the action declares" can only bring extra fields, which are ignored. The action reached any other way —posted from another page, or at its own endpoint `/_actions/report`— MUST save nothing and answer 404. A field of the submission that purports to set a destination is ignored: the server builds the address it answers with from the card it found in the database ("The report form lands on its thank-you page (v2)"), so no foreign address ever reaches a redirect or a header.
+
+#### Scenario: an earlier name
+
+- **WHEN** the resident opens the report form of a card through an address with the business's earlier name and submits a report
+- **THEN** the report is about that card, and "Volver a la ficha" leads to its current address
+
+#### Scenario: a tampered identifier
+
+- **WHEN** a report submission arrives at the report address of a card in review, a rejected card, an identifier that does not exist or a segment without an identifier, with or without the trap field filled
+- **THEN** the response is the same 404 as for a nonexistent card, byte for byte, without cookies, without writing anything to the database and without any server error
+
+#### Scenario: the action reached from elsewhere
+
+- **WHEN** the report action is posted to the home of a locality, or to `/_actions/report`
+- **THEN** the answer is a 404 and no report is saved
+
+#### Scenario: the submission does not choose where to return
+
+- **WHEN** a valid report submission arrives with extra fields pointing to a foreign site (`https://evil.example`, `//evil.example`, or values with line breaks or cookie attributes inside)
+- **THEN** none changes the destination: the answer is the thank-you page of that same card, which the server builds, and no cookie goes out
+
+### Requirement: The report form lands on its thank-you page (v2)
+
+Added in v2 — source: ADR 0007; `base-layout`, "The open `robots.txt` allows the public site and excludes what is not relevant (v2)", which names `/reportar/gracias`; `data-model`, "The slugs of the catalogues do not produce ambiguous URLs at the root of a locality (v2)", which reserves `reportar`.
+
+A received report —saved, past the cap of pending reports or caught by the trap field, which MUST look the same— MUST be answered with a `303` to `/{estado}/{municipio}/reportar/gracias?negocio=<id>`, with `Cache-Control: no-store`, so that reloading the confirmation never sends the form again. That page shows "¡Gracias por avisarnos! Vamos a revisar este negocio." as its only `h1` and "Volver a la ficha", which leads to the card's current address, and nothing else about the card ("The report submission confirms in plain Spanish and gives nothing away"). It reads the card its address names, through the connection without cache, since it follows a write: when that is not a published card of the locality, or the parameter is missing or is not an identifier, it answers the same 404 as a card that does not exist. The report form and its thank-you page declare `noindex, follow` and no canonical, are left out of the sitemap and are disallowed by `robots.txt`; their titles are static, "Reportar este negocio" and "Gracias por avisarnos", and name neither the business nor anything the resident wrote.
+
+#### Scenario: report submitted
+
+- **WHEN** the resident picks "Ya cerró" and taps "Enviar reporte", with client-side JavaScript disabled
+- **THEN** they land on `/{estado}/{municipio}/reportar/gracias?negocio=<id>` and see "¡Gracias por avisarnos! Vamos a revisar este negocio." and the link "Volver a la ficha", which returns them to the business's card
+
+#### Scenario: reloading the confirmation
+
+- **WHEN** the resident reloads the thank-you page
+- **THEN** no report is created and the page is the same
+
+#### Scenario: a thank-you address that names no card
+
+- **WHEN** someone opens `/reportar/gracias` without `negocio`, with an invented identifier or with that of a card in review
+- **THEN** they get the same 404 as for a card that does not exist
+
+#### Scenario: neither page is indexed
+
+- **WHEN** a search engine reads the report form or the thank-you page
+- **THEN** both ask not to be indexed, declare no canonical, appear in no sitemap and are disallowed by `robots.txt`
+
+### Requirement: The report's per-IP quota is counted in the quota counter (v2)
+
+Added in v2 — source: ADR 0012; `deployment`, "Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)", which also says how the address is read. In "Report anti-abuse without captcha: honeypot, per-IP quota and pending cap per business" it replaces how the IP is read —a header declared by the deployment— and the scenario "no IP header declared".
+
+The per-IP quota of the reports is its own purpose of the quota counter: 3 reports per address in a window of one hour that starts with its first counted report, counted apart from the search, the registration, the edits and the SMS. The counter checks and takes a report in one step, so simultaneous reports from one address are counted one by one. A request that carries no address of its visitor —only possible on a developer's machine— is not counted. Only a submission that would save a report counts: one that passed the trap field and the validation and is about a published card of the locality, saved or past the cap. So a bot caught by the trap, a form that comes back with a reason or comment error and a card that cannot be reported spend no quota. Over the quota, nothing is saved and the form comes back with the literal text "Ya recibimos varios reportes desde aquí. Espera un rato y vuelve a intentar.", the chosen reason and the comment, status `429` and `Cache-Control: no-store`. When the counter cannot answer, the report goes on as if it were within the quota: the quota may fail to count, never turn into an error, and the trap and the cap keep working.
+
+#### Scenario: the fourth report of the hour
+
+- **WHEN** an address that sent three reports this hour, about one card or several, sends a fourth
+- **THEN** nothing is saved, the answer is a `429` with "Ya recibimos varios reportes desde aquí. Espera un rato y vuelve a intentar." and what the resident had chosen and written, and another address reports normally
+
+#### Scenario: independent counters
+
+- **WHEN** an address over its report quota searches, or an address over its search quota reports
+- **THEN** the search runs, or the report is saved
+
+#### Scenario: no address
+
+- **WHEN** many reports arrive without the address of their visitor
+- **THEN** the quota blocks none, while the trap field and the cap of pending reports keep working
+
+#### Scenario: what does not count
+
+- **WHEN** an address sends reports caught by the trap field, reports without a reason and reports about a card in review
+- **THEN** none of them spends its quota
+
+#### Scenario: the counter does not answer
+
+- **WHEN** the counter of the quotas fails or cannot be reached
+- **THEN** the report is saved, without an error

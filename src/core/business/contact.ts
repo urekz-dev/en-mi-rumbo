@@ -2,9 +2,10 @@
 // (docs/specs/public-directory.md, "Contact buttons on the card with WhatsApp
 // as the main action" and "The prefilled WhatsApp message names the directory
 // with the current brand"): WhatsApp, a call, Google Maps and the page the
-// business registered. They are built here, not in the markup, so their rules
-// (normalize the number, invent no address, never promise Facebook) are
-// tested without rendering a page. The markup gives every link that opens a
+// business registered; and "Perdí mi enlace", which takes its owner to the
+// admins of its locality. They are built here, not in the markup, so their
+// rules (normalize the number, invent no address, never promise Facebook)
+// are tested without rendering a page. The markup gives every link that opens a
 // new tab `rel="noopener noreferrer"`; a `tel:` link opens none.
 import type { ServedLocality } from "../locality/served.ts";
 
@@ -39,6 +40,32 @@ export function whatsappLink(whatsapp: string): string | null {
   const digits = nationalNumber(whatsapp);
   if (digits === null) return null;
   return `https://wa.me/52${digits}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+}
+
+/**
+ * The message "Perdí mi enlace" writes in the conversation with the admins of
+ * the card's locality (public-directory, ""Perdí mi enlace" button on the
+ * card, toward the admin's WhatsApp"). The owner sends it from the number
+ * they registered, so the admin can check that the card is theirs.
+ */
+export function lostLinkMessage(businessName: string): string {
+  return (
+    `Hola, soy de «${businessName}» en enmirumbo y perdí el enlace para editar mi ficha. ` +
+    "Les escribo desde el número que registré, ¿me lo pueden pasar?"
+  );
+}
+
+/**
+ * "Perdí mi enlace": the conversation with the contact WhatsApp of the card's
+ * locality, read from its record and never a global number (public-directory,
+ * ""Perdí mi enlace" opens WhatsApp to the admin of the card's locality
+ * (v2)"), with lostLinkMessage already written; null when that number is not
+ * ten national digits, and then the card shows no "¿Es tu negocio?" at all.
+ */
+export function lostLinkLink(contactWhatsapp: string, businessName: string): string | null {
+  const digits = nationalNumber(contactWhatsapp);
+  if (digits === null) return null;
+  return `https://wa.me/52${digits}?text=${encodeURIComponent(lostLinkMessage(businessName))}`;
 }
 
 /**

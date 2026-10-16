@@ -1,0 +1,47 @@
+---
+// The thank-you page of a report, /{estado}/{municipio}/reportar/gracias?negocio=<id>
+// (docs/specs/public-directory.md, "The report submission confirms in plain
+// Spanish and gives nothing away" and "The report form lands on its
+// thank-you page (v2)"). The report form answers a received report with a
+// 303 here, so reloading this page creates nothing: it has no form.
+//
+// It says the same whatever happened to the report (saved, caught by the
+// trap or past the cap), and nothing about the card or what will happen to
+// it: only "¡Gracias por avisarnos! Vamos a revisar este negocio." and
+// "Volver a la ficha", to the card's current address. So it reads the card
+// the address names, a published card of this locality, through
+// HYPERDRIVE_FRESH, since it follows a write; anything else answers the same
+// 404 as a card that does not exist. It is never indexed and its title is
+// static. No client JavaScript.
+import { env, waitUntil } from "cloudflare:workers";
+import { cardPath } from "../../../../core/business/card-path.ts";
+import { isBusinessId } from "../../../../core/business/id.ts";
+import { withDb } from "../../../../core/db/client.ts";
+import { REPORTED_CARD_PARAM } from "../../../../core/report/paths.ts";
+import { reportableCard } from "../../../../core/report/save.ts";
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import { notFound, requireLocality } from "../../../../lib/locality.ts";
+
+const locality = requireLocality(Astro.locals);
+const id = Astro.url.searchParams.get(REPORTED_CARD_PARAM) ?? "";
+const card = isBusinessId(id)
+  ? await withDb(env, "HYPERDRIVE_FRESH", { waitUntil }, (db) =>
+      reportableCard(db, locality.code, id),
+    )
+  : null;
+if (card === null) return notFound();
+---
+
+<BaseLayout title="Gracias por avisarnos" noindex>
+  <section class="flex flex-1 flex-col items-center justify-center gap-6 py-12 text-center">
+    <h1 class="max-w-md text-2xl font-bold tracking-tight sm:text-3xl">
+      ¡Gracias por avisarnos! Vamos a revisar este negocio.
+    </h1>
+    <a
+      href={cardPath(locality, card)}
+      class="inline-flex min-h-11 items-center justify-center px-4 text-base font-semibold text-action-strong underline underline-offset-4"
+    >
+      Volver a la ficha
+    </a>
+  </section>
+</BaseLayout>

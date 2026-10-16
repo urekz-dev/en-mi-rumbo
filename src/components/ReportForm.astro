@@ -1,0 +1,112 @@
+---
+// The report mini-form (docs/specs/public-directory.md, "Report mini-form
+// without an account, with a closed-list reason and optional comment", "The
+// server validates the report's reason and comment, and keeps the draft
+// without a cookie (v2)" and "No data is requested or stored about the
+// reporter"): the trap field, the four reasons under "¿Qué pasa?" with none
+// chosen, the optional comment of at most 300 characters and "Enviar
+// reporte". It asks nothing about the resident.
+//
+// It posts to the page it is on, with the action `report`, and the server
+// resolves it, so it works without JavaScript. No field is `required`: a
+// missing reason is answered by the server, with its own message. When the
+// form comes back with an error, it shows the reason and the comment the
+// resident sent in that same submission, never from a cookie or the address;
+// Astro escapes the comment, so it is always text. Each error sits next to
+// what it is about, announced as an alert: the reason's in its group, the
+// comment's under its help, and the quota's and the server's above the form.
+// The button is neutral: reporting is no action to celebrate in green. No
+// client JavaScript.
+import type { ReportReason } from "../core/db/schema/index.ts";
+import {
+  COMMENT_FIELD,
+  COMMENT_MAX_LENGTH,
+  REASON_FIELD,
+  REPORT_ERROR_MESSAGES,
+  REPORT_REASON_LABELS,
+  type ReportDraft,
+  type ReportFormError,
+} from "../core/report/submission.ts";
+import { SECONDARY_BUTTON } from "../lib/buttons.ts";
+import HoneypotField from "./HoneypotField.astro";
+
+interface Props {
+  /** Where it posts: the page's own address with the action (`actions.report`). */
+  action: string;
+  /** The error of the last submission, or null. */
+  error: ReportFormError | null;
+  /** What the last submission chose and wrote, or nothing. */
+  draft: ReportDraft;
+}
+
+const { action, error, draft } = Astro.props;
+const reasons = Object.entries(REPORT_REASON_LABELS) as [ReportReason, string][];
+const general = error === "quota" || error === "server" ? REPORT_ERROR_MESSAGES[error] : null;
+const reasonError = error === "reason";
+const commentError = error === "comment";
+const field =
+  "w-full rounded-lg bg-background px-4 py-3 text-base text-ink focus:ring-2 focus:ring-action-strong focus:outline-none";
+---
+
+<form method="post" action={action} class="flex flex-col gap-6">
+  <HoneypotField />
+
+  {general && (
+    <p role="alert" class="text-sm font-semibold text-ink">
+      <span aria-hidden="true">⚠ </span>
+      {general}
+    </p>
+  )}
+
+  <fieldset class="flex flex-col gap-2" aria-describedby={reasonError ? "reason-error" : undefined}>
+    <legend class="text-sm font-semibold text-ink">¿Qué pasa?</legend>
+    {reasonError && (
+      <p id="reason-error" role="alert" class="text-sm font-semibold text-ink">
+        <span aria-hidden="true">⚠ </span>
+        {REPORT_ERROR_MESSAGES.reason}
+      </p>
+    )}
+    <div class="flex flex-col gap-1">
+      {reasons.map(([value, label]) => (
+        <label class="flex min-h-11 cursor-pointer items-center gap-3 text-base text-ink">
+          <input
+            type="radio"
+            name={REASON_FIELD}
+            value={value}
+            checked={draft.reason === value}
+            class="h-5 w-5 shrink-0"
+          />
+          {label}
+        </label>
+      ))}
+    </div>
+  </fieldset>
+
+  <div class="flex flex-col gap-1.5">
+    <label for="report-comment" class="text-sm font-semibold text-ink">
+      ¿Nos quieres contar más? (opcional)
+    </label>
+    <textarea
+      id="report-comment"
+      name={COMMENT_FIELD}
+      rows="3"
+      maxlength={COMMENT_MAX_LENGTH}
+      aria-invalid={commentError ? "true" : undefined}
+      aria-describedby={commentError ? "comment-error comment-help" : "comment-help"}
+      class={commentError ? `${field} border-2 border-ink` : `${field} border border-control`}
+    >{draft.comment}</textarea>
+    <p id="comment-help" class="text-sm text-ink-muted">
+      Máximo 300 caracteres.
+    </p>
+    {commentError && (
+      <p id="comment-error" role="alert" class="text-sm font-semibold text-ink">
+        <span aria-hidden="true">⚠ </span>
+        {REPORT_ERROR_MESSAGES.comment}
+      </p>
+    )}
+  </div>
+
+  <button type="submit" class={`${SECONDARY_BUTTON} w-full px-6 py-3 text-base`}>
+    Enviar reporte
+  </button>
+</form>

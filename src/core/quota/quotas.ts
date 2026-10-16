@@ -3,8 +3,9 @@
 // (v2)"). Each purpose has its own counter, so exhausting one never affects
 // another, and its own limit: at most `limit` requests from one IP address
 // in a fixed window of `windowSeconds`, which starts with the first request.
-// A purpose arrives with the surface it protects: the report form (EMR-37),
-// the registration and the edit (EMR-42) and the SMS add theirs here.
+// A purpose arrives with the surface it protects: the search and the report
+// form have theirs; the registration and the edit (EMR-42) and the SMS add
+// theirs here.
 
 export interface Quota {
   /** Requests allowed in one window. */
@@ -22,6 +23,10 @@ export const QUOTAS = {
   // for the neighbours who share one address behind their carrier, but not
   // for a script that walks the directory one query after another.
   search: { limit: 100, windowSeconds: 10 * 60 },
+  // public-directory, "Report anti-abuse without captcha: honeypot, per-IP
+  // quota and pending cap per business" and "The report's per-IP quota is
+  // counted in the quota counter (v2)": 3 reports an hour from one address.
+  report: { limit: 3, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, Quota>;
 
 /** What a quota protects. */
