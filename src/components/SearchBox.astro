@@ -1,0 +1,47 @@
+---
+// The search box (docs/specs/public-directory.md, "Search box on the home
+// page that works without client-side JavaScript", amended in the visual
+// review batch 2): a GET form to the results page of the locality, resolved
+// by the server, so it works without JavaScript. The results page repeats it
+// at the top with what the resident typed, to correct it without going back;
+// the home page (D1) shows it empty. It adds no heading of its own: the label
+// is a visible `label`. On a phone the field and the button are stacked, each
+// at full width; from `sm` up they share a row. The button is a secondary
+// action, never the WhatsApp green, which is kept for contacting. No client
+// JavaScript.
+import type { LocalityRef } from "../core/locality/paths.ts";
+import { QUERY_PARAM, searchPath } from "../core/search/path.ts";
+import { SECONDARY_BUTTON } from "../lib/buttons.ts";
+
+interface Props {
+  locality: LocalityRef;
+  /** What the field starts with: what the resident typed, on the results page. */
+  value?: string | undefined;
+}
+
+const { locality, value = "" } = Astro.props;
+---
+
+<form
+  action={searchPath(locality)}
+  method="get"
+  role="search"
+  class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2"
+>
+  <div class="flex min-w-0 flex-1 flex-col gap-1">
+    <label for="search-query" class="text-sm font-semibold text-ink">
+      Busca lo que necesitas
+    </label>
+    <input
+      type="search"
+      id="search-query"
+      name={QUERY_PARAM}
+      value={value}
+      placeholder="ej. plomero, tacos, futbol infantil"
+      class="min-h-11 w-full rounded-lg border border-control bg-background px-4 text-base text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-action-strong focus:outline-none"
+    />
+  </div>
+  <button type="submit" class={`${SECONDARY_BUTTON} w-full px-5 sm:w-auto`}>
+    Buscar
+  </button>
+</form>

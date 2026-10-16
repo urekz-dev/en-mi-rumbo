@@ -1,0 +1,33 @@
+// The per-IP quotas of the site (ADR 0012; docs/specs/deployment.md,
+// "Anti-abuse counters live in a Durable Object and never in PostgreSQL
+// (v2)"). Each purpose has its own counter, so exhausting one never affects
+// another, and its own limit: at most `limit` requests from one IP address
+// in a fixed window of `windowSeconds`, which starts with the first request.
+// A purpose arrives with the surface it protects: the report form (EMR-37),
+// the registration and the edit (EMR-42) and the SMS add theirs here.
+
+export interface Quota {
+  /** Requests allowed in one window. */
+  limit: number;
+  /** How long a window lasts: at most an hour, since the IP is kept less than one. */
+  windowSeconds: number;
+}
+
+/** The longest window: the privacy notice keeps the IP's code less than an hour. */
+export const MAX_WINDOW_SECONDS = 60 * 60;
+
+export const QUOTAS = {
+  // public-directory, "The search endpoint has a per-IP quota (v2)": enough
+  // for a resident who corrects a search and pages through its results, and
+  // for the neighbours who share one address behind their carrier, but not
+  // for a script that walks the directory one query after another.
+  search: { limit: 100, windowSeconds: 10 * 60 },
+} as const satisfies Record<string, Quota>;
+
+/** What a quota protects. */
+export type QuotaPurpose = keyof typeof QUOTAS;
+
+/** Whether `value` names a quota, for a counter that receives it from outside. */
+export function isQuotaPurpose(value: string): value is QuotaPurpose {
+  return Object.hasOwn(QUOTAS, value);
+}

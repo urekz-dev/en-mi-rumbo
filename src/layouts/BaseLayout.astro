@@ -24,13 +24,17 @@
 // size and alt text. Without a base for absolute URLs, the canonical,
 // `og:url` and `og:image` are left out.
 //
+// Measurement: a page may tag its view with one of ANALYTICS_TAGS
+// (`analyticsTag`), which the Umami script carries as `data-tag`; with the
+// measurement off there is no script, so no tag either.
+//
 // The body is min-h-dvh, not min-h-full: on Android the browser bar collapses
 // while scrolling and the real viewport grows; dvh follows it, so the footer
 // always reaches the bottom edge.
 import { env } from "cloudflare:workers";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
-import { pageAnalytics } from "../lib/analytics.ts";
+import { pageAnalytics, type AnalyticsTag } from "../lib/analytics.ts";
 import { readDeployInfo } from "../lib/deploy-info.ts";
 import { shareImage } from "../lib/share-image.ts";
 import { documentTitle, SITE_NAME, siteDescription } from "../lib/site.ts";
@@ -47,15 +51,17 @@ interface Props {
    * index it: its canonical URL. A 404 or the panel has none.
    */
   canonicalPath?: string | undefined;
-  /** Whether search engines must not index the page; it then has no canonical. */
+  /** Whether search engines must leave the page out; it then has no canonical. */
   noindex?: boolean | undefined;
+  /** The tag of this page view (ANALYTICS_TAGS), when the measurement is on. */
+  analyticsTag?: AnalyticsTag | undefined;
 }
 
-const { title, description, canonicalPath, noindex = false } = Astro.props;
+const { title, description, canonicalPath, noindex = false, analyticsTag } = Astro.props;
 const locality = Astro.locals.locality;
 const pageTitle = documentTitle(title, locality);
 const metaDescription = description ?? siteDescription(locality);
-const canonical = noindex || canonicalPath === undefined ? null : absoluteUrl(env, canonicalPath);
+const canonical = canonicalPath === undefined || noindex ? null : absoluteUrl(env, canonicalPath);
 const image = shareImage(locality);
 const imageUrl = absoluteUrl(env, image.src);
 const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
@@ -95,6 +101,7 @@ const deploy = readDeployInfo(env);
         src={analytics.scriptUrl}
         data-website-id={analytics.websiteId}
         data-exclude-search="true"
+        data-tag={analyticsTag}
       ></script>
     )}
     <slot name="head" />

@@ -1,14 +1,16 @@
 // Scenarios of docs/specs/base-layout.md, requirements "Cookieless measurement
 // is loaded only in production and only when configured (v2)", "The admin
-// panel and edit mode stay out of the measurement" and "Four product events
-// are recorded, only in production (v2)": the decisions of
-// src/lib/analytics.ts. The script tag in the layout is tested with the
-// Container API (test/astro/layout.test.ts), and the served site with the
+// panel and edit mode stay out of the measurement" and "Three product events
+// and the no-results tag are recorded, only in production (v2)": the
+// decisions of src/lib/analytics.ts. The script tag in the layout, with its
+// tag, is tested with the Container API (test/astro/layout.test.ts and
+// test/astro/search-page.test.ts), and the served site with the
 // measurement off, as every environment is today, end to end
 // (test/e2e/surfaces.spec.ts: no request leaves the site).
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   ANALYTICS_EVENTS,
+  ANALYTICS_TAGS,
   eventAttributes,
   isMeasured,
   pageAnalytics,
@@ -98,14 +100,15 @@ describe("The admin panel and edit mode stay out of the measurement", () => {
   });
 });
 
-describe("Four product events are recorded, only in production (v2)", () => {
-  it("four event names, read from one place", () => {
+describe("Three product events and the no-results tag are recorded, only in production (v2)", () => {
+  it("three event names and one tag, read from one place", () => {
     expect(Object.values(ANALYTICS_EVENTS)).toEqual([
       "whatsapp-listing",
       "whatsapp-card",
-      "search-no-results",
       "registration-submitted",
     ]);
+    // Scenario: search with no results. A tag of the page view, not an event.
+    expect(Object.values(ANALYTICS_TAGS)).toEqual(["search-no-results"]);
   });
 
   // Scenarios: WhatsApp click; registration submitted (the properties)
@@ -123,13 +126,12 @@ describe("Four product events are recorded, only in production (v2)", () => {
     });
   });
 
-  // Scenario: search with no results
   it("an event without a category carries the locality alone", () => {
     const analytics = readAnalytics({ ENVIRONMENT: "prod", UMAMI_WEBSITE_ID: WEBSITE_ID });
     expect(
-      eventAttributes(analytics, ANALYTICS_EVENTS.searchNoResults, { locality: TIZAYUCA }),
+      eventAttributes(analytics, ANALYTICS_EVENTS.registrationSubmitted, { locality: TIZAYUCA }),
     ).toEqual({
-      "data-umami-event": "search-no-results",
+      "data-umami-event": "registration-submitted",
       "data-umami-event-locality": "hidalgo/tizayuca",
     });
   });

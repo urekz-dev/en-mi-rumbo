@@ -1339,9 +1339,11 @@ While two or more localities are active, the footer of every page of a locality 
 
 ### Requirement: The search endpoint has a per-IP quota (v2)
 
-Added in v2 — source: ADR 0012, PRD §8, prototype backlog E5-5.
+Added in v2 — source: ADR 0012, PRD §8, prototype backlog E5-5. Amended on 2026-10-15 by EMR-36: the limit, the window, the message and the answer over the quota, which were not settled.
 
-The search MUST have its own per-IP quota, separate from the quotas of registration, edits, reports and SMS, to hold back the mass harvesting of the directory. The counter is kept as described in "Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)". A request over the quota MUST NOT run the query, MUST NOT produce a server error and MUST show a message in plain Spanish asking to try again later. Exhausting this quota MUST NOT affect any other surface.
+The search MUST have its own per-IP quota, separate from the quotas of registration, edits, reports and SMS, to hold back the mass harvesting of the directory. The counter is kept as described in "Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)", which also says how the address is read. A request over the quota MUST NOT run the query, MUST NOT produce a server error and MUST show a message in plain Spanish asking to try again later. Exhausting this quota MUST NOT affect any other surface.
+
+The quota is **100 searches per address in a window of 10 minutes** (decision of the product owner, 2026-10-15), which starts with the first search of that address: enough for a resident who corrects a search and pages through its results, and for the neighbours who share one address behind their carrier, but not for a script that walks the directory one query after another. Only a request that would run the query counts, each page of results included: the empty query, which runs none ("Empty query and hostile terms bounded, without error"), and the other pages of the site never count. Over the quota the page MUST answer `429` with `Retry-After` (the seconds left in the window) and `Cache-Control: no-store`, inside the layout and without an error page: the heading `Resultados para "<lo que escribió el vecino>"`, the search box with what was typed, the literal text "Recibimos muchas búsquedas desde aquí. Espera un rato y vuelve a intentar." and, since the listings are not held back, the literal text "Mientras, puedes ver los negocios por categoría:" with the 8 category buttons. When the counter cannot answer, the search runs as if it were within the quota: the quota may fail to count, never turn into an error.
 
 #### Scenario: within the quota
 
@@ -1352,6 +1354,21 @@ The search MUST have its own per-IP quota, separate from the quotas of registrat
 
 - **WHEN** the same IP exceeds the quota of the search in its window
 - **THEN** the query is not run, the resident sees the message and no error page, and no results are returned
+
+#### Scenario: the 61st search
+
+- **WHEN** an address searches for the 61st time within 10 minutes of its first search
+- **THEN** the answer is a `429` with `Retry-After` and `Cache-Control: no-store`, showing "Recibimos muchas búsquedas desde aquí. Espera un rato y vuelve a intentar." and the 8 categories, and no business
+
+#### Scenario: what is not counted
+
+- **WHEN** an address over the search quota opens the empty results page, a card or a listing
+- **THEN** they answer normally, because only a search that runs the query counts
+
+#### Scenario: the counter does not answer
+
+- **WHEN** the counter of the quotas fails or cannot be reached
+- **THEN** the search runs and shows its results, without an error
 
 #### Scenario: independent counters
 
@@ -1502,7 +1519,7 @@ In "Business card at its own URL with the registered information and the verifie
 
 Added in v2 — source: ADR 0014 (amended on 2026-10-15), PRD §6.4.
 
-`base-layout`, "Four product events are recorded, only in production (v2)", allows four event names, each with the locality and the category as its only properties. So in "The listing card brings the essentials and WhatsApp without extra taps" and "Contact buttons on the card with WhatsApp as the main action", the two WhatsApp buttons keep their events, `whatsapp-listing` and `whatsapp-card`, with the locality in place of the zone; the events `call` and `directions` are not sent, and no event carries a `zone`. The WhatsApp button of the listing card MUST declare `whatsapp-listing`, and "Enviar WhatsApp" on the card `whatsapp-card`, each with the locality (`{estado}/{municipio}`) and the slug of the business's own category, never the page's, on the link itself, since both open a new tab. "Llamar", "Cómo llegar" and the link to the registered page declare no event; with no event, "Llamar" needs no wrapping element. Where the measurement is off, no element carries an event attribute, and every button works the same. The two WhatsApp events stay apart, so the clicks of the card over its page views remain the PRD §10 metric ("The card view is measured on its own, without custom instrumentation").
+`base-layout`, "Three product events and the no-results tag are recorded, only in production (v2)", allows three event names, each with the locality and the category as its only properties. So in "The listing card brings the essentials and WhatsApp without extra taps" and "Contact buttons on the card with WhatsApp as the main action", the two WhatsApp buttons keep their events, `whatsapp-listing` and `whatsapp-card`, with the locality in place of the zone; the events `call` and `directions` are not sent, and no event carries a `zone`. The WhatsApp button of the listing card MUST declare `whatsapp-listing`, and "Enviar WhatsApp" on the card `whatsapp-card`, each with the locality (`{estado}/{municipio}`) and the slug of the business's own category, never the page's, on the link itself, since both open a new tab. "Llamar", "Cómo llegar" and the link to the registered page declare no event; with no event, "Llamar" needs no wrapping element. Where the measurement is off, no element carries an event attribute, and every button works the same. The two WhatsApp events stay apart, so the clicks of the card over its page views remain the PRD §10 metric ("The card view is measured on its own, without custom instrumentation").
 
 #### Scenario: WhatsApp from a listing card
 
@@ -1565,6 +1582,11 @@ On a category listing, the zone filter is kept from page to page (`?colonia=<zon
 - **WHEN** the canonical of page 2 of the listing `/servicios-del-hogar` is read
 - **THEN** it is the absolute URL of `/servicios-del-hogar?pagina=2`, while page 2 of `/servicios-del-hogar?colonia=huicalco` declares `/servicios-del-hogar`
 
+#### Scenario: a search longer than a page
+
+- **WHEN** a search finds 25 published businesses
+- **THEN** page 1 shows the 20 most recent and "Ver más", which leads to `?q=…&pagina=2`, where the other 5 are shown without "Ver más", with the same query in the heading and in the search box
+
 ### Requirement: An empty trade and zone page leads back only to a trade page with published businesses (v2)
 
 Added in v2 — source: EMR-33, reconciling two scenarios of the same requirement.
@@ -1613,3 +1635,47 @@ It covers the listing card, wherever it is shown; the zone filter of a category 
 
 - **WHEN** the admin renames a zone with the name of another zone of its locality
 - **THEN** both are shown with their type from then on, with no change to the code or to their slugs
+
+### Requirement: The results page lives under its locality and names it from the record (v2)
+
+Added in v2 — source: ADR 0007, ADR 0006, EMR-36.
+
+The results page of "Results page with the same cards as the listing" is `/{estado}/{municipio}/buscar?q=<lo que escribió el vecino>`, with `buscar` a reserved segment (`data-model`, "The slugs of the catalogues do not produce ambiguous URLs at the root of a locality (v2)"), and finds only the published businesses of its locality; its search box submits there. The notice of "Empty query and hostile terms bounded, without error" MUST read the municipality from the locality record: "Escribe qué necesitas y te decimos quién lo hace en {municipio}.", which for Tizayuca is the literal of that requirement. Its category buttons lead to the listings of the same locality. Its title is static and names only the locality, `Buscar en {municipio}`, never what was typed (`base-layout`, "The measurement carries no personal data or text typed by people"). "The results page is not indexable" is met with `<meta name="robots" content="noindex, follow">` and no canonical, while `robots.txt` keeps excluding the page (`base-layout`, "The open `robots.txt` allows the public site and excludes what is not relevant (v2)").
+
+What the page shows of the query —in the heading, the notice of no results and the search box— is cut to 80 characters as a person sees them, never in the middle of an emoji or an accented letter; control and format characters become a space, so a right-to-left override cannot turn the heading around, and a letter buried under stacked accents is shown as the letter. The heading and the notice mark the cut with "…"; the search box does not, so correcting the search never resubmits it. Only the first `q` of the address is read.
+
+#### Scenario: the notice of another locality
+
+- **WHEN** the empty results page of a fixture locality is rendered
+- **THEN** it says "Escribe qué necesitas y te decimos quién lo hace en «municipality of the fixture».", its category buttons lead under its own `/{estado}/{municipio}` and "Tizayuca" appears nowhere
+
+#### Scenario: the title does not carry the query
+
+- **WHEN** the resident searches "quiero abogado por mi divorcio" in Tizayuca
+- **THEN** the title is "Buscar en Tizayuca — enmirumbo", the page declares `noindex, follow` and no canonical
+
+#### Scenario: a query with invisible characters
+
+- **WHEN** the query carries a NUL, a line break or a right-to-left override between its letters
+- **THEN** the heading shows those letters separated by spaces, and reads in the order they were typed
+
+### Requirement: A search with no results tags its page view (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-15; ADR 0014 (amended on 2026-10-15). It replaces the event "search with no results" of `base-layout` (see "Three product events and the no-results tag are recorded, only in production (v2)").
+
+Where the measurement is on (`base-layout`, "Cookieless measurement is loaded only in production and only when configured (v2)"), the results page of a search that found no published business MUST load the Umami script with `data-tag="search-no-results"`. The server knows there are no results when it renders the page, so the measurement needs no JavaScript of the site and no count on the server: Umami filters the tagged page views, and they are compared with the views of all the results pages. The tag is a fixed word, so the text searched never reaches Umami, neither in the tag nor in the address, which leaves without its query (`data-exclude-search`), nor in the static title. A page with results, the empty-query page and a page over the quota carry no tag. Where the measurement is off there is no script, so there is no tag either.
+
+#### Scenario: a search with no results in production
+
+- **WHEN** a resident of Tizayuca searches "veterinario espacial" in production with a Website ID, and nothing is found
+- **THEN** the page view is recorded with the tag `search-no-results` and the address `/hidalgo/tizayuca/buscar`, without the query
+
+#### Scenario: a search with results
+
+- **WHEN** the search finds businesses, or the query is empty, or the address is over the quota
+- **THEN** the page view carries no tag
+
+#### Scenario: the measurement off
+
+- **WHEN** a search finds nothing where the measurement is off
+- **THEN** the page has no script and no tag

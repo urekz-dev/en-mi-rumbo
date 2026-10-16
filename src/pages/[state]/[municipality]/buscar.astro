@@ -1,0 +1,79 @@
+---
+// The search results of a locality, /{estado}/{municipio}/buscar?q=…
+// (docs/specs/public-directory.md; ADR 0007, ADR 0012). The middleware has
+// already resolved the active locality, or answered 404. In this order:
+//
+// 1. `pagina` (src/core/pagination.ts): absent is page 1; a value that names
+//    no later page answers 404, so no duplicate or junk page exists.
+// 2. The first `q` of the address. When nothing searchable is left
+//    (searchTerms), no query runs and the page asks what to look for; that
+//    state has no later page.
+// 3. The per-IP quota of the search (src/lib/quota/): over it, no query runs
+//    and the page says to try again later, with a 429 that no cache keeps.
+// 4. The search (src/core/search/query.ts), on HYPERDRIVE, the cached binding
+//    of public reads, so a change can take up to a minute to show ("Public
+//    pages may show a change up to a minute late (v2)"). It reads one row more
+//    than the page shows, to know whether "Ver más" leads anywhere. Page 1
+//    with no rows is the no-results state; a later page with none answers 404.
+//
+// The states are rendered by src/components/SearchPage.astro. No client
+// JavaScript.
+import { env, waitUntil } from "cloudflare:workers";
+import SearchPage from "../../../components/SearchPage.astro";
+import { catalogueCategories } from "../../../core/catalogue/categories.ts";
+import { localityZoneNames } from "../../../core/catalogue/pages.ts";
+import { withZoneName } from "../../../core/catalogue/zone-names.ts";
+import { type Db, withDb } from "../../../core/db/client.ts";
+import { PAGE_SIZE, pageSlice, parsePage } from "../../../core/pagination.ts";
+import { searchTerms } from "../../../core/search/normalize.ts";
+import { PAGE_PARAM, QUERY_PARAM, searchPath } from "../../../core/search/path.ts";
+import { searchPublishedBusinesses } from "../../../core/search/query.ts";
+import type { SearchState } from "../../../core/search/state.ts";
+import { pageAnalytics } from "../../../lib/analytics.ts";
+import { notFound, requireLocality } from "../../../lib/locality.ts";
+import { overQuotaHeaders, takeQuota } from "../../../lib/quota/quota.ts";
+
+const locality = requireLocality(Astro.locals);
+const params = Astro.url.searchParams;
+const page = parsePage(params.get(PAGE_PARAM));
+if (page === null) return notFound();
+const query = params.get(QUERY_PARAM) ?? "";
+
+const read = <T,>(run: (db: Db) => Promise<T>) => withDb(env, "HYPERDRIVE", { waitUntil }, run);
+
+let state: SearchState;
+if (searchTerms(query, locality.name).length === 0) {
+  if (page !== 1) return notFound();
+  state = { kind: "empty", categories: await read(catalogueCategories) };
+} else {
+  const quota = await takeQuota(env, Astro.request.headers, "search");
+  if (!quota.allowed) {
+    Astro.response.status = 429;
+    for (const [name, value] of Object.entries(overQuotaHeaders(quota))) {
+      Astro.response.headers.set(name, value);
+    }
+    state = { kind: "over-quota", categories: await read(catalogueCategories) };
+  } else {
+    const rows =
+      (await read((db) => searchPublishedBusinesses(db, locality, query, pageSlice(page)))) ?? [];
+    if (rows.length === 0) {
+      if (page !== 1) return notFound();
+      state = { kind: "no-results", categories: await read(catalogueCategories) };
+    } else {
+      // A zone whose name repeats in the locality is shown with its type,
+      // as on the listings ("A zone whose name repeats in its locality is
+      // shown with its settlement type (v2)").
+      const names = await read((db) => localityZoneNames(db, locality));
+      state = {
+        kind: "results",
+        businesses: rows.slice(0, PAGE_SIZE).map((business) => withZoneName(business, names)),
+        next: rows.length > PAGE_SIZE ? searchPath(locality, query, page + 1) : null,
+      };
+    }
+  }
+}
+
+const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
+---
+
+<SearchPage query={query} state={state} analytics={analytics} />

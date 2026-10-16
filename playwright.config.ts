@@ -31,7 +31,7 @@ export default defineConfig({
       // active locality, Tizayuca.
       name: "phone",
       use: PHONE,
-      testIgnore: ["two-localities/**", "many-cards/**"],
+      testIgnore: ["two-localities/**", "many-cards/**", "search-pages/**"],
     },
     // A listing longer than a page (test/e2e/many-cards/): it publishes
     // fictitious cards in Tizayuca and removes them, so it runs after "phone",
@@ -42,16 +42,26 @@ export default defineConfig({
       testMatch: "many-cards/*.spec.ts",
       dependencies: ["phone"],
     },
+    // A search with more results than a page shows (test/e2e/search-pages/):
+    // the test adds fictitious published cards to Tizayuca and removes them,
+    // and the sitemap would list them, so it runs alone, after "phone, many
+    // cards" and before the second locality.
+    {
+      name: "phone, search pages",
+      use: PHONE,
+      testMatch: "search-pages/*.spec.ts",
+      dependencies: ["phone, many cards"],
+    },
     // The same site with a second, fictitious active locality
     // (test/e2e/two-localities/): the list of localities at the root, the
     // locality cookie and the link to change municipality, and the crawls
-    // again, now through the list. It runs after "phone" and "phone, many
-    // cards", whose tests expect Tizayuca alone, and its teardown removes the
-    // second locality.
+    // again, now through the list. It runs after "phone", "phone, many cards"
+    // and "phone, search pages", whose tests expect Tizayuca alone, and its
+    // teardown removes the second locality.
     {
       name: "second locality",
       testMatch: "two-localities/second-locality.setup.ts",
-      dependencies: ["phone, many cards"],
+      dependencies: ["phone, search pages"],
       teardown: "no second locality",
     },
     {

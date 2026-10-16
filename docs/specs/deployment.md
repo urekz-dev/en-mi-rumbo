@@ -521,9 +521,17 @@ The hourly job MUST send, at 8:00 local time of each locality, an email through 
 
 ### Requirement: Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)
 
-Added in v2 — source: ADR 0012, PRD §7.
+Added in v2 — source: ADR 0012, PRD §7. Amended on 2026-10-15 by EMR-36, which brings the first quota (the search): how the counters keep the privacy notice true, how the address is read and what happens when the counter fails. Until then it said only "with a secret per environment" about the key.
 
 The per-IP quotas of registration, edits, reports, search and SMS MUST be kept in a Durable Object keyed by an HMAC of the IP and the purpose, with a secret per environment. The IP MUST be used only in memory and for less than one hour. Each counter MUST be deleted when its window ends. No IP, and no value derived from it, MUST be written to PostgreSQL.
+
+The privacy notice says the IP is turned into a code with a secret key and that "ese código vive solo en su memoria y por menos de una hora" (`legal-pages`, "The privacy notice states how the IP address is used (v2)"), so the counters MUST live in the memory of the Durable Object and never in its storage, the database or a log:
+
+- **One object per purpose.** The binding `QUOTA_COUNTER` reaches the class `QuotaCounter`, declared with SQLite storage in `exports` (every new Durable Object must be), at the top level and in each environment of `wrangler.jsonc`. Each purpose is its own object, so each counts apart, with its own limit and window, at most an hour. A purpose arrives with the surface it protects.
+- **The key.** The secret is an HMAC-SHA-256 key that each object generates in its memory when it starts, cannot export and never writes anywhere: a different secret per environment, and per instance, that no person handles and no deploy needs. The code of an address is the HMAC of the purpose and the address, so neither can be read back from it, and the counters are keyed by it.
+- **The window.** A window is fixed: it starts with the first request of an address and ends after the quota's window. A timer deletes each counter when its window ends; while a counter is pending, the timer also keeps the object in memory. A restart of the object (a deploy, a failure, an eviction once it holds no counter) makes a new key and forgets every counter: a quota can only forget, never block more. Past 100,000 counters, the oldest is forgotten to make room, so a flood of addresses cannot exhaust its memory.
+- **The address.** It is the one Cloudflare writes in `CF-Connecting-IP`, which a visitor cannot set. An IPv6 address counts by its /64, which a home or a phone receives whole. A request without an address, and one from a loopback address (only possible on the developer's machine, where Miniflare gives one to every request), is not counted.
+- **Failure.** When the object cannot answer, the request goes on as if within its quota, and the log says the counter did not answer, without the address.
 
 #### Scenario: the key
 
@@ -540,16 +548,31 @@ The per-IP quotas of registration, edits, reports, search and SMS MUST be kept i
 - **WHEN** the database schema and its data are reviewed after quotas are exhausted
 - **THEN** no column or row holds an IP or a value derived from it
 
+#### Scenario: nothing in the storage of the Durable Object
+
+- **WHEN** the storage of the object of a purpose is read after it has counted requests
+- **THEN** it holds nothing: the counters and the key are only in its memory
+
+#### Scenario: a restart
+
+- **WHEN** the object restarts while an address is over its quota
+- **THEN** the address may search again: the restart forgot its counter
+
+#### Scenario: one IPv6 network
+
+- **WHEN** two addresses of the same IPv6 /64 search
+- **THEN** they share one counter, while an address of another /64 has its own
+
 ### Requirement: Three deployed environments, each with its own Worker, bindings and variables (v2)
 
-Added in v2 — source: ADR 0008, ADR 0005, ADR 0010.
+Added in v2 — source: ADR 0008, ADR 0005, ADR 0010. Amended on 2026-10-15 by EMR-36: the binding of the quota counter and its `exports` entry.
 
-The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environments `dev`, `stage` and `prod` inside `env`, and each MUST declare for itself, without relying on the top level: its Worker name (`dev-enmirumbo`, `stage-enmirumbo` and `enmirumbo`), the `workers.dev` URL on, Version and Preview URLs off (`preview_urls: false`, so no URL can bypass Access), its `HYPERDRIVE` (cached) and `HYPERDRIVE_FRESH` (caching disabled) bindings with ids of its own, and the variables `ENVIRONMENT` (its own identifier), `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `SITE_URL` (its `workers.dev` URL, `https://<worker>.urekz.workers.dev`, the base of every absolute URL), `PHOTOS_URL` (its photo hostname, "Business photos live in R2, with one bucket and one hostname per environment (v2)") and `UMAMI_WEBSITE_ID` (empty but in production, `base-layout`, "Cookieless measurement is loaded only in production and only when configured (v2)"). The Cron Trigger follows "Scheduled work runs from one hourly Cron Trigger per environment (v2)"; `dev` MUST declare an empty list, so a deploy also removes a trigger left on its Worker. No route or Custom Domain is declared until the DNS move. The top level is the local Worker (`enmirumbo-local`, `ENVIRONMENT` `local`) with the `workers.dev` URL and Version URLs off, so a deploy without an environment by mistake publishes nothing reachable. While the Access application does not exist, `ACCESS_AUD` is empty and the panel stays closed.
+The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environments `dev`, `stage` and `prod` inside `env`, and each MUST declare for itself, without relying on the top level: its Worker name (`dev-enmirumbo`, `stage-enmirumbo` and `enmirumbo`), the `workers.dev` URL on, Version and Preview URLs off (`preview_urls: false`, so no URL can bypass Access), its `HYPERDRIVE` (cached) and `HYPERDRIVE_FRESH` (caching disabled) bindings with ids of its own, the `QUOTA_COUNTER` binding of the quotas and the `exports` entry of its class `QuotaCounter` ("Anti-abuse counters live in a Durable Object and never in PostgreSQL (v2)"), and the variables `ENVIRONMENT` (its own identifier), `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `SITE_URL` (its `workers.dev` URL, `https://<worker>.urekz.workers.dev`, the base of every absolute URL), `PHOTOS_URL` (its photo hostname, "Business photos live in R2, with one bucket and one hostname per environment (v2)") and `UMAMI_WEBSITE_ID` (empty but in production, `base-layout`, "Cookieless measurement is loaded only in production and only when configured (v2)"). The Cron Trigger follows "Scheduled work runs from one hourly Cron Trigger per environment (v2)"; `dev` MUST declare an empty list, so a deploy also removes a trigger left on its Worker. No route or Custom Domain is declared until the DNS move. The top level is the local Worker (`enmirumbo-local`, `ENVIRONMENT` `local`) with the `workers.dev` URL and Version URLs off, so a deploy without an environment by mistake publishes nothing reachable. While the Access application does not exist, `ACCESS_AUD` is empty and the panel stays closed.
 
 #### Scenario: per environment
 
 - **WHEN** the configuration of `dev`, `stage` and `prod` is read as Wrangler resolves it
-- **THEN** each has its Worker name, `workers_dev` on, `preview_urls` off, both Hyperdrive bindings with two ids that no other environment uses, and the six variables with its own `ENVIRONMENT`, `SITE_URL` and `PHOTOS_URL`
+- **THEN** each has its Worker name, `workers_dev` on, `preview_urls` off, both Hyperdrive bindings with two ids that no other environment uses, the `QUOTA_COUNTER` binding with `QuotaCounter` declared in its own `exports`, and the six variables with its own `ENVIRONMENT`, `SITE_URL` and `PHOTOS_URL`
 
 #### Scenario: nothing inherited
 
@@ -563,9 +586,9 @@ The Worker configuration (`wrangler.jsonc`) MUST declare the deployed environmen
 
 ### Requirement: Each environment is built and deployed by its own workflow (v2)
 
-Added in v2 — source: ADR 0008, ADR 0005, ADR 0016.
+Added in v2 — source: ADR 0008, ADR 0005, ADR 0016. Amended on 2026-10-15 by EMR-36: the check of the quota counter.
 
-Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id, or the `_headers` file of its static assets does not give every one of them `X-Robots-Tag: noindex` (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)") and the security headers ("Every response carries the security headers and the content security policy (v2)"). An empty `ACCESS_AUD` is only a warning.
+Every deploy MUST build for its target with `CLOUDFLARE_ENV=<env>` and deploy, with the project's Wrangler, the configuration that build generated; a build is never promoted between environments and the top-level Worker is never deployed. Before it changes anything —a database or Cloudflare— the workflow MUST check the ref and the generated configuration, and stop, naming every problem, when the ref is not one the environment accepts, the build targets another environment, its Worker name, variables, `workers.dev`, Version URLs or triggers are not the ones of that environment, a Hyperdrive binding is missing, shares its id with the other, or still has a placeholder id, `QUOTA_COUNTER` is not bound to `QuotaCounter` or `exports` does not declare it as a Durable Object with SQLite storage, or the `_headers` file of its static assets does not give every one of them `X-Robots-Tag: noindex` (`base-layout`, "Deployed environments stay out of search engines until the cut-over (v2)") and the security headers ("Every response carries the security headers and the content security policy (v2)"). An empty `ACCESS_AUD` is only a warning.
 
 The build prerenders the legal pages in a local workerd with the bindings of its environment. The Hyperdrive bindings of a deployed environment have no local connection string, so the build gives them an address where nothing answers: no prerendered page reads the database ("The production build does not need the database"), and one that tried would fail the build. The deployed Worker never sees that address.
 
@@ -604,6 +627,11 @@ After each deploy a smoke test MUST request the site URL and fail unless the hom
 
 - **WHEN** after a deploy the home, following its redirects over https, does not answer 200, the page it ends at does not carry `X-Robots-Tag: noindex` or a security header, `/aviso-de-privacidad` does not answer 200 with `X-Robots-Tag: noindex` and the security headers, or `/robots.txt` does not close the site
 - **THEN** the workflow fails
+
+#### Scenario: a build without the quota counter
+
+- **WHEN** the configuration a build generated lacks the `QUOTA_COUNTER` binding, binds it to another class, or does not declare `QuotaCounter` in `exports`
+- **THEN** the workflow stops before the migrations and the deploy, naming the binding and the environment
 
 #### Scenario: a build whose static pages would be indexable
 

@@ -10,6 +10,8 @@
 #   - HYPERDRIVE and HYPERDRIVE_FRESH set to two different real Hyperdrive ids,
 #     so a placeholder id never reaches Cloudflare;
 #   - SITE_URL is an https origin;
+#   - QUOTA_COUNTER bound to the QuotaCounter Durable Object, which `exports`
+#     declares with SQLite storage, so the per-IP quotas count (ADR 0012);
 #   - the _headers file of the static assets gives every one of them the
 #     security headers (a Content-Security-Policy that forbids framing,
 #     plugins and posting to other sites, nosniff, X-Frame-Options: DENY and a
@@ -102,6 +104,12 @@ site_url="$(jq -r '.vars.SITE_URL // ""' "${config}")"
   error "SITE_URL is '${site_url}', expected an https origin without a path or trailing slash"
 
 [ -n "$(jq -r '.vars.ACCESS_TEAM_DOMAIN // ""' "${config}")" ] || error "ACCESS_TEAM_DOMAIN is empty"
+
+quota_bindings="$(jq -c '[.durable_objects.bindings // [] | .[] | select(.name == "QUOTA_COUNTER")]' "${config}")"
+[ "${quota_bindings}" = '[{"name":"QUOTA_COUNTER","class_name":"QuotaCounter"}]' ] ||
+  error "expected QUOTA_COUNTER bound to the QuotaCounter Durable Object, found ${quota_bindings}; declare it in env.${env_name}.durable_objects of wrangler.jsonc"
+[ "$(value '.exports.QuotaCounter')" = '{"type":"durable-object","storage":"sqlite"}' ] ||
+  error "exports.QuotaCounter is $(value '.exports.QuotaCounter'), expected a Durable Object with SQLite storage; declare it in env.${env_name}.exports of wrangler.jsonc"
 
 # Whether a _headers file has a rule for /* with a header line that matches
 # the extended regular expression $2, which is matched in lowercase.
