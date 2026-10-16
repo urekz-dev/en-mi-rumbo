@@ -68,7 +68,7 @@ const undialableLandline = card.landline !== null && callLink(card.landline) ===
     </p>
   )}
 
-  <CardTrades trades={card.trades} />
+  <CardTrades trades={card.trades} locality={locality} />
 
   <ContactButtons card={card} locality={locality} analytics={analytics} />
 </article>

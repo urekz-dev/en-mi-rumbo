@@ -4,9 +4,10 @@
 // the two legal pages (v2)": src/core/seo/sitemap.ts against the database,
 // with the fixture localities of this file (one active, one inactive). That
 // every URL of the served sitemap answers 200 is checked end to end
-// (test/e2e/seo.spec.ts). Other test files add active fixture localities while
-// this one runs, so the checks look only at this file's state and at the
-// site's own pages.
+// (test/e2e/seo.spec.ts); the trade pages it lists, in
+// test/worker/listings.test.ts. Other test files add active fixture
+// localities and categories while this one runs, so the checks look only at
+// this file's state and at the site's own pages.
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import { localities } from "../../src/core/db/schema/index.ts";
@@ -31,22 +32,52 @@ function ours(entries: readonly SitemapEntry[]): string[] {
   return entries.map(({ path }) => path).filter((path) => path.startsWith(PREFIX));
 }
 
+/** The homes of this file's localities among the entries: `/{estado}/{municipio}`. */
+function homes(entries: readonly SitemapEntry[]): string[] {
+  return ours(entries).filter((path) => path.split("/").length === 3);
+}
+
+/** The 8 categories of the migrations. */
+const CATEGORIES = [
+  "restaurantes-y-fondas",
+  "servicios-del-hogar",
+  "belleza",
+  "salud",
+  "abarrotes-y-comercio",
+  "talleres",
+  "clubes-y-escuelas-deportivas",
+  "otro",
+];
+
 describe("The sitemap lists the pages that exist, from the database (v2)", () => {
   it("lists the home of every active locality, and nothing of an inactive one", async () => {
     const entries = await db(sitemapEntries);
 
-    expect(ours(entries)).toEqual([`${PREFIX}pueblo-uno`]);
+    expect(homes(entries)).toEqual([`${PREFIX}pueblo-uno`]);
+    expect(ours(entries).filter((path) => path.startsWith(`${PREFIX}pueblo-dos`))).toEqual([]);
   });
 
-  it("activating a locality adds its home on the next read, with no other change", async () => {
+  // The listings of the categories (public-directory, "Category listing at a
+  // clean URL with the catalogue slug"), even with no published card.
+  it("lists the listing of each category in every active locality, even an empty one", async () => {
+    const paths = ours(await db(sitemapEntries));
+
+    for (const slug of [...CATEGORIES, `categoria-prueba-${STATE}`]) {
+      expect(
+        paths.filter((path) => path === `${PREFIX}pueblo-uno/${slug}`),
+        slug,
+      ).toHaveLength(1);
+    }
+  });
+
+  it("activating a locality adds its pages on the next read, with no other change", async () => {
     await db((tx) =>
       tx.update(localities).set({ active: true }).where(eq(localities.code, f.localityB)),
     );
     try {
-      expect(ours(await db(sitemapEntries))).toEqual([
-        `${PREFIX}pueblo-dos`,
-        `${PREFIX}pueblo-uno`,
-      ]);
+      const entries = await db(sitemapEntries);
+      expect(homes(entries)).toEqual([`${PREFIX}pueblo-dos`, `${PREFIX}pueblo-uno`]);
+      expect(ours(entries)).toContain(`${PREFIX}pueblo-dos/servicios-del-hogar`);
     } finally {
       await db((tx) =>
         tx.update(localities).set({ active: false }).where(eq(localities.code, f.localityB)),

@@ -6,7 +6,10 @@
 // path segment is a category (`servicios-del-hogar`), a trade (`plomeria`) or a
 // trade and a zone of that locality joined by a hyphen
 // (`plomeria-haciendas-de-tizayuca`), beside the site's own pages. Every such
-// segment must read in only one way. Everything here is pure: no database.
+// segment must read in only one way: `rootUrlConflicts` is the check on the
+// catalogues, and `readSegment` is how the route
+// src/pages/[state]/[municipality]/[segment].astro reads one. Everything here
+// is pure: no database.
 
 /**
  * Path segments that belong to the site's own pages, so no category, trade,
@@ -78,6 +81,71 @@ function describe(reading: RootReading): string {
     default:
       return entry(reading.kind, reading.entry);
   }
+}
+
+/** The ways to cut a segment into a trade and a zone: one per hyphen. */
+export interface SegmentSplit {
+  trade: string;
+  zone: string;
+}
+
+/**
+ * Every cut of `segment` into `«trade»-«zone»`. Slugs of both catalogues have
+ * hyphens of their own (`taekwondo-artes-marciales`, `haciendas-de-tizayuca`),
+ * so a segment is cut at each hyphen and every cut is tried.
+ */
+export function segmentSplits(segment: string): SegmentSplit[] {
+  const splits: SegmentSplit[] = [];
+  for (let at = segment.indexOf("-"); at !== -1; at = segment.indexOf("-", at + 1)) {
+    const trade = segment.slice(0, at);
+    const zone = segment.slice(at + 1);
+    if (trade !== "" && zone !== "") splits.push({ trade, zone });
+  }
+  return splits;
+}
+
+/** Catalogues whose entries carry more than a name and a slug, such as their ids. */
+export interface Catalogues<Entry extends CatalogueEntry> {
+  categories: readonly Entry[];
+  trades: readonly Entry[];
+  zones: readonly Entry[];
+}
+
+/** What a page segment of a locality is: a category, a trade or a trade and zone pair. */
+export type SegmentPage<Entry extends CatalogueEntry> =
+  | { kind: "category"; category: Entry }
+  | { kind: "trade"; trade: Entry; zone: null }
+  | { kind: "trade+zone"; trade: Entry; zone: Entry };
+
+const find = <Entry extends CatalogueEntry>(entries: readonly Entry[], slug: string) =>
+  entries.find((entry) => entry.slug === slug);
+
+/**
+ * The page that `segment` names under `/{estado}/{municipio}/`, or null
+ * (docs/specs/public-directory.md, "Category listing at a clean URL with the
+ * catalogue slug" and "Indexable trade and zone page"). The order is fixed:
+ * first the category, which always wins, so no published category URL ever
+ * changes meaning; then the trade; then the trade and zone pair, only when
+ * the segment reads as exactly one. A reserved segment, a zone alone and
+ * anything else is no page. `catalogues` needs only the entries whose slugs
+ * the segment or its cuts name (see `segmentSplits`); the full catalogues
+ * give the same answer.
+ */
+export function readSegment<Entry extends CatalogueEntry>(
+  segment: string,
+  catalogues: Catalogues<Entry>,
+): SegmentPage<Entry> | null {
+  if (isReservedSegment(segment)) return null;
+  const category = find(catalogues.categories, segment);
+  if (category) return { kind: "category", category };
+  const trade = find(catalogues.trades, segment);
+  if (trade) return { kind: "trade", trade, zone: null };
+  const pairs = segmentSplits(segment).flatMap((split) => {
+    const pairTrade = find(catalogues.trades, split.trade);
+    const zone = find(catalogues.zones, split.zone);
+    return pairTrade && zone ? [{ kind: "trade+zone" as const, trade: pairTrade, zone }] : [];
+  });
+  return pairs.length === 1 ? (pairs[0] ?? null) : null;
 }
 
 /**

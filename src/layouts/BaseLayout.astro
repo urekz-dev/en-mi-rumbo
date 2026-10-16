@@ -16,10 +16,13 @@
 // description, canonical and share preview (v2)"): a page that may be indexed
 // passes `canonicalPath`, its own path, and gets its absolute canonical URL
 // and `og:url` from SITE_URL (src/lib/site-url.ts); a 404 or the panel passes
-// none. Every page shares its title and description, and the share image of
-// its locality or the generic one (src/lib/share-image.ts), with its size and
-// alt text. Without a base for absolute URLs, the canonical, `og:url` and
-// `og:image` are left out.
+// none. A page that answers but must not be indexed, such as a trade page
+// without published cards, passes `noindex`: it gets `<meta name="robots"
+// content="noindex, follow">`, so its links are still followed, and no
+// canonical. Every page shares its title and description, and the share
+// image of its locality or the generic one (src/lib/share-image.ts), with its
+// size and alt text. Without a base for absolute URLs, the canonical,
+// `og:url` and `og:image` are left out.
 //
 // The body is min-h-dvh, not min-h-full: on Android the browser bar collapses
 // while scrolling and the real viewport grows; dvh follows it, so the footer
@@ -44,13 +47,15 @@ interface Props {
    * index it: its canonical URL. A 404 or the panel has none.
    */
   canonicalPath?: string | undefined;
+  /** Whether search engines must not index the page; it then has no canonical. */
+  noindex?: boolean | undefined;
 }
 
-const { title, description, canonicalPath } = Astro.props;
+const { title, description, canonicalPath, noindex = false } = Astro.props;
 const locality = Astro.locals.locality;
 const pageTitle = documentTitle(title, locality);
 const metaDescription = description ?? siteDescription(locality);
-const canonical = canonicalPath === undefined ? null : absoluteUrl(env, canonicalPath);
+const canonical = noindex || canonicalPath === undefined ? null : absoluteUrl(env, canonicalPath);
 const image = shareImage(locality);
 const imageUrl = absoluteUrl(env, image.src);
 const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
@@ -66,6 +71,7 @@ const deploy = readDeployInfo(env);
     <meta name="format-detection" content="telephone=no" />
     <title>{pageTitle}</title>
     {metaDescription && <meta name="description" content={metaDescription} />}
+    {noindex && <meta name="robots" content="noindex, follow" />}
     {canonical && <link rel="canonical" href={canonical} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />

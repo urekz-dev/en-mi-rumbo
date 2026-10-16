@@ -31,17 +31,27 @@ export default defineConfig({
       // active locality, Tizayuca.
       name: "phone",
       use: PHONE,
-      testIgnore: "two-localities/**",
+      testIgnore: ["two-localities/**", "many-cards/**"],
+    },
+    // A listing longer than a page (test/e2e/many-cards/): it publishes
+    // fictitious cards in Tizayuca and removes them, so it runs after "phone",
+    // whose tests see the seed alone, and before the second locality.
+    {
+      name: "phone, many cards",
+      use: PHONE,
+      testMatch: "many-cards/*.spec.ts",
+      dependencies: ["phone"],
     },
     // The same site with a second, fictitious active locality
     // (test/e2e/two-localities/): the list of localities at the root, the
     // locality cookie and the link to change municipality, and the crawls
-    // again, now through the list. It runs after "phone", whose tests expect
-    // Tizayuca alone, and its teardown removes the second locality.
+    // again, now through the list. It runs after "phone" and "phone, many
+    // cards", whose tests expect Tizayuca alone, and its teardown removes the
+    // second locality.
     {
       name: "second locality",
       testMatch: "two-localities/second-locality.setup.ts",
-      dependencies: ["phone"],
+      dependencies: ["phone, many cards"],
       teardown: "no second locality",
     },
     {

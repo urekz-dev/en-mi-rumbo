@@ -7,6 +7,8 @@
 // absolute URLs with SITE_URL.
 import { publishedCards } from "../business/card.ts";
 import { cardPath } from "../business/card-path.ts";
+import { publishedTradePages } from "../business/listing.ts";
+import { allCategories } from "../catalogue/pages.ts";
 import type { Db } from "../db/client.ts";
 import { PRIVACY_NOTICE_PATH, TERMS_PATH } from "../legal/document.ts";
 import { localityPath } from "../locality/paths.ts";
@@ -28,15 +30,22 @@ export type LocalityPages = (
 /**
  * Every indexable page of a locality, by kind. A page of a locality that
  * search engines may index adds its kind here when it lands, and nowhere
- * else. Still to come: the registration page (`/registro`, epic E); the 8
- * categories, even when empty; and the trade pages and trade and zone pages
- * with at least one published business (epic D). Never the search results,
- * the report form, the thank-you pages, the edit mode or anything
- * unpublished.
+ * else. Still to come: the registration page (`/registro`, epic E). Never
+ * the search results, the report form, the thank-you pages, the edit mode,
+ * a trade page without published cards, a page of a list after the first,
+ * or anything unpublished.
  */
 export const LOCALITY_PAGES: readonly LocalityPages[] = [
   // The home of the locality.
   (locality) => [{ path: localityPath(locality) }],
+  // The listings of the categories, even when empty.
+  async (locality, db) =>
+    (await allCategories(db)).map((category) => ({ path: localityPath(locality, category.slug) })),
+  // The trade pages and trade and zone pages with at least one published card.
+  async (locality, db) =>
+    (await publishedTradePages(db, locality.code)).map(({ trade, zone }) => ({
+      path: localityPath(locality, zone === null ? trade : `${trade}-${zone}`),
+    })),
   // The published cards, at their current URL, each with its publication date.
   async (locality, db) =>
     (await publishedCards(db, locality.code)).map((card) => ({

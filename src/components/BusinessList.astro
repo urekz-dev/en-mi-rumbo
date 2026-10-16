@@ -1,0 +1,31 @@
+---
+// The list of listing cards of a page (docs/specs/public-directory.md, "The
+// listing card brings the essentials and WhatsApp without extra taps"): the
+// listings by category, by trade and by trade and zone render this one list,
+// so "the same card and the same order" is the same component. The order is
+// the query's. Each card's name is an `h2` under the page's `h1` ("Heading
+// levels never skip (v2)"). No client JavaScript.
+import type { ListingBusiness } from "../core/business/listing.ts";
+import type { LocalityRef } from "../core/locality/paths.ts";
+import type { Analytics } from "../lib/analytics.ts";
+import ListingCard from "./ListingCard.astro";
+
+interface Props {
+  businesses: readonly ListingBusiness[];
+  locality: LocalityRef;
+  /** The measurement of the page (pageAnalytics), or null when it is off. */
+  analytics: Analytics | null;
+}
+
+const { businesses, locality, analytics } = Astro.props;
+---
+
+{businesses.length > 0 && (
+  <ul class="flex flex-col gap-4">
+    {businesses.map((business) => (
+      <li>
+        <ListingCard business={business} locality={locality} analytics={analytics} />
+      </li>
+    ))}
+  </ul>
+)}

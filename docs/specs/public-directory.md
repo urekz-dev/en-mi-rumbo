@@ -1523,3 +1523,93 @@ Added in v2 — source: ADR 0014 (amended on 2026-10-15), PRD §6.4.
 
 - **WHEN** a card or a listing card is shown where the measurement is off
 - **THEN** no element carries an event attribute, and every button works the same
+
+### Requirement: Directory lists show 20 cards per page, with "Ver más" to the next (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-15; PRD §6 (listings, filters and pagination work with server HTML).
+
+The category listing, the trade and trade and zone pages and the results page MUST show at most 20 cards per page, in their order. Page 1 is the URL without `pagina`; page n is the same URL with `?pagina=n`, n being 2 or more and written without leading zeros. While a next page exists, a link with the literal text "Ver más" MUST follow the last card and lead to it; the last page MUST NOT show it. "Ver más" is a link, so it works without client-side JavaScript; it is neutral, never the action green, and its touch area is at least 44px.
+
+Any other value of `pagina` (`1`, `0`, `-1`, `01`, `2.5`, an empty value or text) and a page past the last MUST answer 404 with the site's 404 page, so no list has a second URL for the same page or a page of nothing. Page 1 always answers, and shows its empty state when the list has nothing.
+
+On a category listing, the zone filter is kept from page to page (`?colonia=<zona>&pagina=n`), and the zone options lead to page 1 of each zone. Each page of an indexable list declares its own URL as canonical, with its `pagina` after the first, which amends "Every page declares its title, description, canonical and share preview (v2)" in `base-layout` ("its own address without a query"); a category listing with a zone filter keeps declaring the listing without the filter, whatever its page ("Own title and description on each directory page, with its canonical"). Every page of a list has the same `h1`, title and description. `sitemap.xml` lists only page 1 of each list.
+
+#### Scenario: a listing longer than a page
+
+- **WHEN** a resident opens a category listing with 21 published businesses
+- **THEN** they see the 20 most recently published and, after the last, "Ver más", which leads to `?pagina=2`
+- **AND** with client-side JavaScript disabled, tapping it shows the 21st, in the same order
+
+#### Scenario: the last page
+
+- **WHEN** the resident reaches the page of a list that holds its last cards, or a list of 20 cards or fewer
+- **THEN** no "Ver más" is shown
+
+#### Scenario: past the last page
+
+- **WHEN** someone opens `?pagina=3` of a list that has two pages, or `?pagina=2` of a list that fits on one
+- **THEN** they see the 404 page in Spanish and the response has status code 404
+
+#### Scenario: a page number that is not one
+
+- **WHEN** someone opens a listing with `?pagina=1`, `?pagina=01`, `?pagina=0` or `?pagina=abc`
+- **THEN** the answer is the site's 404, and the listing itself is the URL without `pagina`
+
+#### Scenario: the zone filter is kept
+
+- **WHEN** the resident filters a category listing by a zone with more than 20 published businesses of that category and taps "Ver más"
+- **THEN** they reach `?colonia=<zona>&pagina=2`, with the businesses of that zone only
+
+#### Scenario: each page names itself
+
+- **WHEN** the canonical of page 2 of the listing `/servicios-del-hogar` is read
+- **THEN** it is the absolute URL of `/servicios-del-hogar?pagina=2`, while page 2 of `/servicios-del-hogar?colonia=huicalco` declares `/servicios-del-hogar`
+
+### Requirement: An empty trade and zone page leads back only to a trade page with published businesses (v2)
+
+Added in v2 — source: EMR-33, reconciling two scenarios of the same requirement.
+
+In "Trade pages without published businesses are neither indexed nor linked, but are not 404 either", the trade and zone page without published businesses offers "Ver todas las colonias" to the whole trade page, and no page may link to a trade page without published businesses. So the link MUST appear only while the trade has at least one published business in the locality, wherever its zone; otherwise the empty state shows its message alone. The zone navigation follows the same rule: it is shown only when at least one zone has published businesses of the page, and then "Todas las colonias" leads to a page with them. Its zones are listed in catalogue order.
+
+#### Scenario: the trade has businesses in other zones
+
+- **WHEN** the resident opens `/plomeria-atempa`, and the only published plumbing business is in Huicalco
+- **THEN** they see "Todavía no hay negocios publicados de esto en esta colonia." and "Ver todas las colonias", which leads to `/plomeria`
+
+#### Scenario: the trade has no businesses at all
+
+- **WHEN** the resident opens `/box-huicalco`, and no published business has the trade "Box"
+- **THEN** they see the message, and no link leads to `/box`
+
+### Requirement: A zone whose name repeats in its locality is shown with its settlement type (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-15; `data-model`, "Zones belong to a locality, and Tizayuca's come from the SEPOMEX postal catalogue (v2)".
+
+Two zones of a locality may share a name, when SEPOMEX lists it with two settlement types, and a zone may be named like its municipality. Wherever a public page shows a catalogue zone, it MUST show its display name: the zone's name followed by its settlement type in brackets, as stored and in sentence case ("El Carmen (Colonia)", "El Carmen (Fraccionamiento)", "Tizayuca (Unidad habitacional)", "Tizayuca (Zona industrial)"), when its name is also the name of another zone of the same locality, hidden ones included, or the name of the locality; and its name alone otherwise. Names are compared ignoring case, accents and punctuation. The display name MUST be decided from the zones and the locality as they are stored, never from a list of names in the code, so adding or renaming a zone changes the display names by itself.
+
+It covers the listing card, wherever it is shown; the zone filter of a category listing and the zone navigation of the trade pages; the heading, title and description of a trade and zone page, which, like any zone that already says the locality's name, does not repeat the locality after it ("Taller mecánico en Tizayuca (Zona industrial)"); and the card, with its title, description, structured data and the zone that "Cómo llegar" searches for. The free text of a zone "Otra" is no catalogue zone, and is shown as the business wrote it. Slugs, and so URLs, never change.
+
+#### Scenario: two zones with the same name
+
+- **WHEN** a resident sees the zone filter of a listing with published businesses in both zones named "El Carmen"
+- **THEN** the options read "El Carmen (Colonia)" and "El Carmen (Fraccionamiento)", each leading to its own zone, and the cards of those businesses show the same names
+
+#### Scenario: a zone named like its municipality
+
+- **WHEN** the resident opens the card of a business in the zone "Tizayuca" of type "Zona industrial"
+- **THEN** the card shows "Tizayuca (Zona industrial)", and its title is "«Nombre del negocio» en Tizayuca (Zona industrial)"
+
+#### Scenario: the trade and zone page
+
+- **WHEN** the resident opens `/taller-mecanico-zona-industrial-tizayuca`
+- **THEN** its heading is "Taller mecánico en Tizayuca (Zona industrial)", at the same URL
+
+#### Scenario: a name that repeats nowhere
+
+- **WHEN** a business is in the zone "Huicalco", whose name no other zone of Tizayuca has
+- **THEN** every page shows "Huicalco", without a type
+
+#### Scenario: a renamed zone
+
+- **WHEN** the admin renames a zone with the name of another zone of its locality
+- **THEN** both are shown with their type from then on, with no change to the code or to their slugs

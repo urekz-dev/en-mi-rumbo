@@ -14,10 +14,12 @@ import { collapseProblems } from "../responsive-rules.ts";
 
 /**
  * Where the crawl starts: the root, the panel (never linked), a 404, and
- * every page of the sitemap, such as the cards, which no page links to yet.
+ * every page of the sitemap, such as the listings, which the home does not
+ * link to yet.
  */
 const START = ["/", "/admin", "/no-existe"];
-const MAX_PAGES = 60;
+/** Enough for every page the seeded directory links to, with two localities. */
+const MAX_PAGES = 150;
 
 /** The paths of the sitemap. */
 async function sitemapPaths(page: Page): Promise<string[]> {
@@ -52,16 +54,21 @@ test.beforeEach(async ({ page }) => {
   if (pages.length === 0) pages = await crawl(page);
 });
 
-test("the crawl reaches the start pages, the legal pages and the cards", () => {
+test("the crawl reaches the start pages, the legal pages, the listings and the cards", () => {
   expect(pages).toEqual(
     expect.arrayContaining([
       "/admin",
       "/no-existe",
       "/aviso-de-privacidad",
       "/terminos",
+      "/hidalgo/tizayuca/servicios-del-hogar",
+      "/hidalgo/tizayuca/servicios-del-hogar?colonia=huicalco",
+      "/hidalgo/tizayuca/plomeria",
+      "/hidalgo/tizayuca/plomeria-huicalco",
       "/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-b5q68b2e72",
     ]),
   );
+  expect(pages.length).toBeLessThan(MAX_PAGES);
 });
 
 test("every page is an es-MX document inside the layout, with its base metadata", async ({

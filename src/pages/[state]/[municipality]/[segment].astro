@@ -1,0 +1,86 @@
+---
+// The listing pages of a locality, /{estado}/{municipio}/<segment>
+// (docs/specs/public-directory.md; ADR 0007): the listing of a category
+// (`/servicios-del-hogar`, with `?colonia=<zone>` to filter it), the page of
+// a trade (`/plomeria`) and the page of a trade in a zone
+// (`/plomeria-haciendas-de-tizayuca`), 20 cards a page (`?pagina=<n>`). The
+// middleware has already resolved the active locality, or answered 404. The
+// site's own pages (`negocio`, and `buscar`, `registro`… as they land) are
+// static routes, which Astro prefers to this one; their segments are
+// reserved, so no catalogue slug takes them.
+//
+// src/core/business/listing-page.ts decides everything, through the cached
+// HYPERDRIVE like every public read: a segment that is no category, trade
+// or trade and zone pair, a `pagina` that is not a later page, and a page
+// past the last answer the site's 404. A trade page without published cards
+// answers 200 with its empty state, `noindex` and no canonical, and nothing
+// links to it.
+//
+// No client JavaScript: the zone navigation and "Ver más" are links.
+import { env, waitUntil } from "cloudflare:workers";
+import BusinessList from "../../../components/BusinessList.astro";
+import MoreLink from "../../../components/MoreLink.astro";
+import ZoneNav from "../../../components/ZoneNav.astro";
+import { listingPage, PAGE_PARAM, ZONE_PARAM } from "../../../core/business/listing-page.ts";
+import { withDb } from "../../../core/db/client.ts";
+import { parsePage } from "../../../core/pagination.ts";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { pageAnalytics } from "../../../lib/analytics.ts";
+import { notFound, requireLocality } from "../../../lib/locality.ts";
+
+const locality = requireLocality(Astro.locals);
+const page = parsePage(Astro.url.searchParams.get(PAGE_PARAM));
+if (page === null) return notFound();
+const listing = await withDb(env, "HYPERDRIVE", { waitUntil }, (db) =>
+  listingPage(db, locality, Astro.params.segment ?? "", {
+    page,
+    zone: Astro.url.searchParams.get(ZONE_PARAM),
+  }),
+);
+if (listing === null) return notFound();
+
+const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
+const empty = listing.empty;
+const backLink =
+  "inline-flex min-h-11 items-center text-base font-semibold text-action-strong underline underline-offset-4";
+---
+
+<BaseLayout
+  title={listing.heading}
+  description={listing.description}
+  canonicalPath={listing.canonicalPath ?? undefined}
+  noindex={!listing.indexable}
+>
+  <section class="flex flex-col gap-6 py-4">
+    <h1 class="text-2xl font-bold tracking-tight break-words sm:text-3xl">{listing.heading}</h1>
+
+    {listing.zoneNav && <ZoneNav nav={listing.zoneNav} />}
+
+    {empty && (
+      <div class="flex flex-col items-start gap-4 rounded-xl border border-line bg-surface p-6">
+        <p class="text-ink-muted">
+          {empty.kind === "category" && "Todavía no hay negocios publicados en esta categoría."}
+          {empty.kind === "category-zone" &&
+            "No encontramos negocios de esta categoría en esa colonia."}
+          {empty.kind === "trade" &&
+            `Todavía no hay negocios publicados de esto en ${locality.name}.`}
+          {empty.kind === "trade-zone" &&
+            "Todavía no hay negocios publicados de esto en esta colonia."}
+        </p>
+        {/* "Registra tu negocio gratis" joins these empty states with the
+            registration page (epic E): a link to a page that does not exist
+            yet fails the link checks. */}
+        {(empty.kind === "category-zone" || empty.kind === "trade-zone") &&
+          empty.allZonesPath !== null && (
+            <a href={empty.allZonesPath} class={backLink}>
+              Ver todas las colonias
+            </a>
+          )}
+      </div>
+    )}
+
+    <BusinessList businesses={listing.businesses} locality={locality} analytics={analytics} />
+
+    <MoreLink href={listing.nextPath} />
+  </section>
+</BaseLayout>
