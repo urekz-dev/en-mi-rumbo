@@ -4,6 +4,7 @@
 // - "Geolocation is only a suggestion of the nearest locality (v2)"
 // - "The chosen locality is remembered in a cookie that holds only its slug (v2)"
 // - "The pages of a locality offer to change municipality while two or more are active (v2)"
+// - "The home of a locality lives under it and names it from the record (v2)"
 // - "There is no short alias of a locality (v2)"
 // The project "phone, two localities" of playwright.config.ts runs it, and the
 // crawls of surfaces.spec.ts and internal-links.spec.ts again, through the
@@ -306,6 +307,36 @@ test.describe("The pages of a locality offer to change municipality while two or
       await page.goto(path);
       await expect(page.getByRole("link", { name: "Cambiar de municipio" }), path).toHaveCount(0);
     }
+  });
+});
+
+test.describe("The home of a locality lives under it and names it from the record (v2)", () => {
+  // base-layout, "Every text that names the locality reads it from the
+  // locality record (v2)": scenario "a second locality"
+  test("the home of the other locality names it, links under it, and says Tizayuca nowhere", async ({
+    page,
+  }) => {
+    const response = await page.goto(SECOND);
+
+    expect(response?.status()).toBe(200);
+    const main = page.getByRole("main");
+    await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+      `¿Qué necesitas en ${SECOND_LOCALITY.name}?`,
+    );
+    await expect(
+      main.getByRole("heading", { level: 2, name: `Deporte en ${SECOND_LOCALITY.name}` }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(
+      `enmirumbo — Encuentra negocios y servicios en ${SECOND_LOCALITY.name}`,
+    );
+    const hrefs = await main
+      .getByRole("link")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+    expect(hrefs).toHaveLength(9);
+    expect(hrefs.filter((href) => !href.startsWith(`${SECOND}/`))).toEqual([]);
+    expect(hrefs.at(-1)).toBe(`${SECOND}/clubes-y-escuelas-deportivas`);
+    await expect(page.getByRole("search")).toHaveAttribute("action", `${SECOND}/buscar`);
+    expect(await page.content()).not.toMatch(/tizayuca|hidalgo/i);
   });
 });
 

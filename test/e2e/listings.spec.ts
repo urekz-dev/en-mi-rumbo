@@ -486,11 +486,14 @@ test.describe("Heading levels never skip (v2)", () => {
 test.describe("Directory in Server Components, mobile-first and usable without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  // Scenario: navigation without JavaScript
-  test("category → zone filter → card → trade → trade and zone → WhatsApp, with no JavaScript", async ({
+  // Scenario: navigation without JavaScript (the journey through the search
+  // is in home.spec.ts)
+  test("home → category → zone filter → card → trade → trade and zone → WhatsApp, with no JavaScript", async ({
     page,
   }) => {
-    await page.goto(`${HOME}/servicios-del-hogar`);
+    await page.goto(HOME);
+    await page.getByRole("link", { name: "Servicios del hogar", exact: true }).click();
+    await expect(page).toHaveURL(`${HOME}/servicios-del-hogar`);
     await page.getByRole("link", { name: "Huicalco" }).click();
     await page
       .getByRole("link", { name: "Plomería Los Fontaneros Ficticios", exact: true })

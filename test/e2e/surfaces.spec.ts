@@ -13,10 +13,11 @@ import { brandFindings } from "../brand-rules.ts";
 import { collapseProblems } from "../responsive-rules.ts";
 
 /**
-/**
- * Where the crawl starts: the root, the panel (never linked), a 404, the
- * states of the search results (no page links to them yet), and every page
- * of the sitemap, such as the listings and the cards.
+ * Where the crawl starts: the root, which leads to the home of the locality
+ * (or, with two, to the list of localities), the panel (never linked), a 404,
+ * the states of the search results (only the search box's form leads to
+ * them, and the crawl follows links), and every page of the sitemap, so a
+ * page nothing links to yet is checked too.
  */
 const START = [
   "/",
@@ -62,9 +63,10 @@ test.beforeEach(async ({ page }) => {
   if (pages.length === 0) pages = await crawl(page);
 });
 
-test("the crawl reaches the start pages, the legal pages, the listings and the cards", () => {
+test("the crawl reaches the start pages, the home, the legal pages, the listings and the cards", () => {
   expect(pages).toEqual(
     expect.arrayContaining([
+      "/hidalgo/tizayuca",
       "/admin",
       "/no-existe",
       "/hidalgo/tizayuca/buscar",
@@ -73,6 +75,7 @@ test("the crawl reaches the start pages, the legal pages, the listings and the c
       "/aviso-de-privacidad",
       "/terminos",
       "/hidalgo/tizayuca/servicios-del-hogar",
+      "/hidalgo/tizayuca/clubes-y-escuelas-deportivas",
       "/hidalgo/tizayuca/servicios-del-hogar?colonia=huicalco",
       "/hidalgo/tizayuca/plomeria",
       "/hidalgo/tizayuca/plomeria-huicalco",

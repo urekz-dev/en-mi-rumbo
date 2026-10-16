@@ -28,9 +28,7 @@ test.describe("Public URLs carry the state and the municipality (v2)", () => {
 
     expect(response?.status()).toBe(200);
     // The name comes from the locality record.
-    await expect(
-      page.getByText("Estamos armando el directorio de negocios de Tizayuca."),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("¿Qué necesitas en Tizayuca?");
   });
 
   test("its canonical and Open Graph URLs are absolute, with the full path", async ({ page }) => {

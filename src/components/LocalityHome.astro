@@ -1,0 +1,94 @@
+---
+// The home of a locality, inside the global layout (docs/specs/
+// public-directory.md, "The home page shows the 8 categories as large
+// buttons", "Highlighted "Deporte en Tizayuca" block on the home page",
+// "Search box on the home page that works without client-side JavaScript",
+// "The home of a locality lives under it and names it from the record (v2)"
+// and "Heading levels never skip (v2)"; docs/specs/base-layout.md, "Home of
+// the site inside the layout, with the entry to registration"). The page
+// (src/pages/[state]/[municipality]/index.astro) reads the categories; this
+// renders them, so the home is tested with the Container API.
+//
+// - One h1, "¿Qué necesitas en {municipio}?", and one h2 per section:
+//   "Busca por categoría" and "Deporte en {municipio}", with the same
+//   heading style. Every text that names the locality reads it from its
+//   record.
+// - The search box comes first, empty, and submits to the results page of
+//   the locality; it adds no heading of its own.
+// - The 8 categories are the large buttons of CategoryGrid, the same ones the
+//   results page offers.
+// - The sports block highlights the category "Clubes y escuelas deportivas"
+//   (SPORTS_CATEGORY_SLUG): its entry leads to the same listing as that
+//   category's button. It is a secondary action, never the WhatsApp green,
+//   which is kept for the main action.
+// - The title and the description are the site's in the locality (the
+//   layout's), and the canonical is the home's own path.
+// No client JavaScript.
+import { SPORTS_CATEGORY_SLUG } from "../core/catalogue/categories.ts";
+import { categoryEmoji } from "../core/catalogue/category-emoji.ts";
+import type { CatalogueEntry } from "../core/catalogue/root-urls.ts";
+import { localityPath } from "../core/locality/paths.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SECONDARY_BUTTON } from "../lib/buttons.ts";
+import { requireLocality } from "../lib/locality.ts";
+import CategoryGrid from "./CategoryGrid.astro";
+import SearchBox from "./SearchBox.astro";
+
+interface Props {
+  /** The categories, in catalogue order (catalogueCategories). */
+  categories: readonly CatalogueEntry[];
+}
+
+const { categories } = Astro.props;
+const locality = requireLocality(Astro.locals);
+/** The heading of every section: the sports block sits at the categories' level. */
+const sectionHeading = "text-xl font-bold tracking-tight break-words";
+---
+
+<BaseLayout canonicalPath={localityPath(locality)}>
+  <div class="flex flex-col gap-10 py-6">
+    <section class="flex flex-col gap-3 text-center">
+      <h1 class="text-3xl font-bold tracking-tight break-words sm:text-4xl">
+        {`¿Qué necesitas en ${locality.name}?`}
+      </h1>
+      <p class="text-lg text-ink-muted">
+        Encuentra negocios y servicios de aquí cerquita y contáctalos directo por WhatsApp.
+      </p>
+    </section>
+
+    <SearchBox locality={locality} />
+
+    <section class="flex flex-col gap-4">
+      <h2 class={sectionHeading}>Busca por categoría</h2>
+      <CategoryGrid locality={locality} categories={categories} />
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5">
+      {/* The emoji is the heading's sibling, so the heading reads exactly
+          "Deporte en {municipio}". */}
+      <div class="flex items-center gap-2">
+        <span aria-hidden="true" class="text-xl leading-none">
+          {categoryEmoji(SPORTS_CATEGORY_SLUG)}
+        </span>
+        <h2 class={`${sectionHeading} min-w-0`}>{`Deporte en ${locality.name}`}</h2>
+      </div>
+      <p class="text-ink-muted">
+        Escuelas, clubes y entrenadores para que los niños (y los grandes) se muevan.
+      </p>
+      <a
+        href={localityPath(locality, SPORTS_CATEGORY_SLUG)}
+        class={`${SECONDARY_BUTTON} w-fit px-6 py-3 text-base`}
+      >
+        Ver clubes y escuelas deportivas
+      </a>
+    </section>
+
+    {/* The entry to registration joins the home with the registration page
+        (epic E), here, as its last section: "¿Tienes un negocio en
+        {municipio}?" as an h2 with sectionHeading, and "Registra tu negocio
+        gratis" with PRIMARY_BUTTON (px-6 py-3 text-base), linked with
+        localityPath(locality, "registro"), centred above a top border
+        (border-t border-line pt-8). A link to a page that does not exist yet
+        fails the link checks. */}
+  </div>
+</BaseLayout>

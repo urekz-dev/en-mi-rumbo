@@ -81,6 +81,17 @@ With two or more active localities (`src/core/locality/root.ts`, `src/components
 
 Internal links are built with `localityPath` (`src/core/locality/paths.ts`) and absolute URLs, such as canonicals and share previews, with `absoluteUrl` (`src/lib/site-url.ts`) from `SITE_URL`; outside `local`, without an https `SITE_URL` the pages leave them out. `test/scripts/internal-links.test.ts` fails on a link written in the code that names no page, and `test/e2e/internal-links.spec.ts` follows every link and form of the rendered site. The end-to-end tests migrate and seed `DATABASE_URL`, or the development database when it is unset, so Tizayuca is their only active locality. After them, the `phone, two localities` project of `playwright.config.ts` adds a fictitious second locality (`test/e2e/two-localities/`), tests the list, the cookie and the link to change municipality, crawls the site again and removes it. `astro preview` gives every request the approximate location of the machine; a request with Miniflare's `MF-CF-Blob` header (JSON of the `cf` object) is placed elsewhere.
 
+### Home of a locality
+
+The home of each active locality is `/{estado}/{municipio}` (`src/pages/[state]/[municipality]/index.astro`), rendered inside the layout by `src/components/LocalityHome.astro`. It reads the 8 categories through the cached `HYPERDRIVE` (`catalogueCategories`) and shows, in this order:
+
+- "¿Qué necesitas en {municipio}?", its only `h1`, and "Encuentra negocios y servicios de aquí cerquita y contáctalos directo por WhatsApp.".
+- The search box, empty (`src/components/SearchBox.astro`): a GET form to the results page of the locality (see [Search](#search)).
+- "Busca por categoría" and the 8 categories as large buttons (`src/components/CategoryGrid.astro`, the same ones the results page offers), each leading to its listing.
+- "Deporte en {municipio}", at the level of the categories, which highlights the category "Clubes y escuelas deportivas" (`SPORTS_CATEGORY_SLUG`, `src/core/catalogue/categories.ts`): its phrase and "Ver clubes y escuelas deportivas", a secondary button to that category's listing, the same page its button leads to.
+
+Every name comes from the locality record. The home keeps the site's title and description in the locality, declares its own path as canonical and is in the sitemap. Until the registration page exists (epic E), the home does not offer "¿Tienes un negocio en {municipio}?" with "Registra tu negocio gratis" yet: a comment in `LocalityHome.astro` marks where it goes. With no active locality, `/` keeps the notice that the directory is coming (`src/components/ComingSoon.astro`).
+
 ### Business cards
 
 Each published business has its card at `/{estado}/{municipio}/negocio/<slug>-<id>` (`src/pages/[state]/[municipality]/negocio/[card].astro`): the identifier is the ten characters after the last hyphen, and the slug is the current name of the business (`cardPath`, `src/core/business/card-path.ts`). The page reads only a published card of its locality, through the cached `HYPERDRIVE` (`src/core/business/card.ts`), and never reads pending edits. A segment without an identifier, an unknown identifier, a card of another locality and one in review, rejected or deleted all answer the same 404. A published card asked for with another readable part (an earlier name, the identifier alone) answers a 301 to its current URL, which browsers keep for an hour at most, because a business can be renamed again.
@@ -93,7 +104,7 @@ Each published business has its card at `/{estado}/{municipio}/negocio/<slug>-<i
 
 ### Search
 
-The results page of a locality is `/{estado}/{municipio}/buscar?q=<query>` (`src/pages/[state]/[municipality]/buscar.astro`), a GET form that works without JavaScript (`src/components/SearchBox.astro`). The page decides one of four states (`src/core/search/state.ts`) and `src/components/SearchPage.astro` renders it:
+The results page of a locality is `/{estado}/{municipio}/buscar?q=<query>` (`src/pages/[state]/[municipality]/buscar.astro`), where the search box of the home and of the page itself submits: a GET form that works without JavaScript (`src/components/SearchBox.astro`). The page decides one of four states (`src/core/search/state.ts`) and `src/components/SearchPage.astro` renders it:
 
 | State      | When                                                                   | What it shows                                                                                                                        |
 | ---------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
