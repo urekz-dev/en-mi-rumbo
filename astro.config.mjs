@@ -2,7 +2,7 @@
 import cloudflare from "@astrojs/cloudflare";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
-import { staticNoindex } from "./src/integrations/static-noindex.ts";
+import { staticHeaders } from "./src/integrations/static-headers.ts";
 
 // The build prerenders pages in a local workerd with the bindings of the
 // target environment. Those of a deployed environment (CLOUDFLARE_ENV=dev,
@@ -25,17 +25,27 @@ export default defineConfig({
     // adapter does not add an IMAGES binding.
     imageService: "passthrough",
   }),
-  // Prerendered pages (the legal pages) are written as `<page>.html`, which
-  // Cloudflare serves at `/<page>` with no trailing slash, like every other
-  // URL of the site. As `<page>/index.html` they would answer a redirect to
-  // `/<page>/`.
-  build: { format: "file" },
-  // Static assets skip the Worker, so a deployed build gives them its noindex
-  // header through `_headers` (src/integrations/static-noindex.ts).
-  integrations: [staticNoindex()],
+  build: {
+    // Prerendered pages (the legal pages) are written as `<page>.html`, which
+    // Cloudflare serves at `/<page>` with no trailing slash, like every other
+    // URL of the site. As `<page>/index.html` they would answer a redirect to
+    // `/<page>/`.
+    format: "file",
+    // The content security policy allows no inline style
+    // (src/lib/security-headers.ts), so every stylesheet is a file, however
+    // small.
+    inlineStylesheets: "never",
+  },
+  // Static assets skip the Worker, so the build gives them the security
+  // headers and, in a deployed environment, noindex through `_headers`
+  // (src/integrations/static-headers.ts).
+  integrations: [staticHeaders()],
   // No sessions, so the adapter does not require a KV binding.
   session: false,
   vite: {
     plugins: [tailwindcss()],
+    // Nor any inline script or data: URL: a small script or image stays a
+    // file too, instead of being inlined into the page.
+    build: { assetsInlineLimit: 0 },
   },
 });

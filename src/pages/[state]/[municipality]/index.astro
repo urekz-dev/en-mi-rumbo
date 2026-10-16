@@ -2,15 +2,13 @@
 // The home of a locality, /{estado}/{municipio} (ADR 0007). The middleware
 // has already resolved the active locality, or answered 404
 // (src/lib/locality.ts). A placeholder until the real home arrives with its
-// story.
-import { env } from "cloudflare:workers";
+// story. It is in the sitemap (src/core/seo/sitemap.ts) and declares its
+// canonical URL.
 import ComingSoon from "../../../components/ComingSoon.astro";
 import { localityPath } from "../../../core/locality/paths.ts";
 import { requireLocality } from "../../../lib/locality.ts";
-import { absoluteUrl } from "../../../lib/site-url.ts";
 
 const locality = requireLocality(Astro.locals);
-const canonical = absoluteUrl(env, localityPath(locality));
 ---
 
-<ComingSoon canonical={canonical} />
+<ComingSoon canonicalPath={localityPath(locality)} />

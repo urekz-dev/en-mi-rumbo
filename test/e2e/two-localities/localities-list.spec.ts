@@ -87,6 +87,11 @@ test.describe("With two or more active localities the root lists them and never 
     // The page belongs to no locality: the layout names none.
     await expect(page).toHaveTitle("enmirumbo");
     await expect(page.getByTestId("neighbours-line")).toHaveCount(0);
+    // Its description names no locality either.
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      "content",
+      "Encuentra negocios, servicios y deporte de tu municipio y contáctalos directo por WhatsApp. Registro gratis para negocios locales.",
+    );
   });
 
   test("what the root answers depends on each visitor, so nothing keeps it", async ({

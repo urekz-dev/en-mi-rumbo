@@ -1,7 +1,9 @@
 ---
 // The global layout of every page (docs/specs/base-layout.md): the document in
 // es-MX with its base metadata, the header with the wordmark, the page and the
-// footer. It sends no client JavaScript.
+// footer. It sends no client JavaScript of its own; the only script it may add
+// is Umami's, deferred, in production with a Website ID and outside the panel
+// and the edit mode (src/lib/analytics.ts).
 //
 // The locality comes from Astro.locals.locality, which the middleware sets on
 // every route under /{estado}/{municipio}/ (ADR 0007), so a page never passes
@@ -10,14 +12,26 @@
 // description, the wordmark leads to the root and the footer has no
 // neighbours line.
 //
+// Metadata (docs/specs/base-layout.md, "Every page declares its title,
+// description, canonical and share preview (v2)"): a page that may be indexed
+// passes `canonicalPath`, its own path, and gets its absolute canonical URL
+// and `og:url` from SITE_URL (src/lib/site-url.ts); a 404 or the panel passes
+// none. Every page shares its title and description, and the share image of
+// its locality or the generic one (src/lib/share-image.ts), with its size and
+// alt text. Without a base for absolute URLs, the canonical, `og:url` and
+// `og:image` are left out.
+//
 // The body is min-h-dvh, not min-h-full: on Android the browser bar collapses
 // while scrolling and the real viewport grows; dvh follows it, so the footer
 // always reaches the bottom edge.
 import { env } from "cloudflare:workers";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import { pageAnalytics } from "../lib/analytics.ts";
 import { readDeployInfo } from "../lib/deploy-info.ts";
+import { shareImage } from "../lib/share-image.ts";
 import { documentTitle, SITE_NAME, siteDescription } from "../lib/site.ts";
+import { absoluteUrl } from "../lib/site-url.ts";
 import "../styles/global.css";
 
 interface Props {
@@ -25,11 +39,21 @@ interface Props {
   title?: string | undefined;
   /** The page's own description; without it, the site's description in the locality. */
   description?: string | undefined;
+  /**
+   * The page's own path, such as `/hidalgo/tizayuca`, when search engines may
+   * index it: its canonical URL. A 404 or the panel has none.
+   */
+  canonicalPath?: string | undefined;
 }
 
-const { title, description } = Astro.props;
+const { title, description, canonicalPath } = Astro.props;
 const locality = Astro.locals.locality;
+const pageTitle = documentTitle(title, locality);
 const metaDescription = description ?? siteDescription(locality);
+const canonical = canonicalPath === undefined ? null : absoluteUrl(env, canonicalPath);
+const image = shareImage(locality);
+const imageUrl = absoluteUrl(env, image.src);
+const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
 const deploy = readDeployInfo(env);
 ---
 
@@ -40,11 +64,33 @@ const deploy = readDeployInfo(env);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {/* Only the explicit tel: links call; numbers in the text stay text. */}
     <meta name="format-detection" content="telephone=no" />
-    <title>{documentTitle(title, locality)}</title>
+    <title>{pageTitle}</title>
     {metaDescription && <meta name="description" content={metaDescription} />}
+    {canonical && <link rel="canonical" href={canonical} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:locale" content="es_MX" />
+    <meta property="og:title" content={pageTitle} />
+    {metaDescription && <meta property="og:description" content={metaDescription} />}
+    {canonical && <meta property="og:url" content={canonical} />}
+    {imageUrl && (
+      <>
+        <meta property="og:image" content={imageUrl} />
+        <meta property="og:image:type" content={image.type} />
+        <meta property="og:image:width" content={String(image.width)} />
+        <meta property="og:image:height" content={String(image.height)} />
+        <meta property="og:image:alt" content={image.alt} />
+      </>
+    )}
+    {analytics && (
+      <script
+        is:inline
+        defer
+        src={analytics.scriptUrl}
+        data-website-id={analytics.websiteId}
+        data-exclude-search="true"
+      ></script>
+    )}
     <slot name="head" />
   </head>
   <body class="flex min-h-dvh flex-col bg-background font-sans text-ink">

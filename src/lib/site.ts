@@ -23,6 +23,15 @@ export function documentTitle(pageTitle: string | undefined, locality: Named | u
   return `${SITE_NAME} — Encuentra negocios y servicios en ${locality.name}`;
 }
 
+/**
+ * The description of the site root (base-layout, "Pages outside a locality
+ * name no locality (v2)"): it names no locality, since the root belongs to
+ * none and lists them all once two or more are active.
+ */
+export const ROOT_DESCRIPTION =
+  "Encuentra negocios, servicios y deporte de tu municipio y contáctalos directo por WhatsApp. " +
+  "Registro gratis para negocios locales.";
+
 /** The description of the site in a locality, or none outside a locality. */
 export function siteDescription(locality: Named | undefined): string | undefined {
   if (locality === undefined) return undefined;

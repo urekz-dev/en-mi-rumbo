@@ -33,11 +33,18 @@ All notable changes to this product are documented here. Format: [Keep a Changel
 - The coordinates of Tizayuca's municipal seat, from INEGI, in every environment.
 - The global layout of every page: a header with the enmirumbo wordmark, a footer with the line "Hecho para los vecinos de {municipio}, {estado}." read from the locality, the prototype's palette and typography as design tokens with WhatsApp green kept for the main action, and a 404 page in Spanish. Phones no longer turn numbers in the text into call links. On `dev`, the branch and commit deployed now show in the footer of every page.
 
+- `/sitemap.xml`, generated from the database on every request: the home of every active locality and the two legal pages, with absolute URLs from the public URL of each environment. The pages of the directory add themselves to it as they arrive.
+- Where search engines are allowed (locally now, production after the cut-over), `/robots.txt` lets them crawl the public site, keeps them out of the panel, the search results, the report forms and the thank-you pages of every active locality, and points to the sitemap. The deployed environments keep the closed one until the cut-over.
+- Every indexable page declares its canonical address and its share preview: title, description, address and a 1200×630 image. Each locality has its own image with the wordmark and its municipality and state, Tizayuca's first; a page outside a locality, or a locality without its image, shares the wordmark alone.
+- Measurement with Umami Cloud, ready and off: it loads only in production, only with the site's Website ID, deferred, never in the panel or the edit mode, and never sends the query of an address. The three events have their names. Until the launch sets the Website ID, no page loads it and no request leaves the site.
+- Every response, static files included, carries a content security policy that only lets scripts come from the site, Turnstile and, where it measures, Umami; forbids inline scripts and styles, plugins, framing by another site and forms posting to another site; and comes with `nosniff`, `X-Frame-Options: DENY` and a referrer policy that never sends a path to another site. The panel keeps its stricter referrer policy. The deploy refuses a build whose static files lack them, and the smoke test checks them.
+
 ### Changed
 
 - The brand is written enmirumbo, lowercase and in one word.
 - The smoke test after each deploy follows the redirect of the home page, which leads to the locality while only one is active.
 - The database keeps only the reference data of Tizayuca, the one city the directory serves: the state of Hidalgo, the municipality of Tizayuca, its locality and its 105 zones. The other 31 states and 2,477 municipalities of INEGI's catalogue are removed from every environment; their addresses answer 404, as before. Cities are added one at a time, each in its own data migration. ADR 0006 is amended.
+- Locally, `/robots.txt` is the open one that production will serve after the cut-over.
 
 ### Removed
 

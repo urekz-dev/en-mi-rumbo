@@ -91,7 +91,27 @@ The notice has a version, `NOTICE_VERSION` in `src/core/legal/version.ts`, the o
 - To change the notice, change the spec's block and `src/core/legal/` together, raise `NOTICE_VERSION` and add a row to `FINGERPRINTS` in the guard with the fingerprint its failure prints. Never edit the row of a published version: it is the evidence of the text the consent records that cite it were given against. Filling in a placeholder or removing the draft mark changes the notice too. The terms are not versioned.
 - The data that only a person can give (the responsible party's name and address, the directory's WhatsApp, the publication date and the jurisdiction) are visible placeholders in square brackets, listed once in `PENDING_PLACEHOLDERS` (`src/core/legal/placeholders.ts`); while one is left, both pages show the draft mark. Next to them, `OPERATIONAL_PENDING_ITEMS` lists, for the legal review (EMR-58) and the launch checklist, what the notice promises that the system does not do yet, or what the system does that it does not mention. The pages never publish it.
 
-Until the cut-over the deployed environments keep these pages out of search engines too. The Worker never sees a request for a static asset, so after each build `src/integrations/static-noindex.ts` reads the environment the build targets (`dist/server/wrangler.json`) and, when it blocks indexing (`blocksIndexing` in `src/lib/robots.ts`, the same rule as the Worker), adds `X-Robots-Tag: noindex` for every static asset to `dist/client/_headers`, which Cloudflare applies only to static assets. A local build adds nothing, and the pages themselves ask search engines for nothing: once the cut-over lets production be indexed, they are indexable.
+Until the cut-over the deployed environments keep these pages out of search engines too. The Worker never sees a request for a static asset, so after each build `src/integrations/static-headers.ts` reads the environment the build targets (`dist/server/wrangler.json`) and writes to `dist/client/_headers`, which Cloudflare applies only to static assets: the security headers for every static asset, in every environment (see [Security headers](#security-headers)), and, when the environment blocks indexing (`blocksIndexing` in `src/lib/robots.ts`, the same rule as the Worker), `X-Robots-Tag: noindex`. A local build adds no noindex, and the pages themselves ask search engines for nothing: once the cut-over lets production be indexed, they are indexable.
+
+### Search engines and share previews
+
+| Environment            | `/robots.txt`                                                                                                                                                 | `X-Robots-Tag` |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `local`                | Open: disallows `/admin` and, under each active locality, `/buscar`, `/negocio/*/reportar`, `/reportar/gracias` and `/registro/gracias`; names `/sitemap.xml` | none           |
+| `dev`, `stage`, `prod` | Closed (`Disallow: /`) until the cut-over, which turns production into the open one                                                                           | `noindex`      |
+
+- `/robots.txt` (`src/pages/robots.txt.ts`, `src/lib/robots.ts`) reads the active localities only when it is open. The exclusions of a locality are `LOCALITY_DISALLOW`; the edit mode is never named.
+- `/sitemap.xml` (`src/pages/sitemap.xml.ts`, `src/core/seo/sitemap.ts`) is generated from the database on every request, through the cached `HYPERDRIVE`, with absolute URLs from `SITE_URL`. Today it lists the home of every active locality and the two legal pages. Each indexable page of a locality adds its kind to `LOCALITY_PAGES` when it lands (the registration page, the categories, the trade pages with published businesses, the cards with their publication date); nothing else lists pages. In a deployed environment without a usable `SITE_URL` it is an empty sitemap. `test/e2e/seo.spec.ts` requests every URL it lists and fails on anything but a 200.
+- Every page renders inside `BaseLayout`, which writes the title, the description, `og:title`, `og:description` and the share image. A page that may be indexed passes its own path as `canonicalPath`, and the layout declares its absolute canonical URL and `og:url` with `absoluteUrl`; a 404 or the panel passes none.
+- The share image is one static 1200×630 PNG per locality, `src/assets/share/{estado}/{municipio}.png`, found by the slugs of the locality (`src/lib/share-image.ts`); the build serves it, hashed, under `/_astro/`. A locality without one, and every page outside a locality, shares `src/assets/share/enmirumbo.png`, the wordmark alone. To add a locality's image, add its file; no code changes.
+
+The images were made once, on 2026-10-15, without any tool kept in the repository: an HTML page of 1200×630 with the design tokens of `src/styles/global.css` (background `background`, a 72px band of `surface` with a 2px top border of `line` at the bottom) and the system font stack, with the wordmark "enmirumbo" centred in `ink`, bold, 168px, letter spacing -0.025em, and below it, 28px apart, the line "Tizayuca, Hidalgo" in `ink-muted`, weight 500, 60px; the generic image has no second line. Playwright's Chromium (`vp exec playwright install chromium`) rendered it on macOS with a 1200×630 viewport and a device scale factor of 1, and the screenshot was saved as PNG. A new locality's image follows the same recipe with its own "{municipio}, {estado}".
+
+### Measurement
+
+Umami Cloud measures production only ([ADR 0014](docs/adr/0014-analytics-with-umami-cloud.md)), cookieless and without a banner. The only configuration is `UMAMI_WEBSITE_ID`, the Website ID of the site at Umami Cloud, in `env.prod.vars` of `wrangler.jsonc`: it is not a secret (it travels in every measured page) and changing it takes a release. It is empty everywhere until the launch, so no page loads a script and no request leaves the site. With a Website ID, every page of production except the panel (`/admin` and below) and the edit mode (`/{estado}/{municipio}/editar/` and below) loads `https://cloud.umami.is/script.js`, deferred, with `data-exclude-search="true"` (`src/lib/analytics.ts`); a value elsewhere, or one that is not a Website ID, loads nothing and is logged once. The content security policy then allows Umami's script and collectors, and only then.
+
+The three events are `ANALYTICS_EVENTS` in `src/lib/analytics.ts`: `whatsapp-card`, `search-no-results` and `registration-submitted`. An element declares one with `eventAttributes`, which gives the locality (`{estado}/{municipio}`) and the category slug as its only properties, and nothing while the measurement is off. Before taking the PRD's metrics as good, check in Umami's panel that bot filtering is on.
 
 ## Database
 
@@ -175,7 +195,7 @@ Three deployed environments ([ADR 0008](docs/adr/0008-environments-and-deploymen
 
 Every deployed environment answers with `X-Robots-Tag: noindex` and a closed `robots.txt` until the cut-over, production included: the Worker adds the header to its responses, and the `_headers` file of the build to the static assets (see [Legal pages](#legal-pages)). Version and Preview URLs are off, so `/admin` is reachable only through Access.
 
-Each workflow checks the ref, builds for its environment, checks the generated configuration and the `_headers` file of the static assets (`scripts/deploy/check-build.sh`), applies the migrations, seeds (not on `prod`), deploys with the project's Wrangler and runs a smoke test (`scripts/deploy/smoke-test.sh`): the home answers 200, following its redirects within https, with `X-Robots-Tag: noindex`; so does `/aviso-de-privacidad`, a prerendered page served without the Worker; and `robots.txt` is closed. The dev workflow first resets the Neon `dev` branch from `stage` (`scripts/deploy/reset-neon-dev.sh`), so anything stored in dev is lost on each deploy. Each step receives only the secrets it needs from the GitHub Environment of the same name (see [Secrets](#secrets)). To deploy a branch to dev: Actions, "Deploy dev", "Run workflow", pick the branch. To release: push a tag `vX.Y.Z` from `main`.
+Each workflow checks the ref, builds for its environment, checks the generated configuration and the `_headers` file of the static assets, which must give every one of them noindex and the security headers (`scripts/deploy/check-build.sh`), applies the migrations, seeds (not on `prod`), deploys with the project's Wrangler and runs a smoke test (`scripts/deploy/smoke-test.sh`): the home answers 200, following its redirects within https, with `X-Robots-Tag: noindex` and the security headers; so does `/aviso-de-privacidad`, a prerendered page served without the Worker; and `robots.txt` is closed. The dev workflow first resets the Neon `dev` branch from `stage` (`scripts/deploy/reset-neon-dev.sh`), so anything stored in dev is lost on each deploy. Each step receives only the secrets it needs from the GitHub Environment of the same name (see [Secrets](#secrets)). To deploy a branch to dev: Actions, "Deploy dev", "Run workflow", pick the branch. To release: push a tag `vX.Y.Z` from `main`.
 
 The build fixes the environment: `CLOUDFLARE_ENV=<env> vp run build` writes `dist/server/wrangler.json` for that environment only, and `wrangler deploy` refuses to deploy it to another one. Never run `wrangler deploy` by hand.
 
@@ -187,12 +207,53 @@ Worker variables:
 | `ACCESS_TEAM_DOMAIN` | The Access team domain, `urekz.cloudflareaccess.com`.                                               |
 | `ACCESS_AUD`         | The AUD tag of the `enmirumbo admin` Access application. While it is empty, `/admin` answers 403.   |
 | `SITE_URL`           | The public URL of the environment, without a trailing slash: the base of every absolute URL.        |
+| `PHOTOS_URL`         | The https origin of the environment's photos (ADR 0011), allowed by the content security policy.    |
+| `UMAMI_WEBSITE_ID`   | `prod` only: the Website ID of Umami Cloud. Empty until the launch, so nothing is measured.         |
 | `DEPLOY_BRANCH`      | `dev` only: the branch deployed, set by `deploy-dev.yml` and shown in the page footer.              |
 | `DEPLOY_COMMIT`      | `dev` only: the commit deployed, set by `deploy-dev.yml` and shown in the page footer.              |
 
 The prerendered legal pages are built before the deploy sets `DEPLOY_BRANCH` and `DEPLOY_COMMIT`, so on `dev` their footer does not name the branch.
 
 The Hyperdrive configurations hold the database credentials and are created by hand, two per environment: `enmirumbo-<env>` (cached) and `enmirumbo-<env>-fresh` (caching disabled), both on the direct (non-pooled) host of that environment's Neon branch. Their ids go in `wrangler.jsonc`; while an id is a placeholder, the deploy of that environment stops before changing anything.
+
+### Security headers
+
+Every response, in every environment, carries the headers of `src/lib/security-headers.ts`: the Worker adds them to its own (`src/worker.ts`), and the build writes them for the static assets in `_headers` (`src/integrations/static-headers.ts`). A response that already declares one keeps its value.
+
+| Header                    | Value                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy` | See below.                                                                                                        |
+| `X-Content-Type-Options`  | `nosniff`                                                                                                         |
+| `X-Frame-Options`         | `DENY`                                                                                                            |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin`; `strict-origin` on the panel, whose paths can point to a person's registration |
+
+The content security policy of production without a Website ID (each directive on its own line here; the header is one line separated by `; `):
+
+```text
+default-src 'self'
+script-src 'self' https://challenges.cloudflare.com
+style-src 'self'
+img-src 'self' https://fotos.enmirumbo.com
+connect-src 'self'
+frame-src https://challenges.cloudflare.com
+frame-ancestors 'none'
+object-src 'none'
+base-uri 'none'
+form-action 'self'
+```
+
+`img-src` takes the `PHOTOS_URL` of the environment (none locally). With a Website ID, production adds `https://cloud.umami.is` to `script-src`, and `https://gateway.umami.is https://cloud.umami.is` to `connect-src`. On the panel, `form-action` also allows `https://urekz.cloudflareaccess.com`, where Access sends a submission whose session expired. No inline script or style is allowed, so the build keeps every stylesheet and script in a file (`build.inlineStylesheets: "never"` and `assetsInlineLimit: 0` in `astro.config.mjs`), and no page may carry a `style` attribute or an `is:inline` script of its own. `vp run dev` leaves the policy out, because Vite's development pages need inline styles; `vp run preview` and every build send it.
+
+To read the headers of a deployed environment, for a page of the Worker and for a static asset:
+
+```sh
+for path in /hidalgo/tizayuca /aviso-de-privacidad; do
+  curl -sI "https://stage-enmirumbo.urekz.workers.dev${path}" |
+    grep -iE '^(content-security-policy|x-content-type-options|x-frame-options|referrer-policy|x-robots-tag):'
+done
+```
+
+Both must print the four security headers with the values above, with that environment's photo hostname in `img-src`, and `X-Robots-Tag: noindex`.
 
 ## Secrets
 

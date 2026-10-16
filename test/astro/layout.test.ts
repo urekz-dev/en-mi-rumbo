@@ -4,7 +4,7 @@
 // The served pages, their sizes and their touch areas are tested end to end in
 // test/e2e/surfaces.spec.ts and test/e2e/not-found.spec.ts.
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import type { ServedLocality } from "../../src/core/locality/served.ts";
 import BaseLayout from "../../src/layouts/BaseLayout.astro";
 import NotFound from "../../src/pages/404.astro";
@@ -48,6 +48,7 @@ beforeAll(async () => {
 afterEach(() => {
   for (const key of Object.keys(env)) delete env[key as keyof Env];
   env.ENVIRONMENT = "local";
+  vi.restoreAllMocks();
 });
 
 /**
@@ -79,6 +80,21 @@ function renderPage(locality: ServedLocality | undefined, title?: string): Promi
   });
 }
 
+/** The layout of an indexable page at `path`, requested at `path`. */
+function renderIndexable(
+  locality: ServedLocality | undefined,
+  path: string,
+  props: { title?: string; description?: string } = {},
+): Promise<string> {
+  return container.renderToString(BaseLayout, {
+    partial: false,
+    props: { ...props, canonicalPath: path },
+    slots: { default: "<h1>Una página</h1>" },
+    request: new Request(`http://localhost:4321${path}`),
+    locals: localsWith(locality),
+  });
+}
+
 /** The text a person reads, one line per block, like innerText. */
 function visibleText(html: string): string {
   return html
@@ -99,7 +115,19 @@ function element(html: string, tag: string): string {
 
 function meta(html: string, attribute: "name" | "property", value: string): string | undefined {
   const tag = new RegExp(`<meta ${attribute}="${value}"[^>]*>`).exec(html)?.[0];
-  return tag === undefined ? undefined : /content="([^"]*)"/.exec(tag)?.[1];
+  return tag === undefined
+    ? undefined
+    : /content="([^"]*)"/.exec(tag)?.[1]?.replaceAll("&amp;", "&");
+}
+
+/** The href of the canonical link, if any. */
+function canonical(html: string): string | undefined {
+  return /<link rel="canonical" href="([^"]*)"/.exec(html)?.[1];
+}
+
+/** Every script tag of a document. */
+function scripts(html: string): string[] {
+  return html.match(/<script\b[^>]*>/g) ?? [];
 }
 
 /** Every link of a fragment, as [href, text]. */
@@ -357,4 +385,154 @@ describe("The pages of a locality offer to change municipality while two or more
   it("outside a locality there is no locality to change", async () => {
     expect(await renderNotFound()).not.toContain("Cambiar de municipio");
   });
+});
+
+// docs/specs/base-layout.md, "Every page declares its title, description,
+// canonical and share preview (v2)", "Canonical URLs, share previews and the
+// sitemap use the full locality path (v2)" and "Each locality has its own
+// share image, one static image per locality (v2)".
+describe("Every page declares its title, description, canonical and share preview (v2)", () => {
+  it("an indexable page of a locality: canonical and og:url absolute, from SITE_URL", async () => {
+    Object.assign(env, {
+      ENVIRONMENT: "stage",
+      SITE_URL: "https://stage-enmirumbo.urekz.workers.dev",
+    });
+    const html = await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca");
+
+    expect(canonical(html)).toBe("https://stage-enmirumbo.urekz.workers.dev/hidalgo/tizayuca");
+    expect(meta(html, "property", "og:url")).toBe(canonical(html));
+    expect(meta(html, "property", "og:title")).toBe(
+      "enmirumbo — Encuentra negocios y servicios en Tizayuca",
+    );
+    expect(meta(html, "property", "og:description")).toBe(meta(html, "name", "description"));
+  });
+
+  it("a page with its own title and description shares them", async () => {
+    const html = await renderIndexable(undefined, "/terminos", {
+      title: "Términos y condiciones",
+      description: "Las reglas de enmirumbo.",
+    });
+
+    expect(canonical(html)).toBe("http://localhost:4321/terminos");
+    expect(meta(html, "property", "og:title")).toBe("Términos y condiciones — enmirumbo");
+    expect(meta(html, "property", "og:description")).toBe("Las reglas de enmirumbo.");
+  });
+
+  it("a page that passes no path (a 404, the panel) declares no canonical and no og:url", async () => {
+    const html = await renderNotFound(TIZAYUCA);
+
+    expect(canonical(html)).toBeUndefined();
+    expect(meta(html, "property", "og:url")).toBeUndefined();
+  });
+
+  // Scenario: the card shared through WhatsApp arrives with the new brand
+  it("a locality with its own image shares it: 1200×630, with the brand and the locality as descriptor", async () => {
+    const html = await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca");
+    const image = meta(html, "property", "og:image") ?? "";
+
+    expect(image).toMatch(/^http:\/\/localhost:4321\/.*tizayuca.*\.png/);
+    expect(meta(html, "property", "og:image:type")).toBe("image/png");
+    expect(meta(html, "property", "og:image:width")).toBe("1200");
+    expect(meta(html, "property", "og:image:height")).toBe("630");
+    expect(meta(html, "property", "og:image:alt")).toBe(
+      "enmirumbo, el directorio de negocios de Tizayuca, Hidalgo",
+    );
+  });
+
+  it("a locality without an image, and a page outside a locality, share the generic one", async () => {
+    for (const html of [
+      await renderIndexable(OTHER, "/estado-de-prueba-98/pueblo-uno"),
+      await renderIndexable(undefined, "/"),
+      await renderNotFound(),
+    ]) {
+      expect(meta(html, "property", "og:image")).toMatch(/\/[^/]*enmirumbo[^/]*\.png/);
+      expect(meta(html, "property", "og:image:width")).toBe("1200");
+      expect(meta(html, "property", "og:image:height")).toBe("630");
+      expect(meta(html, "property", "og:image:alt")).toBe("enmirumbo");
+    }
+  });
+
+  // Scenario: a page without a locality (base-layout, "Pages outside a
+  // locality name no locality (v2)")
+  it("a page outside a locality names none in its metadata", async () => {
+    const html = await renderIndexable(undefined, "/");
+    const head = element(html, "head");
+
+    expect(element(html, "title")).toBe("enmirumbo");
+    expect(head).not.toMatch(/tizayuca|hidalgo/i);
+    expect(meta(html, "property", "og:title")).toBe("enmirumbo");
+  });
+
+  // Scenarios: production without a declared public URL; a deployed
+  // environment without a usable SITE_URL
+  it("without a base for absolute URLs, no canonical, og:url or og:image, and the page renders", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    Object.assign(env, { ENVIRONMENT: "prod", SITE_URL: "http://localhost:4321" });
+    const html = await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca");
+
+    expect(canonical(html)).toBeUndefined();
+    expect(meta(html, "property", "og:url")).toBeUndefined();
+    expect(meta(html, "property", "og:image")).toBeUndefined();
+    expect(html).not.toContain("localhost");
+    expect(element(html, "h1")).toBe("Una página");
+  });
+});
+
+// docs/specs/base-layout.md, "Cookieless measurement is loaded only in
+// production and only when configured (v2)", "The admin panel and edit mode
+// stay out of the measurement" and "A single deferred script and zero own
+// client JavaScript".
+describe("Cookieless measurement is loaded only in production and only when configured (v2)", () => {
+  const WEBSITE_ID = "94db1cb1-74f4-4a40-ad6c-962362670409";
+
+  function measured(environment: string, websiteId = WEBSITE_ID): void {
+    Object.assign(env, {
+      ENVIRONMENT: environment,
+      SITE_URL: "https://enmirumbo.urekz.workers.dev",
+      UMAMI_WEBSITE_ID: websiteId,
+    });
+  }
+
+  // Scenarios: a single deferred script; with both variables the provider's
+  // script is loaded
+  it("in production with a Website ID, one deferred script of Umami Cloud", async () => {
+    measured("prod");
+    const tags = scripts(await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca"));
+
+    expect(tags).toEqual([
+      `<script defer src="https://cloud.umami.is/script.js" data-website-id="${WEBSITE_ID}" data-exclude-search="true">`,
+    ]);
+  });
+
+  // Scenarios: with no variables configured nothing is loaded; other
+  // environments and excluded screens
+  it.for([
+    ["prod without a Website ID", "prod", ""],
+    ["stage with a Website ID", "stage", WEBSITE_ID],
+    ["dev with a Website ID", "dev", WEBSITE_ID],
+    ["local with a Website ID", "local", WEBSITE_ID],
+  ] as const)("%s: no script at all", async ([, environment, websiteId]) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    measured(environment, websiteId);
+
+    expect(scripts(await renderIndexable(TIZAYUCA, "/hidalgo/tizayuca"))).toEqual([]);
+  });
+
+  // Scenarios: the panel does not load the script; edit mode does not load
+  // the script either
+  it.for(["/admin", "/admin/registros/1/loquesea", "/hidalgo/tizayuca/editar/abc"])(
+    "%s never loads it, even in production with a Website ID",
+    async (path) => {
+      measured("prod");
+      const html = await container.renderToString(BaseLayout, {
+        partial: false,
+        slots: { default: "<h1>Panel</h1>" },
+        request: new Request(`https://enmirumbo.urekz.workers.dev${path}`),
+        locals: localsWith(undefined),
+      });
+
+      expect(scripts(html)).toEqual([]);
+      expect(html).not.toContain("umami");
+    },
+  );
 });

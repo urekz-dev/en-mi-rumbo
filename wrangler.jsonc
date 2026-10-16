@@ -51,6 +51,14 @@
     // The public URL of the site, without a trailing slash: the base of every
     // absolute URL (canonicals, sitemap, share previews).
     "SITE_URL": "http://localhost:4321",
+    // The https origin the business photos are served from (ADR 0011), the
+    // only other origin the content security policy lets images come from.
+    // Empty locally: no photo hostname.
+    "PHOTOS_URL": "",
+    // The Website ID of the site at Umami Cloud (ADR 0014). Only prod ever
+    // loads the measurement, and only with a Website ID; empty everywhere
+    // until the launch, so nothing is measured and no request leaves the site.
+    "UMAMI_WEBSITE_ID": "",
   },
   "env": {
     // Deployed by hand from any branch (deploy-dev.yml). Its database is reset
@@ -75,6 +83,10 @@
         // the three environments (ADR 0010).
         "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
         "SITE_URL": "https://dev-enmirumbo.urekz.workers.dev",
+        // The photo hostname of dev (ADR 0011).
+        "PHOTOS_URL": "https://fotos-dev.enmirumbo.com",
+        // Never measured (ADR 0014): only prod loads Umami.
+        "UMAMI_WEBSITE_ID": "",
         // The branch and commit deployed, shown in the page footer of dev only.
         // deploy-dev.yml sets them with `wrangler deploy --var`.
         "DEPLOY_BRANCH": "",
@@ -101,6 +113,10 @@
         // the three environments (ADR 0010).
         "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
         "SITE_URL": "https://stage-enmirumbo.urekz.workers.dev",
+        // The photo hostname of stage (ADR 0011).
+        "PHOTOS_URL": "https://fotos-stage.enmirumbo.com",
+        // Never measured (ADR 0014): only prod loads Umami.
+        "UMAMI_WEBSITE_ID": "",
       },
     },
     // Production, deployed from a tag vX.Y.Z (deploy-prod.yml).
@@ -123,6 +139,11 @@
         // the three environments (ADR 0010).
         "ACCESS_AUD": "a98a5e8ae63966e34ec201af51ec9b15ba202afaee4768ddb940bcb016ad2338",
         "SITE_URL": "https://enmirumbo.urekz.workers.dev",
+        // The photo hostname of prod (ADR 0011).
+        "PHOTOS_URL": "https://fotos.enmirumbo.com",
+        // Measurement stays off until the launch: the Website ID arrives with
+        // the cut-over (ADR 0014).
+        "UMAMI_WEBSITE_ID": "",
       },
     },
   },

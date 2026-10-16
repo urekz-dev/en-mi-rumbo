@@ -10,10 +10,13 @@
 #   - HYPERDRIVE and HYPERDRIVE_FRESH set to two different real Hyperdrive ids,
 #     so a placeholder id never reaches Cloudflare;
 #   - SITE_URL is an https origin;
-#   - the _headers file of the static assets gives every one of them
-#     X-Robots-Tag: noindex, because Cloudflare serves them (the prerendered
-#     legal pages, the CSS) without the Worker that adds it to the rest
-#     (src/integrations/static-noindex.ts).
+#   - the _headers file of the static assets gives every one of them the
+#     security headers (a Content-Security-Policy that forbids framing,
+#     plugins and posting to other sites, nosniff, X-Frame-Options: DENY and a
+#     strict-origin referrer policy) and X-Robots-Tag: noindex, because
+#     Cloudflare serves them (the prerendered legal pages, the CSS, the share
+#     images) without the Worker that adds them to the rest
+#     (src/integrations/static-headers.ts).
 # An empty ACCESS_AUD is only a warning: the panel stays closed (403) until the
 # Access application exists.
 #
@@ -100,23 +103,48 @@ site_url="$(jq -r '.vars.SITE_URL // ""' "${config}")"
 
 [ -n "$(jq -r '.vars.ACCESS_TEAM_DOMAIN // ""' "${config}")" ] || error "ACCESS_TEAM_DOMAIN is empty"
 
-# Whether a _headers file has a rule for /* that sets X-Robots-Tag: noindex.
-has_noindex_rule() {
-  awk '
+# Whether a _headers file has a rule for /* with a header line that matches
+# the extended regular expression $2, which is matched in lowercase.
+has_every_asset_header() {
+  awk -v pattern="$2" '
     /^[[:space:]]*(#|$)/ { next }
     /^[^[:space:]]/ { every = ($1 == "/*"); next }
-    every && tolower($0) ~ /^[[:space:]]+x-robots-tag:[[:space:]]*noindex[[:space:]]*$/ { found = 1 }
+    every && tolower($0) ~ pattern { found = 1 }
     END { exit !found }
   ' "$1"
 }
+
+# The security headers every static asset must carry, as "name|pattern".
+security_headers=(
+  "Content-Security-Policy|^[[:space:]]+content-security-policy:.*default-src 'self'"
+  "Content-Security-Policy with frame-ancestors 'none'|^[[:space:]]+content-security-policy:.*frame-ancestors 'none'"
+  "Content-Security-Policy with object-src 'none'|^[[:space:]]+content-security-policy:.*object-src 'none'"
+  "Content-Security-Policy with form-action 'self'|^[[:space:]]+content-security-policy:.*form-action 'self'"
+  "X-Content-Type-Options: nosniff|^[[:space:]]+x-content-type-options:[[:space:]]*nosniff[[:space:]]*$"
+  "X-Frame-Options: DENY|^[[:space:]]+x-frame-options:[[:space:]]*deny[[:space:]]*$"
+  "Referrer-Policy: strict-origin…|^[[:space:]]+referrer-policy:[[:space:]]*strict-origin"
+)
 
 assets="$(jq -r '.assets.directory // ""' "${config}")"
 if [ -z "${assets}" ]; then
   error "the build declares no static assets directory (assets.directory)"
 else
   headers="$(dirname "${config}")/${assets}/_headers"
-  if [ ! -f "${headers}" ] || ! has_noindex_rule "${headers}"; then
-    error "${headers} does not give every static asset X-Robots-Tag: noindex, so the prerendered pages would be indexable (src/integrations/static-noindex.ts)"
+  if [ ! -f "${headers}" ] ||
+    ! has_every_asset_header "${headers}" '^[[:space:]]+x-robots-tag:[[:space:]]*noindex[[:space:]]*$'; then
+    error "${headers} does not give every static asset X-Robots-Tag: noindex, so the prerendered pages would be indexable (src/integrations/static-headers.ts)"
+  fi
+  missing=()
+  for entry in "${security_headers[@]}"; do
+    if [ ! -f "${headers}" ] || ! has_every_asset_header "${headers}" "${entry#*|}"; then
+      missing+=("${entry%%|*}")
+    fi
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    error "${headers} does not give every static asset its security headers; missing: $(
+      IFS=,
+      echo "${missing[*]}"
+    ) (src/integrations/static-headers.ts)"
   fi
 fi
 if [ -z "$(jq -r '.vars.ACCESS_AUD // ""' "${config}")" ]; then

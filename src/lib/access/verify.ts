@@ -161,7 +161,8 @@ function parseEnvironment(value: string | undefined): Environment | undefined {
 // the JWKS can never be fetched from another host.
 const TEAM_DOMAIN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/;
 
-function parseTeamDomain(value: string | undefined): string | undefined {
+/** The Access team domain (`<team>.cloudflareaccess.com`) of a var, or undefined when it is not one. */
+export function parseTeamDomain(value: string | undefined): string | undefined {
   const domain = value
     ?.trim()
     .toLowerCase()

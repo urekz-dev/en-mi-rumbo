@@ -26,6 +26,7 @@ import { CHANGE_PARAM, CHOOSE_PARAM, localityPath } from "../core/locality/paths
 import { rootDestination } from "../core/locality/root.ts";
 import { activeLocalities } from "../core/locality/served.ts";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { ROOT_DESCRIPTION } from "../lib/site.ts";
 import {
   LOCALITY_COOKIE,
   localityCookieOptions,
@@ -57,9 +58,9 @@ switch (destination.kind) {
 ---
 
 {destination.kind === "list" ? (
-  <BaseLayout>
+  <BaseLayout canonicalPath="/" description={ROOT_DESCRIPTION}>
     <LocalityList localities={destination.localities} suggested={destination.suggested} />
   </BaseLayout>
 ) : (
-  <ComingSoon />
+  <ComingSoon canonicalPath="/" description={ROOT_DESCRIPTION} />
 )}

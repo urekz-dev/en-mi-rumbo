@@ -265,6 +265,8 @@ Every internal link of the site MUST point to a route that exists, including dyn
 
 ### Requirement: The site publishes a `robots.txt` that allows what is public and excludes what is not relevant
 
+Superseded in v2 by The open `robots.txt` allows the public site and excludes what is not relevant (v2) — source: ADR 0007, ADR 0008.
+
 The site MUST serve a `robots.txt` at its root that allows crawling the public site and excludes `/admin` (the review panel), `/buscar` (the URLs with a query, which already declare `noindex`) and `/registro/gracias` (the registration confirmation screen). It MUST NOT list the management link routes (`/editar/...`) or any other route the site does not serve: announcing in a public file where the secret links live is worse than not excluding them, and those screens are already protected with `noindex, nofollow` and with no public link leading to them. The file MUST point to the site's sitemap with its absolute URL, unless the public URL of the site is not declared, in which case that line is omitted instead of pointing to a local address.
 
 This `robots.txt` is a request to well-behaved crawlers, not a defense against mass harvesting of the directory (finding M5 of T-004), which remains pending debt (E5-5).
@@ -290,6 +292,8 @@ This `robots.txt` is a request to well-behaved crawlers, not a defense against m
 - **THEN** the `robots.txt` includes the sitemap line with the absolute URL of `/sitemap.xml`
 
 ### Requirement: The site publishes a `sitemap.xml` that updates itself
+
+Superseded in v2 by The sitemap lists the pages that exist, from the database (v2) — source: ADR 0007, ADR 0008.
 
 The site MUST serve a `sitemap.xml` at its root, generated from the database on every request and with no manual step, that includes: the home, the registration page (`/registro`), the listings of the 8 categories, **every trade page and trade+zone page that has at least one published business** and the card of each published business. Each card MUST declare its publication date as its last modification date.
 
@@ -324,6 +328,8 @@ The 8 categories are included even when empty —they are the fixed navigation o
 
 ### Requirement: Cookieless analytics measurement is loaded only if configured, and without it the site works the same
 
+Superseded in v2 by Cookieless measurement is loaded only in production and only when configured (v2) — source: ADR 0014.
+
 The site MUST load the cookieless analytics provider's script (ADR-005) ONLY when the two environment variables `NEXT_PUBLIC_UMAMI_SRC` (absolute URL with the `https:` scheme of the provider's script) and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (identifier of the site at the provider, non-empty) are configured. If either of them is missing, if they are empty or only spaces, or if `NEXT_PUBLIC_UMAMI_SRC` is not an absolute `https:` URL, the site MUST NOT include any third-party `<script>` tag, MUST NOT make any request to an external domain and MUST respond exactly as if the measurement did not exist: with no errors, no broken pages and no additional JavaScript. When the configuration is half-set or invalid (one variable set and the other not, or a `src` that is not `https:`), the server MUST leave a warning in its log once per process, without blocking startup or any page. No screen of the site MUST show a banner, notice or switch for cookies or measurement consent (PRD §9: cookieless provider, no banner).
 
 #### Scenario: with no variables configured nothing is loaded
@@ -347,6 +353,8 @@ The site MUST load the cookieless analytics provider's script (ADR-005) ONLY whe
 - **THEN** they see no banner, notice or switch for cookies or measurement consent, and do not have to accept anything to use the directory
 
 ### Requirement: The admin panel and edit mode stay out of the measurement
+
+Superseded in v2 by The admin panel and the edit mode stay out of the measurement by where they live (v2) — source: ADR 0014, ADR 0007.
 
 No page under `/admin` and no edit mode screen (`/editar/<token>` and its confirmation) MUST load the measurement script or send visits or events to the provider, even if the variables are configured. The exclusion MUST be a property of the site structure —the script is injected from the trunk of the measured public pages, not from the root layout that also wraps those others— and not a route list that someone must remember to update. The reasons: the panel is not resident traffic and would pollute the PRD §10 metrics; its URLs (`/admin/registros/<id>`) point to a specific person's registration; and in edit mode the route **is** the business's credential, so sending it to the provider would hand a third party the key to a card (PRD §8, LFPDPPP). Each excluded trunk MUST have written down why it is excluded, and the automated verification MUST fail if an exclusion is left with no pages or if one appears without justification.
 
@@ -466,6 +474,8 @@ Visit counts MUST exclude bots and crawlers (PRD §9: SEO traffic itself would i
 
 ### Requirement: `.env.example` explains the analytics and the step that falls to the human
 
+Superseded in v2 by Cookieless measurement is loaded only in production and only when configured (v2) — source: ADR 0014, ADR 0019.
+
 `.env.example` MUST document, in its own block, the two measurement variables: what they are for, that they are **not secrets** (they travel in the HTML of all public pages), the typical value of the provider's script, the link to create the free account, that they are injected when the site is built (changing them requires redeploying), that without them the site runs the same without measuring anything, and the reminder to verify in the provider's panel that bot filtering is active.
 
 #### Scenario: the human knows what to do
@@ -503,12 +513,17 @@ No locality name MAY be hard-coded in any surface. Every text that names the loc
 
 Added in v2 — source: decision of the product owner, 2026-10-14.
 
-The pages that belong to no locality (the site root, the admin panel, a 404 outside a locality and the legal pages, which every locality shares) MUST NOT name any locality, not even while only one is active: the footer keeps the brand and its links but leaves out the line "Hecho para los vecinos de {municipio}, {estado}.", the title is the brand alone, the wordmark leads to the root and there is no locality description. Naming one would be wrong as soon as a second locality is active, and the legal pages are prerendered without reading the database. The list of localities that the root shows while two or more are active (`public-directory`, "With two or more active localities the root lists them and never redirects by location (v2)") names each of them only as an entry of the list; its title, description, wordmark and footer follow this rule like any other page outside a locality.
+The pages that belong to no locality (the site root, the admin panel, a 404 outside a locality and the legal pages, which every locality shares) MUST NOT name any locality, not even while only one is active: the footer keeps the brand and its links but leaves out the line "Hecho para los vecinos de {municipio}, {estado}.", the title is the brand alone, the wordmark leads to the root and there is no locality description. The site root carries its own description, which names no locality (amended on 2026-10-15 by decision of the product owner): "Encuentra negocios, servicios y deporte de tu municipio y contáctalos directo por WhatsApp. Registro gratis para negocios locales." Naming one would be wrong as soon as a second locality is active, and the legal pages are prerendered without reading the database. The list of localities that the root shows while two or more are active (`public-directory`, "With two or more active localities the root lists them and never redirects by location (v2)") names each of them only as an entry of the list; its title, description, wordmark and footer follow this rule like any other page outside a locality.
 
 #### Scenario: a page without a locality
 
 - **WHEN** the footer and the metadata of the site root, of `/admin` or of a 404 outside a locality are read
 - **THEN** no locality is named and the footer has no line for the neighbours
+
+#### Scenario: the root's description
+
+- **WHEN** the metadata of the site root are read, with no active locality or with two or more
+- **THEN** its description is "Encuentra negocios, servicios y deporte de tu municipio y contáctalos directo por WhatsApp. Registro gratis para negocios locales." and names no locality
 
 #### Scenario: a page of a locality
 
@@ -601,6 +616,8 @@ Added in v2 — source: PRD §6.4, ADR 0014.
 
 The analytics (Umami Cloud) MUST record three product events: a WhatsApp click from a card, a search with no results and a registration submitted. Each event MUST carry the locality and the category as its only properties. No cookie is set and no personal data travels. The script and the events MUST exist only in production: `stage` and `dev` load no analytics. The admin panel and the management-link screens stay outside the measurement.
 
+The three events are named `whatsapp-card`, `search-no-results` and `registration-submitted`, and no page sends any other name. They are declared as attributes of the element that triggers them, read from one place in the code: `data-umami-event` with the name, `data-umami-event-locality` with the locality as `{estado}/{municipio}` (its two slugs, as in its URLs) and, when the event has a category, `data-umami-event-category` with the category slug. Where the measurement is off (every environment but production with a Website ID, the panel and the edit mode) the element carries none of them. The elements arrive with their stories: the WhatsApp button of a card, the search results and the registration form.
+
 #### Scenario: WhatsApp click
 
 - **WHEN** a resident taps the WhatsApp button of a card in production
@@ -651,7 +668,7 @@ Every surface of the site —public pages, admin panel, metadata, share preview,
 
 Added in v2 — source: ADR 0008.
 
-In `dev`, `stage` and production, every response of the Worker —pages, errors, `/robots.txt` and any other route— MUST carry `X-Robots-Tag: noindex`, and `/robots.txt` MUST close the whole site (`User-agent: *` and `Disallow: /`). Production is included until the cut-over attaches the apex and `www`; the story of the cut-over lifts it. Until then this requirement wins over the ones that make pages indexable (the legal pages, trade pages with published businesses) and over the open `robots.txt` of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant". A response that already carries a stricter value, such as the admin panel's `noindex, nofollow`, MUST keep it. An `ENVIRONMENT` that is missing or is not exactly `local`, `dev`, `stage` or `prod` MUST count as deployed. Locally nothing changes: no header, and `/robots.txt` allows the site and excludes `/admin`. Cloudflare serves the static files of the build —the prerendered legal pages and the hashed CSS and JavaScript under `/_astro/`— without invoking the Worker, so they MUST get the header from the `_headers` file of the build: the build of an environment that blocks indexing, by the same rule as the Worker, adds a rule that gives every static file `X-Robots-Tag: noindex`, and a local build adds none. The deploy MUST refuse a build without that rule, and its smoke test checks a prerendered page. When the cut-over lets production be indexed, its builds stop adding the rule with no other change.
+In `dev`, `stage` and production, every response of the Worker —pages, errors, `/robots.txt` and any other route— MUST carry `X-Robots-Tag: noindex`, and `/robots.txt` MUST close the whole site (`User-agent: *` and `Disallow: /`). Production is included until the cut-over attaches the apex and `www`; the story of the cut-over lifts it. Until then this requirement wins over the ones that make pages indexable (the legal pages, trade pages with published businesses) and over the open `robots.txt` of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant". A response that already carries a stricter value, such as the admin panel's `noindex, nofollow`, MUST keep it. An `ENVIRONMENT` that is missing or is not exactly `local`, `dev`, `stage` or `prod` MUST count as deployed. Locally nothing changes: no header, and `/robots.txt` is the open one of "The open `robots.txt` allows the public site and excludes what is not relevant (v2)" (amended on 2026-10-15, EMR-30: until then it excluded `/admin` alone). Cloudflare serves the static files of the build —the prerendered legal pages and the hashed CSS and JavaScript under `/_astro/`— without invoking the Worker, so they MUST get the header from the `_headers` file of the build: the build of an environment that blocks indexing, by the same rule as the Worker, adds a rule that gives every static file `X-Robots-Tag: noindex`, and a local build adds none. The deploy MUST refuse a build without that rule, and its smoke test checks a prerendered page. When the cut-over lets production be indexed, its builds stop adding the rule with no other change.
 
 #### Scenario: any response of a deployed environment
 
@@ -681,4 +698,160 @@ In `dev`, `stage` and production, every response of the Worker —pages, errors,
 #### Scenario: local
 
 - **WHEN** the site runs locally (`ENVIRONMENT` is `local`)
-- **THEN** no response carries `X-Robots-Tag`, not even a prerendered page, and `/robots.txt` says `User-agent: *` and `Disallow: /admin`
+- **THEN** no response carries `X-Robots-Tag`, not even a prerendered page, and `/robots.txt` is the open one, which disallows `/admin` and points to the sitemap
+
+### Requirement: The open `robots.txt` allows the public site and excludes what is not relevant (v2)
+
+Added in v2 — source: ADR 0007, ADR 0008, PRD §8.
+
+Where indexing is allowed (locally today, and production once the cut-over lifts "Deployed environments stay out of search engines until the cut-over (v2)"), `/robots.txt` MUST allow crawling the public site and MUST disallow, for every user agent: `/admin`, and, under the prefix `/{estado}/{municipio}` of every active locality, the search results (`/buscar`), the report form of every card (`/negocio/*/reportar`), the report thank-you page (`/reportar/gracias`) and the registration thank-you page (`/registro/gracias`). It MUST NOT name the edit mode (`/editar/...`) or any other secret route. The exclusions of every active locality are listed from the start, also before the pages they name exist, so that no open version of the file ever lacks them. The localities are read from the database through the cached connection, like every public read. The file MUST end with the line `Sitemap:` followed by the absolute URL of `/sitemap.xml`, built from `SITE_URL`, unless the environment has no base for absolute URLs, in which case that line is left out. This requirement takes the place of "The site publishes a `robots.txt` that allows what is public and excludes what is not relevant", and keeps what "`robots.txt` also excludes the report routes and the thank-you pages (v2)" adds.
+
+#### Scenario: the open file
+
+- **WHEN** `/robots.txt` is requested locally while Tizayuca is the only active locality
+- **THEN** it says `User-agent: *`, disallows `/admin`, `/hidalgo/tizayuca/buscar`, `/hidalgo/tizayuca/negocio/*/reportar`, `/hidalgo/tizayuca/reportar/gracias` and `/hidalgo/tizayuca/registro/gracias`, and ends with `Sitemap: http://localhost:4321/sitemap.xml`
+
+#### Scenario: public pages stay crawlable
+
+- **WHEN** the rules are applied to the root, the home of a locality, a listing, a trade page, a trade and zone page, a card, the registration page and the legal pages
+- **THEN** none of them is disallowed
+
+#### Scenario: two active localities
+
+- **WHEN** a second locality is active
+- **THEN** each locality has its own exclusions under its own prefix, and no other
+
+#### Scenario: the edit mode is not announced
+
+- **WHEN** the open file is read
+- **THEN** no line names `/editar`
+
+#### Scenario: closed until the cut-over
+
+- **WHEN** `/robots.txt` of `dev`, `stage` or production is requested before the cut-over
+- **THEN** it is the closed file of "Deployed environments stay out of search engines until the cut-over (v2)", without reading the database
+
+### Requirement: The sitemap lists the pages that exist, from the database (v2)
+
+Added in v2 — source: ADR 0007, ADR 0008, PRD §8.
+
+The site MUST serve `/sitemap.xml`, generated from the database on every request through the cached connection, with no manual step. It MUST list, with absolute URLs built from `SITE_URL`, exactly the indexable pages that exist: for every active locality, the pages of that locality under its `/{estado}/{municipio}`, and once each, the two legal pages ("The sitemap includes the two legal pages (v2)"). Today the only indexable page of a locality is its home. Each indexable page of a locality that a later story adds MUST add its kind to the same single list, so the sitemap grows with the site: the registration page (`/registro`); the listings of the 8 categories, even when empty; the trade pages and the trade and zone pages with at least one published business; and the published cards, each with its publication date as its last modification date. The sitemap MUST NOT list the panel, the search results, the report form and the thank-you pages, the edit mode, an inactive locality or a business that is not published, nor leak any of their data. In an environment without a base for absolute URLs it MUST be a valid, empty sitemap, never a local address. Until the cut-over, its response in a deployed environment carries `X-Robots-Tag: noindex` like every other one, and the closed `robots.txt` does not announce it. A test MUST fail when any URL of the served sitemap does not answer 200.
+
+#### Scenario: what exists today
+
+- **WHEN** the sitemap is read with Tizayuca as the only active locality
+- **THEN** it lists the home of Tizayuca, `/aviso-de-privacidad` and `/terminos`, each once and absolute
+
+#### Scenario: every URL answers
+
+- **WHEN** each URL of the served sitemap is requested
+- **THEN** each one answers 200, without a redirect
+
+#### Scenario: a locality is activated
+
+- **WHEN** a second locality is activated
+- **THEN** the next read of the sitemap lists its home too, with its own state and municipality, without anyone editing a file
+
+#### Scenario: nothing that is not a public page
+
+- **WHEN** the sitemap is reviewed
+- **THEN** no URL of the panel, the search, a report, a thank-you page, the edit mode or an inactive locality appears
+
+#### Scenario: no base for absolute URLs
+
+- **WHEN** a deployed environment has no usable `SITE_URL`
+- **THEN** the sitemap is a valid document with no URL
+
+### Requirement: Every page declares its title, description, canonical and share preview (v2)
+
+Added in v2 — source: ADR 0007, ADR 0008, PRD §8, PRD §9.
+
+Every page MUST declare its title and, when it has one, its description, as "Server Component with a document in es-MX and base metadata" and "Pages outside a locality name no locality (v2)" describe, and the same title and description as `og:title` and `og:description`. Every page that search engines may index MUST declare its absolute canonical URL, its own address without a query, as `<link rel="canonical">` and `og:url`: the root, the home of each locality, the legal pages and, as they land, the directory pages of `public-directory`. A page that must not be indexed or that answers 404 (a not-found page, the panel) declares no canonical. Every page MUST declare its share image (`og:image`, absolute) with its media type, its width, its height and its alt text, as "Each locality has its own share image, one static image per locality (v2)" describes. Without a base for absolute URLs, the canonical, `og:url` and `og:image` are left out and the page still answers. The prerendered legal pages take the base of the environment their build targets.
+
+#### Scenario: the home of a locality
+
+- **WHEN** the home of Tizayuca is read on `stage`
+- **THEN** its canonical and `og:url` are `https://stage-enmirumbo.urekz.workers.dev/hidalgo/tizayuca`, and its `og:title` and `og:description` are its title and description
+
+#### Scenario: every page of the sitemap
+
+- **WHEN** each page that the sitemap lists is opened
+- **THEN** it declares as canonical exactly the URL the sitemap lists for it, and a share image of 1200×630
+
+#### Scenario: a not-found page
+
+- **WHEN** a 404 is read
+- **THEN** it declares no canonical
+
+#### Scenario: a page outside a locality
+
+- **WHEN** the metadata of the root or a legal page is read
+- **THEN** it names no locality, and its share image is the generic one
+
+### Requirement: Each locality has its own share image, one static image per locality (v2)
+
+Added in v2 — source: decision of the product owner, 2026-10-14; PRD §9.
+
+In "Server Component with a document in es-MX and base metadata", the brand image of the share preview is one static PNG of 1200×630 per locality, made once with the design tokens: the wordmark "enmirumbo" and, below it, smaller and separate, the context line "{municipio}, {estado}" read from the locality ("Tizayuca, Hidalgo"). The site MUST find a locality's image by the slugs of its state and municipality, never by a name written in the code, and MUST serve it as a static asset. Its alt text names the brand alone and the locality only as the descriptor ("enmirumbo, el directorio de negocios de Tizayuca, Hidalgo"). A locality without an image, and every page outside a locality, MUST use the generic image: the wordmark alone, naming no locality, with the alt text "enmirumbo". Adding a locality's image adds a file and no code. No tool to generate them is kept in the repository; the README says how they were made.
+
+#### Scenario: a link to Tizayuca shared on WhatsApp
+
+- **WHEN** the home of Tizayuca is shared and the app reads its preview
+- **THEN** the image is Tizayuca's, 1200×630, with the wordmark and "Tizayuca, Hidalgo", and its alt text is "enmirumbo, el directorio de negocios de Tizayuca, Hidalgo"
+
+#### Scenario: a locality without an image
+
+- **WHEN** a page of a fixture locality with no image of its own is read
+- **THEN** its share image is the generic one, with the alt text "enmirumbo", and "Tizayuca" appears nowhere
+
+#### Scenario: the image is served
+
+- **WHEN** the address of any share image is requested
+- **THEN** it answers 200 with `image/png`
+
+### Requirement: Cookieless measurement is loaded only in production and only when configured (v2)
+
+Added in v2 — source: ADR 0014, decision of the product owner (measurement stays off until the launch of 2026-10-15).
+
+The site MUST load the script of Umami Cloud (`https://cloud.umami.is/script.js`) ONLY when the environment is `prod` and its Worker variable `UMAMI_WEBSITE_ID` holds a Website ID of Umami (a UUID). The variable is declared, empty, at the top level and in `dev`, `stage` and `prod`; only production may ever carry a value, which the cut-over sets. It is not a secret: it travels in the HTML of every measured page, and changing it takes a deploy. Empty, as it is everywhere until the launch, the site MUST NOT include any third-party `<script>` tag, MUST NOT make any request to another domain and MUST respond exactly as if the measurement did not exist. A value that is not a Website ID, or a value outside `prod`, loads nothing and is logged once per isolate, never per request and never stopping a page. The script MUST be the only external script of the page, loaded with `defer`, with the attributes `data-website-id` and `data-exclude-search="true"`, so the query string of the URL never travels. No screen shows a banner, notice or switch for cookies or measurement consent. The README says how to turn it on and reminds that bot filtering must be verified in Umami's panel before the PRD §10 metrics are taken as good.
+
+#### Scenario: production with a Website ID
+
+- **WHEN** a public page of production is opened with `UMAMI_WEBSITE_ID` set to a Website ID
+- **THEN** its HTML has exactly one external script, `https://cloud.umami.is/script.js`, deferred, with that Website ID and `data-exclude-search="true"`
+
+#### Scenario: no Website ID
+
+- **WHEN** any page of any environment is opened while `UMAMI_WEBSITE_ID` is empty
+- **THEN** the HTML contains no script, the browser requests nothing outside the site, and the page looks and works the same
+
+#### Scenario: another environment
+
+- **WHEN** `UMAMI_WEBSITE_ID` holds a Website ID in `local`, `dev`, `stage` or an unknown environment
+- **THEN** nothing is loaded and the log says once that the value is ignored
+
+#### Scenario: a value that is not a Website ID
+
+- **WHEN** `UMAMI_WEBSITE_ID` in production is not a UUID
+- **THEN** nothing is loaded, the pages answer normally, and the log says so once
+
+### Requirement: The admin panel and the edit mode stay out of the measurement by where they live (v2)
+
+Added in v2 — source: ADR 0014, ADR 0007.
+
+No page of the admin panel and no screen of the edit mode MUST load the measurement script or carry an event attribute, even in production with a Website ID. The exclusion MUST follow from where a page lives, not from a list of pages: everything at `/admin` and below (whatever its case or URL encoding, and also an address there that does not exist, which answers the site's 404), the admin actions, and everything at `/{estado}/{municipio}/editar/` and below. The reasons are written next to the rule: the panel is not resident traffic and its addresses point to a person's registration; in the edit mode the address is the card's credential. Every other page, a new public page included, is measured without being listed anywhere. The panel's referrer policy of "The measurement carries no personal data or text typed by people" is also sent as the `Referrer-Policy: strict-origin` header of every panel response, with the same value and for the same reason (deployment, "Every response carries the security headers and the content security policy (v2)").
+
+#### Scenario: the panel
+
+- **WHEN** `/admin`, or an address under it that does not exist, is opened in production with a Website ID
+- **THEN** its HTML contains neither the script nor any event attribute
+
+#### Scenario: the edit mode
+
+- **WHEN** a page under `/{estado}/{municipio}/editar/` is opened in production with a Website ID
+- **THEN** it loads no script, so no address with the token leaves the site
+
+#### Scenario: a new public page
+
+- **WHEN** a public page is added anywhere else
+- **THEN** it is measured in production with a Website ID, without touching any list

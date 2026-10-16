@@ -16,7 +16,10 @@ export const LOCAL_SITE_URL = "http://localhost:4321";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /** The origin of `value` when it is an origin with no path, query or credentials. */
-function parseOrigin(value: string | undefined, protocols: readonly string[]): string | null {
+export function parseOrigin(
+  value: string | undefined,
+  protocols: readonly string[],
+): string | null {
   if (value === undefined) return null;
   let url: URL;
   try {

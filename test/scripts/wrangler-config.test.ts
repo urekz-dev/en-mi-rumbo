@@ -8,12 +8,24 @@ import { unstable_readConfig } from "wrangler";
 import { describe, expect, it } from "vite-plus/test";
 
 const ENVIRONMENTS = [
-  { env: "dev", name: "dev-enmirumbo", crons: [] },
-  { env: "stage", name: "stage-enmirumbo", crons: ["0 * * * *"] },
-  { env: "prod", name: "enmirumbo", crons: ["0 * * * *"] },
+  { env: "dev", name: "dev-enmirumbo", crons: [], photos: "https://fotos-dev.enmirumbo.com" },
+  {
+    env: "stage",
+    name: "stage-enmirumbo",
+    crons: ["0 * * * *"],
+    photos: "https://fotos-stage.enmirumbo.com",
+  },
+  { env: "prod", name: "enmirumbo", crons: ["0 * * * *"], photos: "https://fotos.enmirumbo.com" },
 ] as const;
 
-const VARIABLES = ["ENVIRONMENT", "ACCESS_TEAM_DOMAIN", "ACCESS_AUD", "SITE_URL"];
+const VARIABLES = [
+  "ENVIRONMENT",
+  "ACCESS_TEAM_DOMAIN",
+  "ACCESS_AUD",
+  "SITE_URL",
+  "PHOTOS_URL",
+  "UMAMI_WEBSITE_ID",
+];
 const HYPERDRIVE_BINDINGS = ["HYPERDRIVE", "HYPERDRIVE_FRESH"];
 
 // The fields these tests read. Wrangler's own Config type comes from a package
@@ -58,6 +70,27 @@ describe("Three deployed environments, each with its own Worker, bindings and va
       expect(config.vars["SITE_URL"]).toBe(`https://${name}.urekz.workers.dev`);
     },
   );
+
+  // deployment, "Business photos live in R2, with one bucket and one hostname
+  // per environment (v2)": the hostname the content security policy allows.
+  it.for(ENVIRONMENTS)(
+    "per environment: $env serves its photos from $photos",
+    ({ env, photos }) => {
+      expect(read(env).vars["PHOTOS_URL"]).toBe(photos);
+    },
+  );
+
+  // base-layout, "Cookieless measurement is loaded only in production and only
+  // when configured (v2)": only prod may carry a Website ID, which the launch
+  // sets; until then it is empty too.
+  it("only prod may carry an Umami Website ID", () => {
+    for (const env of [undefined, "dev", "stage"]) {
+      expect(read(env).vars["UMAMI_WEBSITE_ID"], env ?? "local").toBe("");
+    }
+    expect(read("prod").vars["UMAMI_WEBSITE_ID"]).toMatch(
+      /^(|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
+    );
+  });
 
   it.for(ENVIRONMENTS)(
     "per environment: $env has both Hyperdrive bindings, with ids of its own",
