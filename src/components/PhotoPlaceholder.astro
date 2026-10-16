@@ -1,0 +1,26 @@
+---
+// The placeholder of a listing card without a photo (docs/specs/
+// public-directory.md, "The listing card brings the essentials and WhatsApp
+// without extra taps", amended in the visual review batch 2): the emoji of the
+// business's category, large and centred on the surface background. It
+// promises no image and announces nothing: the whole block is `aria-hidden`,
+// since the name of the business is in the text beside it. It fills its
+// container, which gives it its size, so the card takes the same space with a
+// photo or without one. No client JavaScript.
+import { categoryEmoji } from "../core/catalogue/category-emoji.ts";
+
+interface Props {
+  /** The slug of the business's own category. */
+  categorySlug: string;
+}
+
+const { categorySlug } = Astro.props;
+---
+
+<div
+  aria-hidden="true"
+  class="flex h-full w-full items-center justify-center bg-surface"
+  data-testid="photo-placeholder"
+>
+  <span class="text-3xl leading-none">{categoryEmoji(categorySlug)}</span>
+</div>

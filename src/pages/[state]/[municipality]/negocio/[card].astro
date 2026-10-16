@@ -1,0 +1,57 @@
+---
+// The card of a business, /{estado}/{municipio}/negocio/<slug>-<id>
+// (docs/specs/public-directory.md, "Business card at its own URL with the
+// registered information and the verified seal" and "An outdated card URL
+// redirects to its current URL (v2)"; ADR 0007). The middleware has already
+// resolved the active locality, or answered 404.
+//
+// - Only a published card of this locality is read (src/core/business/
+//   card.ts), through the cached HYPERDRIVE, like every public read. A
+//   segment with no identifier, an identifier that does not exist, a card of
+//   another locality and one in review, rejected or deleted all answer the
+//   same 404, the site's 404 page: nothing tells them apart.
+// - A published card asked for with another readable part (an earlier name,
+//   a typo, accents) answers a 301 to its current URL, which browsers keep
+//   for an hour at most: the name can change again, even back.
+// - The card declares its title, description and canonical URL, which the
+//   layout also shares as its preview, and its Schema.org block.
+//
+// Its view is measured as the page view Umami records by itself, with no
+// event or counter of its own ("The card view is measured on its own,
+// without custom instrumentation"). No client JavaScript.
+import { env, waitUntil } from "cloudflare:workers";
+import BusinessCard from "../../../../components/BusinessCard.astro";
+import JsonLd from "../../../../components/JsonLd.astro";
+import { publishedCard } from "../../../../core/business/card.ts";
+import { cardIdOf, cardPath, cardSegment } from "../../../../core/business/card-path.ts";
+import { withDb } from "../../../../core/db/client.ts";
+import { cardDescription, cardTitle, localBusinessData } from "../../../../core/seo/card.ts";
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import { pageAnalytics } from "../../../../lib/analytics.ts";
+import { notFound, permanentRedirect, requireLocality } from "../../../../lib/locality.ts";
+import { absoluteUrl } from "../../../../lib/site-url.ts";
+
+const locality = requireLocality(Astro.locals);
+const segment = Astro.params.card ?? "";
+const id = cardIdOf(segment);
+const card =
+  id === null
+    ? null
+    : await withDb(env, "HYPERDRIVE", { waitUntil }, (db) => publishedCard(db, locality.code, id));
+if (card === null) return notFound();
+
+const path = cardPath(locality, card);
+if (segment !== cardSegment(card)) return permanentRedirect(path);
+
+const analytics = pageAnalytics(env, Astro.url, Astro.routePattern);
+const structuredData = localBusinessData(card, locality, absoluteUrl(env, path));
+---
+
+<BaseLayout
+  title={cardTitle(card, locality)}
+  description={cardDescription(card, locality)}
+  canonicalPath={path}
+>
+  <JsonLd slot="head" data={structuredData} />
+  <BusinessCard card={card} locality={locality} analytics={analytics} />
+</BaseLayout>

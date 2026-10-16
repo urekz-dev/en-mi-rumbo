@@ -1,0 +1,33 @@
+---
+// The trades of a card (docs/specs/public-directory.md, "From the card the
+// pages of its trades are reached"): each one the admin assigned, with the
+// curated phrase of the trade. A card without trades shows nothing, like any
+// field the business did not fill in.
+//
+// The trade pages arrive with the listings (D2), and a link to a page that
+// does not exist fails the link checks, so for now each trade is a tag with
+// no link. D2 turns this list into the trades' navigation: the `ul` into a
+// `nav` with the same label, and each tag into a link to
+// `localityPath(locality, trade.slug)` with a touch area of at least 44px
+// (`inline-flex min-h-11 items-center … px-4`). The page of a trade always
+// has this business, so it is never one of the empty, non-indexed pages.
+// No client JavaScript.
+import type { CardTrade } from "../core/business/card.ts";
+import { tradePhrase } from "../core/catalogue/trade-phrases.ts";
+
+interface Props {
+  trades: readonly CardTrade[];
+}
+
+const { trades } = Astro.props;
+---
+
+{trades.length > 0 && (
+  <ul aria-label="Lo que hace este negocio" class="flex flex-wrap gap-2">
+    {trades.map((trade) => (
+      <li class="inline-flex items-center rounded-full border border-line px-3 py-1 text-sm font-semibold text-ink-muted">
+        {tradePhrase(trade)}
+      </li>
+    ))}
+  </ul>
+)}

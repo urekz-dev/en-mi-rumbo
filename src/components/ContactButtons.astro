@@ -1,0 +1,87 @@
+---
+// The contact block of a card (docs/specs/public-directory.md, "Contact
+// buttons on the card with WhatsApp as the main action"): "Enviar WhatsApp"
+// always, the only main action, in the action green; "Llamar", "Cómo llegar"
+// and the link to the page the business registered only when it registered
+// that data, all neutral, so nothing competes with the green. The buttons say
+// the action, never the number. The block holds nothing else: reporting and
+// "¿Es tu negocio?" go after it, apart.
+//
+// Every link that leaves the site in a new tab carries `rel="noopener
+// noreferrer"`; `tel:` opens none (base-layout, "Internal links to existing
+// routes and protected external links").
+//
+// Measurement (base-layout, "Four product events are recorded, only in
+// production (v2)"; public-directory, "Only the WhatsApp buttons of the card
+// and the listing card are measured (v2)"): "Enviar WhatsApp" declares
+// `whatsapp-card` with the locality and the business's category, on the link
+// itself, since it opens a new tab. The other buttons declare nothing. With
+// the measurement off there are no attributes at all. No client JavaScript.
+import type { PublishedCard } from "../core/business/card.ts";
+import {
+  callLink,
+  directionsLink,
+  registeredPage,
+  whatsappLink,
+} from "../core/business/contact.ts";
+import type { ServedLocality } from "../core/locality/served.ts";
+import { ANALYTICS_EVENTS, eventAttributes, type Analytics } from "../lib/analytics.ts";
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from "../lib/buttons.ts";
+
+interface Props {
+  card: PublishedCard;
+  locality: ServedLocality;
+  /** The measurement of the page (pageAnalytics), or null when it is off. */
+  analytics: Analytics | null;
+}
+
+const { card, locality, analytics } = Astro.props;
+const whatsapp = whatsappLink(card.whatsapp);
+const call = callLink(card.landline);
+const directions = directionsLink(card.address, card.zoneName, locality);
+const page = registeredPage(card.pageUrl);
+const secondary = `${SECONDARY_BUTTON} px-6 py-3 text-base`;
+const whatsappEvent = eventAttributes(analytics, ANALYTICS_EVENTS.whatsappCard, {
+  locality,
+  category: card.category.slug,
+});
+---
+
+<div class="flex flex-col gap-3">
+  {whatsapp && (
+    <a
+      href={whatsapp}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Enviar WhatsApp a ${card.name}`}
+      class={`${PRIMARY_BUTTON} w-full px-6 py-3 text-lg`}
+      {...whatsappEvent}
+    >
+      Enviar WhatsApp
+    </a>
+  )}
+  {(call || directions || page) && (
+    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      {call && (
+        <a href={call} class={secondary}>
+          Llamar
+        </a>
+      )}
+      {directions && (
+        <a href={directions} target="_blank" rel="noopener noreferrer" class={secondary}>
+          Cómo llegar
+        </a>
+      )}
+      {page && (
+        <a
+          href={page.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          class={`${secondary} max-w-full break-all`}
+        >
+          {`Ver su página (${page.domain})`}
+        </a>
+      )}
+    </div>
+  )}
+</div>

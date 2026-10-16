@@ -1,6 +1,6 @@
 // Scenarios of docs/specs/base-layout.md, requirements "Cookieless measurement
 // is loaded only in production and only when configured (v2)", "The admin
-// panel and edit mode stay out of the measurement" and "Three product events
+// panel and edit mode stay out of the measurement" and "Four product events
 // are recorded, only in production (v2)": the decisions of
 // src/lib/analytics.ts. The script tag in the layout is tested with the
 // Container API (test/astro/layout.test.ts), and the served site with the
@@ -98,9 +98,10 @@ describe("The admin panel and edit mode stay out of the measurement", () => {
   });
 });
 
-describe("Three product events are recorded, only in production (v2)", () => {
-  it("three event names, read from one place", () => {
+describe("Four product events are recorded, only in production (v2)", () => {
+  it("four event names, read from one place", () => {
     expect(Object.values(ANALYTICS_EVENTS)).toEqual([
+      "whatsapp-listing",
       "whatsapp-card",
       "search-no-results",
       "registration-submitted",

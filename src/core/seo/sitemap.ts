@@ -5,6 +5,8 @@
 // so activating a locality or publishing a card needs no other change. Pure
 // apart from the database: src/pages/sitemap.xml.ts turns the paths into
 // absolute URLs with SITE_URL.
+import { publishedCards } from "../business/card.ts";
+import { cardPath } from "../business/card-path.ts";
 import type { Db } from "../db/client.ts";
 import { PRIVACY_NOTICE_PATH, TERMS_PATH } from "../legal/document.ts";
 import { localityPath } from "../locality/paths.ts";
@@ -27,14 +29,20 @@ export type LocalityPages = (
  * Every indexable page of a locality, by kind. A page of a locality that
  * search engines may index adds its kind here when it lands, and nowhere
  * else. Still to come: the registration page (`/registro`, epic E); the 8
- * categories, even when empty; the trade pages and trade and zone pages with
- * at least one published business; and the published cards, each with its
- * publication date as `lastModified` (epic D). Never the search results, the
- * report form, the thank-you pages, the edit mode or anything unpublished.
+ * categories, even when empty; and the trade pages and trade and zone pages
+ * with at least one published business (epic D). Never the search results,
+ * the report form, the thank-you pages, the edit mode or anything
+ * unpublished.
  */
 export const LOCALITY_PAGES: readonly LocalityPages[] = [
   // The home of the locality.
   (locality) => [{ path: localityPath(locality) }],
+  // The published cards, at their current URL, each with its publication date.
+  async (locality, db) =>
+    (await publishedCards(db, locality.code)).map((card) => ({
+      path: cardPath(locality, card),
+      lastModified: card.publishedAt ?? undefined,
+    })),
 ];
 
 /** The indexable pages that belong to no locality: the two legal pages. */

@@ -610,18 +610,23 @@ The document head MUST carry `<meta name="format-detection" content="telephone=n
 - **WHEN** a card shows a landline as plain text ("Teléfono: …")
 - **THEN** the text is not wrapped in a `tel:` link by the site
 
-### Requirement: Three product events are recorded, only in production (v2)
+### Requirement: Four product events are recorded, only in production (v2)
 
-Added in v2 — source: PRD §6.4, ADR 0014.
+Added in v2 — source: PRD §6.4, ADR 0014. Amended on 2026-10-15 by decision of the product owner (ADR 0014, amended): a fourth event, the WhatsApp click from a listing card, kept apart from the card's; until then there were three events and this requirement was named "Three product events are recorded, only in production (v2)".
 
-The analytics (Umami Cloud) MUST record three product events: a WhatsApp click from a card, a search with no results and a registration submitted. Each event MUST carry the locality and the category as its only properties. No cookie is set and no personal data travels. The script and the events MUST exist only in production: `stage` and `dev` load no analytics. The admin panel and the management-link screens stay outside the measurement.
+The analytics (Umami Cloud) MUST record four product events: a WhatsApp click from a listing card, a WhatsApp click from a card, a search with no results and a registration submitted. Each event MUST carry the locality and the category as its only properties. No cookie is set and no personal data travels. The script and the events MUST exist only in production: `stage` and `dev` load no analytics. The admin panel and the management-link screens stay outside the measurement.
 
-The three events are named `whatsapp-card`, `search-no-results` and `registration-submitted`, and no page sends any other name. They are declared as attributes of the element that triggers them, read from one place in the code: `data-umami-event` with the name, `data-umami-event-locality` with the locality as `{estado}/{municipio}` (its two slugs, as in its URLs) and, when the event has a category, `data-umami-event-category` with the category slug. Where the measurement is off (every environment but production with a Website ID, the panel and the edit mode) the element carries none of them. The elements arrive with their stories: the WhatsApp button of a card, the search results and the registration form.
+The four events are named `whatsapp-listing`, `whatsapp-card`, `search-no-results` and `registration-submitted`, and no page sends any other name. The two WhatsApp events stay apart: most contacts may start from a listing, and the card's own clicks over its views are a metric of their own (PRD §10). They are declared as attributes of the element that triggers them, read from one place in the code: `data-umami-event` with the name, `data-umami-event-locality` with the locality as `{estado}/{municipio}` (its two slugs, as in its URLs) and, when the event has a category, `data-umami-event-category` with the category slug. Where the measurement is off (every environment but production with a Website ID, the panel and the edit mode) the element carries none of them. The elements arrive with their stories: the WhatsApp buttons of the listing card and of the card, the search results and the registration form.
+
+#### Scenario: WhatsApp click from a listing card
+
+- **WHEN** a resident taps the WhatsApp button of a listing card in production
+- **THEN** `whatsapp-listing` is recorded with the locality and the category of the business
 
 #### Scenario: WhatsApp click
 
 - **WHEN** a resident taps the WhatsApp button of a card in production
-- **THEN** the event is recorded with the locality and the category of the business
+- **THEN** `whatsapp-card` is recorded with the locality and the category of the business
 
 #### Scenario: search with no results
 
@@ -733,14 +738,14 @@ Where indexing is allowed (locally today, and production once the cut-over lifts
 
 ### Requirement: The sitemap lists the pages that exist, from the database (v2)
 
-Added in v2 — source: ADR 0007, ADR 0008, PRD §8.
+Added in v2 — source: ADR 0007, ADR 0008, PRD §8. Amended on 2026-10-15 by EMR-34: the published cards are listed; until then the only indexable page of a locality was its home.
 
-The site MUST serve `/sitemap.xml`, generated from the database on every request through the cached connection, with no manual step. It MUST list, with absolute URLs built from `SITE_URL`, exactly the indexable pages that exist: for every active locality, the pages of that locality under its `/{estado}/{municipio}`, and once each, the two legal pages ("The sitemap includes the two legal pages (v2)"). Today the only indexable page of a locality is its home. Each indexable page of a locality that a later story adds MUST add its kind to the same single list, so the sitemap grows with the site: the registration page (`/registro`); the listings of the 8 categories, even when empty; the trade pages and the trade and zone pages with at least one published business; and the published cards, each with its publication date as its last modification date. The sitemap MUST NOT list the panel, the search results, the report form and the thank-you pages, the edit mode, an inactive locality or a business that is not published, nor leak any of their data. In an environment without a base for absolute URLs it MUST be a valid, empty sitemap, never a local address. Until the cut-over, its response in a deployed environment carries `X-Robots-Tag: noindex` like every other one, and the closed `robots.txt` does not announce it. A test MUST fail when any URL of the served sitemap does not answer 200.
+The site MUST serve `/sitemap.xml`, generated from the database on every request through the cached connection, with no manual step. It MUST list, with absolute URLs built from `SITE_URL`, exactly the indexable pages that exist: for every active locality, the pages of that locality under its `/{estado}/{municipio}`, and once each, the two legal pages ("The sitemap includes the two legal pages (v2)"). Today the indexable pages of a locality are its home and its published cards, each card at its current URL (`public-directory`, "An outdated card URL redirects to its current URL (v2)") with its publication date as its last modification date. Each indexable page of a locality that a later story adds MUST add its kind to the same single list, so the sitemap grows with the site: the registration page (`/registro`); the listings of the 8 categories, even when empty; and the trade pages and the trade and zone pages with at least one published business. The sitemap MUST NOT list the panel, the search results, the report form and the thank-you pages, the edit mode, an inactive locality or a business that is not published, nor leak any of their data. In an environment without a base for absolute URLs it MUST be a valid, empty sitemap, never a local address. Until the cut-over, its response in a deployed environment carries `X-Robots-Tag: noindex` like every other one, and the closed `robots.txt` does not announce it. A test MUST fail when any URL of the served sitemap does not answer 200.
 
 #### Scenario: what exists today
 
 - **WHEN** the sitemap is read with Tizayuca as the only active locality
-- **THEN** it lists the home of Tizayuca, `/aviso-de-privacidad` and `/terminos`, each once and absolute
+- **THEN** it lists the home of Tizayuca, each published card of Tizayuca with its publication date, `/aviso-de-privacidad` and `/terminos`, each once and absolute, and no card in review or rejected
 
 #### Scenario: every URL answers
 

@@ -10,6 +10,7 @@
 // ("Public pages may show a change up to a minute late (v2)") and the panel
 // says so after each change.
 import { and, asc, eq, exists, like, or, type SQL, sql, type SQLWrapper } from "drizzle-orm";
+import type { ListingBusiness } from "../business/listing.ts";
 import type { Db } from "../db/client.ts";
 import { businesses, businessTrades, categories, trades, zones } from "../db/schema/index.ts";
 import { searchTerms } from "./normalize.ts";
@@ -21,21 +22,8 @@ export interface SearchLocality {
   name: string;
 }
 
-/** What a listing card shows, and nothing else. */
-export interface SearchResult {
-  id: string;
-  name: string;
-  /** The business's own category, for the placeholder and the analytics event. */
-  categorySlug: string;
-  /** The catalogue zone, or the free text of "Otra"; null when there is neither. */
-  zoneName: string | null;
-  /** Null when the zone is "Otra" pending normalization. */
-  zoneSlug: string | null;
-  homeDelivery: boolean;
-  whatsapp: string;
-  /** The stored photo reference, uninterpreted: the view builds the URL. */
-  photoKey: string | null;
-}
+/** What a listing card shows, and nothing else: the results use the listing's card. */
+export type SearchResult = ListingBusiness;
 
 /**
  * Escapes the LIKE wildcards and the escape character itself. PostgreSQL's

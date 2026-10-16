@@ -2,7 +2,8 @@
 // and protected external links", and docs/specs/public-directory.md, "Public
 // URLs carry the state and the municipality (v2)", scenario "links keep the
 // prefix", on the rendered site: starting at `/` (the home of the seeded
-// locality) and at a page that does not exist, it follows every internal link
+// locality), at a page that does not exist and at every page of the sitemap
+// (the cards, which no page links to yet), it follows every internal link
 // and form destination of the public pages and checks that each one answers,
 // that the links of a page of a locality keep its prefix, and that links that
 // open a new tab carry `rel="noopener noreferrer"`. The panel is left out: no
@@ -29,7 +30,11 @@ test("every internal link and form of the public pages leads to a page that exis
   const routes = staticRoutes();
   // A page that does not exist is visited too, for the links of the 404 page.
   const missing = "/no-existe-esta-pagina";
-  const queue = ["/", missing];
+  const sitemap = await (await page.request.get("/sitemap.xml")).text();
+  const listed = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map(
+    ([, url = ""]) => new URL(url).pathname,
+  );
+  const queue = ["/", missing, ...listed];
   const visited = new Set<string>();
   const problems: string[] = [];
 

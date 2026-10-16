@@ -65,10 +65,12 @@ export function requireLocality(locals: { locality?: ServedLocality }): ServedLo
 }
 
 /**
- * A 301 to a path of this site, for `/` while one locality is active.
- * Browsers keep a 301 with no cache headers forever, and where `/` leads
- * depends on how many localities are active (ADR 0007), so they keep this
- * one for an hour at most.
+ * A 301 to a path of this site that browsers keep for an hour at most: for
+ * `/` while one locality is active, and for a card asked for with an
+ * outdated readable part. Browsers keep a 301 with no cache headers forever,
+ * and where both lead can change (`/` when another locality is activated, a
+ * card when its business is renamed), so a stale one must expire. It never
+ * depends on the visitor: a redirect that does is a temporaryRedirect.
  */
 export function permanentRedirect(path: string): Response {
   return new Response(null, {

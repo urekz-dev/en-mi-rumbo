@@ -1,0 +1,17 @@
+---
+// A Schema.org block (docs/specs/public-directory.md, "Each published card
+// emits Schema.org LocalBusiness"). It is a data block, not a script: the
+// browser never runs it, so it is no client JavaScript and the content
+// security policy (`script-src 'self'`) does not apply to it. It is the only
+// `<script>` a page of the site writes itself. `serializeJsonLd` escapes what
+// the business wrote, so a name with markup cannot close the block.
+import { serializeJsonLd } from "../core/seo/card.ts";
+
+interface Props {
+  data: unknown;
+}
+
+const { data } = Astro.props;
+---
+
+<script type="application/ld+json" set:html={serializeJsonLd(data)} />

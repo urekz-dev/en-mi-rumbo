@@ -1468,3 +1468,58 @@ The public pages read through the cached Hyperdrive binding, whose results may b
 
 - **WHEN** the admin permanently deletes a card
 - **THEN** within a minute no public page shows its data, and its URL answers the usual 404
+
+### Requirement: An outdated card URL redirects to its current URL (v2)
+
+Added in v2 — source: ADR 0007, EMR-34.
+
+The URL of a card is `/{estado}/{municipio}/negocio/<slug>-<id>`. The identifier is what follows the last hyphen: the ten characters of `data-model`, "The card is identified by a short random id (v2)". The slug is the business's current name in lowercase ASCII words joined by hyphens, without accents (`ñ` becomes `n`) and with everything else dropped; a name that leaves no slug gives the identifier alone. The canonical URL, the sitemap and every link name that current URL.
+
+In "Business card at its own URL with the registered information and the verified seal", a card URL whose readable part does not match the business's current name still shows the card: it MUST answer a 301 redirect to the card's current URL, so a link shared over WhatsApp keeps working and search engines index one URL per card. Any other readable part redirects: an earlier name, a typo, the name with its accents or the identifier alone. Because the name can change again, even back to an earlier one, the redirect MUST tell browsers to keep it for an hour at most (`Cache-Control: max-age=3600`), like the one of the root; it does not depend on the visitor. Only a published card of the locality of the URL redirects: a segment without an identifier, an identifier that does not exist, a card of another locality, and a card in review, rejected or deleted answer the same 404 ("Only what is published is shown"), so a redirect never reveals a card that is not published.
+
+#### Scenario: an earlier name
+
+- **WHEN** someone opens `/hidalgo/tizayuca/negocio/plomeria-el-nombre-de-antes-<id>` and the published card `<id>` of Tizayuca is now named "Plomería Los Fontaneros Ficticios"
+- **THEN** the answer is a 301 to `/hidalgo/tizayuca/negocio/plomeria-los-fontaneros-ficticios-<id>` with `Cache-Control: max-age=3600`
+- **AND** following it, they see the card
+
+#### Scenario: the identifier alone
+
+- **WHEN** someone opens `/hidalgo/tizayuca/negocio/<id>` of a published card
+- **THEN** the answer is the same 301 to its current URL
+
+#### Scenario: a card that is not published
+
+- **WHEN** someone opens, with any readable part, the identifier of a card in review, rejected or deleted
+- **THEN** they get the 404 of a card that does not exist, without a redirect
+
+#### Scenario: a card of another locality
+
+- **WHEN** the identifier of a published card of another locality is opened under `/hidalgo/tizayuca/negocio/`
+- **THEN** they get the same 404 as for an identifier that does not exist
+
+### Requirement: Only the WhatsApp buttons of the card and the listing card are measured (v2)
+
+Added in v2 — source: ADR 0014 (amended on 2026-10-15), PRD §6.4.
+
+`base-layout`, "Four product events are recorded, only in production (v2)", allows four event names, each with the locality and the category as its only properties. So in "The listing card brings the essentials and WhatsApp without extra taps" and "Contact buttons on the card with WhatsApp as the main action", the two WhatsApp buttons keep their events, `whatsapp-listing` and `whatsapp-card`, with the locality in place of the zone; the events `call` and `directions` are not sent, and no event carries a `zone`. The WhatsApp button of the listing card MUST declare `whatsapp-listing`, and "Enviar WhatsApp" on the card `whatsapp-card`, each with the locality (`{estado}/{municipio}`) and the slug of the business's own category, never the page's, on the link itself, since both open a new tab. "Llamar", "Cómo llegar" and the link to the registered page declare no event; with no event, "Llamar" needs no wrapping element. Where the measurement is off, no element carries an event attribute, and every button works the same. The two WhatsApp events stay apart, so the clicks of the card over its page views remain the PRD §10 metric ("The card view is measured on its own, without custom instrumentation").
+
+#### Scenario: WhatsApp from a listing card
+
+- **WHEN** a resident taps the WhatsApp button of the listing card of a "Belleza" business of Tizayuca, in production with a Website ID, on a listing or on the results page
+- **THEN** `whatsapp-listing` is recorded with the locality `hidalgo/tizayuca` and the category `belleza`, and nothing else about the business
+
+#### Scenario: WhatsApp from the card
+
+- **WHEN** a resident taps "Enviar WhatsApp" on the card of a "Talleres" business of Tizayuca, in production with a Website ID
+- **THEN** `whatsapp-card` is recorded with the locality `hidalgo/tizayuca` and the category `talleres`, and nothing else about the business
+
+#### Scenario: the other buttons of the card
+
+- **WHEN** the HTML of a card with "Llamar", "Cómo llegar" and a registered page is reviewed, with the measurement on
+- **THEN** only "Enviar WhatsApp" carries event attributes
+
+#### Scenario: the measurement off
+
+- **WHEN** a card or a listing card is shown where the measurement is off
+- **THEN** no element carries an event attribute, and every button works the same
